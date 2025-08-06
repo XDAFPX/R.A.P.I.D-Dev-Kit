@@ -1,0 +1,11 @@
+{
+  "name": "com.DAFP.RAPID",
+  "version": "1.0.0",
+  "displayName": "R.A.P.I.D Development Kit",
+  "description": "dx!=0.0f",
+  "unity": "2020.3",
+  "author": {
+    "name": "DAFP",
+    "email": "boghdan.pavlovich@gmail.com"
+  }
+}
