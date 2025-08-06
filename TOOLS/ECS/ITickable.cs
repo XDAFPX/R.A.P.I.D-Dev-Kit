@@ -1,0 +1,7 @@
+﻿namespace DAFP.TOOLS.ECS
+{
+    public interface ITickable
+    {
+        public void Tick();
+    }
+}
