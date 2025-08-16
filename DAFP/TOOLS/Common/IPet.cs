@@ -1,14 +1,13 @@
 ﻿using System.Collections.Generic;
 using DAFP.TOOLS.ECS;
+using DAFP.TOOLS.ECS.BigData;
 
 namespace DAFP.TOOLS.Common
 {
-    public interface IPet
+    public interface IPet :IOwnable
     {
-        List<Entity> Owners { get; }
-        Entity GetCurrentOwner();
-        Entity GetExOwner();
+        List<IEntity> Owners { get; }
+        IEntity GetExOwner();
 
-        void ChangeOwner(Entity newOwner);
     }
 }

@@ -1,45 +1,44 @@
-﻿using DAFP.TOOLS.Common;
+﻿using System;
+using DAFP.TOOLS.Common;
+using DAFP.TOOLS.Common.Utill;
 using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
     public abstract class Vector3Board : WhiteBoard<Vector3>
     {
-
         public override bool SyncToBlackBoard { get; }
+
         public override void Randomize(float margin01)
         {
             Value = Value.Randomize(margin01);
         }
 
-        protected override Vector3 GetValue()
+        protected override Vector3 GetValue(Vector3 ProcessedValue)
         {
-            return InternalValue;
+            return ProcessedValue;
         }
 
 
-        protected override void SetValue(Vector3 value)
-        {
-            InternalValue = Vector3.ClampMagnitude(value, MaxValue.magnitude);
-        }
 
-        [field: SerializeField] public override Vector3 MaxValue { get; set; }
-        [field: SerializeField] public override Vector3 MinValue { get; set; }
-        [field: SerializeField] public override Vector3 DefaultValue { get; set; }
+        public override Vector3 MaxValue { get; set; }
+        public override Vector3 MinValue { get; set; }
+        public override Vector3 DefaultValue { get; set; }
 
         public override void SetToMax()
         {
-            SetValue(MaxValue);
+            Value = MaxValue;
         }
 
         public override void SetToMin()
         {
-            SetValue(MinValue);
+            Value = MaxValue;
+
         }
 
         protected override void ResetInternal()
         {
-            SetValue(DefaultValue);
+            InternalValue = DefaultValue;
         }
     }
 }

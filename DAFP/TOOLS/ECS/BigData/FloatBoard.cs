@@ -1,5 +1,6 @@
 ﻿using System;
 using DAFP.TOOLS.Common;
+using DAFP.TOOLS.Common.Utill;
 using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData
@@ -8,7 +9,8 @@ namespace DAFP.TOOLS.ECS.BigData
     {
         public override void Randomize(float margin01)
         {
-            Value = Value.Randomize(margin01);
+            DefaultValue = DefaultValue.Randomize(margin01);
+            Value = DefaultValue;
         }
 
         protected override void ResetInternal()
@@ -18,28 +20,25 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public override bool SyncToBlackBoard => true;
 
-        protected override float GetValue()
+        protected override float GetValue(float ProcessedValue)
         {
-            return InternalValue;
+            return ProcessedValue;
         }
 
-        protected override void SetValue(float value)
+        protected override float ClampAndProcessValue(float value)
         {
-            InternalValue = Math.Clamp(value, MinValue, MaxValue);
+            return Mathf.Clamp(value, MinValue, MaxValue);
         }
 
-        [field: SerializeField] public override float MaxValue { get; set; }
-        [field: SerializeField] public override float MinValue { get; set; }
-        [field: SerializeField] public override float DefaultValue { get; set; }
 
         public override void SetToMax()
         {
-            SetValue(MaxValue);
+            Value = MaxValue;
         }
 
         public override void SetToMin()
         {
-            SetValue(MinValue);
+            Value = MaxValue;
         }
     }
 }

@@ -270,35 +270,35 @@ namespace DAFP.TOOLS.Common.UI
             Invoke(nameof(TryHideHealthTimer), 16);
     
         }
-        public void Pause()
-        {
-            if(GameSystem.STATE == GameSystem.Gamestate.Playing)
-            {
-                Time.timeScale = 0f;
-                GameSystem.STATE = GameSystem.Gamestate.Paused;
-                PauseMenu.gameObject.SetActive(true);
-            }
-    
-    
-        }
-        public void UnPause()
-        {
-            if (GameSystem.STATE == GameSystem.Gamestate.Paused)
-            {
-                Time.timeScale = 1f;
-                GameSystem.STATE = GameSystem.Gamestate.Playing;
-                PauseMenu.gameObject.SetActive(false);
-            }
-        }
-        public void Update()
-        {
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                if(GameSystem.STATE == GameSystem.Gamestate.Paused)
-                    UnPause();
-                else if (GameSystem.STATE == GameSystem.Gamestate.Playing)
-                    Pause();
-            }
-        }
+        // public void Pause()
+        // {
+        //     if(GameSystem.STATE == GameSystem.Gamestate.Playing)
+        //     {
+        //         Time.timeScale = 0f;
+        //         GameSystem.STATE = GameSystem.Gamestate.Paused;
+        //         PauseMenu.gameObject.SetActive(true);
+        //     }
+        //
+        //
+        // }
+        // public void UnPause()
+        // {
+        //     if (GameSystem.STATE == GameSystem.Gamestate.Paused)
+        //     {
+        //         Time.timeScale = 1f;
+        //         GameSystem.STATE = GameSystem.Gamestate.Playing;
+        //         PauseMenu.gameObject.SetActive(false);
+        //     }
+        // }
+        // public void Update()
+        // {
+        //     if (Input.GetKeyDown(KeyCode.Escape))
+        //     {
+        //         if(GameSystem.STATE == GameSystem.Gamestate.Paused)
+        //             UnPause();
+        //         else if (GameSystem.STATE == GameSystem.Gamestate.Playing)
+        //             Pause();
+        //     }
+        // }
     }
 }

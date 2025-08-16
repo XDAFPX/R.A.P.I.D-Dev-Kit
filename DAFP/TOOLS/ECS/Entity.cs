@@ -12,12 +12,8 @@ namespace DAFP.TOOLS.ECS
         [InspectorName("RandomizingFrom0To100")] [Range(0, 100)] [SerializeField]
         private float Variety = 10;
 
-        public HashSet<IEntityComponent> Components { get; }
+        public HashSet<IEntityComponent> Components { get; } = new HashSet<IEntityComponent>();
 
-        private void Awake()
-        {
-            ((IEntity)this).Initialize();
-        }
 
         private void GatherComponents()
         {
@@ -40,19 +36,36 @@ namespace DAFP.TOOLS.ECS
             component.Register(this);
         }
 
-        protected abstract ITicker<IEntity> EntityTicker { get; }
+        public abstract ITicker<IEntity> EntityTicker { get; }
 
-        void IEntity.Initialize()
+        private void Awake()
+        {
+            Initialize();
+        }
+
+        public void Initialize()
         {
             World.RegisterEntity(this, EntityTicker);
             GatherComponents();
             foreach (IEntityComponent _component in Components)
             {
-                _component.OnInitializeInternal();
+                _component.Initialize();
             }
 
+            InitializeInternal();
             HasInitialized = true;
         }
+
+        public void OnStart()
+        {
+            if (Variety != 0)
+                Randomize(Variety / 100);
+            foreach (IEntityComponent _entityComponent in Components)
+            {
+                _entityComponent.OnStartInternal();
+            }
+        }
+
 
         public void Tick()
         {
@@ -60,10 +73,18 @@ namespace DAFP.TOOLS.ECS
             {
                 component.Tick();
             }
+
+            TickInternal();
         }
 
+        protected abstract void TickInternal();
+        protected abstract void InitializeInternal();
         public bool HasInitialized { get; set; }
-        public ITicker<IEntity> ITicker { get; set; }
+
+        public GameObject GetWorldRepresentation()
+        {
+            return gameObject;
+        }
 
         public virtual void Dispose()
         {
@@ -71,31 +92,31 @@ namespace DAFP.TOOLS.ECS
         }
 
 
-        protected HashSet<IPet> Pets = new HashSet<IPet>();
+        protected HashSet<IOwnable> Pets = new HashSet<IOwnable>();
 
-        public virtual void AddPet(IPet pet)
+        public virtual void AddPet(IOwnable pet)
         {
             Pets.Add(pet);
         }
 
-        public virtual void RemovePet(IPet pet)
+        public virtual void RemovePet(IOwnable pet)
         {
             Pets.Remove(pet);
         }
 
-        public List<Entity> Owners { get; } = new List<Entity>();
+        public List<IEntity> Owners { get; } = new List<IEntity>();
 
-        public Entity GetCurrentOwner()
+        public IEntity GetCurrentOwner()
         {
             return Owners.LastOrDefault();
         }
 
-        public Entity GetExOwner()
+        public IEntity GetExOwner()
         {
             return Owners.Count >= 2 ? Owners[^2] : null;
         }
 
-        public void ChangeOwner(Entity newOwner)
+        public void ChangeOwner(IEntity newOwner)
         {
             if (GetCurrentOwner() == null)
             {

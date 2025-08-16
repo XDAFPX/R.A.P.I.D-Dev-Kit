@@ -1,0 +1,16 @@
+{
+    "name": "PixelRouge",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b816fd5882cf7a24aaacb2a52e032e30"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

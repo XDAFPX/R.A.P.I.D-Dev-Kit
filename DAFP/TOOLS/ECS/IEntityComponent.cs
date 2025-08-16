@@ -1,9 +1,11 @@
-﻿namespace DAFP.TOOLS.ECS
+﻿using DAFP.TOOLS.Common;
+
+namespace DAFP.TOOLS.ECS
 {
-    public interface IEntityComponent : ITickable
+    public interface IEntityComponent : ITickable,IGameObjectProvider
     {
-        public void Register(Entity entity);
-        public void OnInitializeInternal();
+        public void Register(IEntity entity);
+        public void Initialize();
         public void OnStartInternal();
     }
 }

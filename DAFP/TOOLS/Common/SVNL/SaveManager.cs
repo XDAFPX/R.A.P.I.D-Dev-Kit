@@ -14,29 +14,13 @@ namespace DAFP.TOOLS.Common.SVNL
     public class SaveManager : Manager<SaveManager>
     {
     
-        public override void Awake()
-        {
-            base.Awake();
-            DontDestroyOnLoad(this.gameObject);
-            
-    
-        }
-        private void Update()
-        {
-            if (Input.GetKeyDown(KeyCode.F5))
-            {
-                SaveSaveSlot(TrySaveTheGame(0));
-            }
-            if (Input.GetKeyDown(KeyCode.F6))
-            {
-                FullyLoadGame(0);
-            }
-        }
+ 
+
     
     
         public void SaveUniversal()
         {
-            SaveSaveSlot(TrySaveTheGame(CurrentSaveSlot.Slot));
+            // SaveSaveSlot(TrySaveTheGame(CurrentSaveSlot.Slot));
         }
         public void LoadUniversal()
         {
@@ -49,16 +33,16 @@ namespace DAFP.TOOLS.Common.SVNL
         {
             CurrentObjects.Add(obj);
         }
-        public SaveSlot TrySaveTheGame(int slot)
-        {
-            List<SavebleObject> _objs = new List<SavebleObject>();
-    
-            CurrentObjects.RemoveAll((obj) => { return obj == null; });
-    
-            CurrentObjects.ForEach((obj) => { SubscribeISave(obj.gameObject, obj);  _objs.Add(obj.Save()); });
-    
-            return new SaveSlot($"CGS_{slot}", slot, new MapSave(SceneManager.GetActiveScene().name, _objs.ToArray()), GetCurrentPlayerData());
-        }
+        // public SaveSlot TrySaveTheGame(int slot)
+        // {
+        //     List<SavebleObject> _objs = new List<SavebleObject>();
+        //
+        //     CurrentObjects.RemoveAll((obj) => { return obj == null; });
+        //
+        //     CurrentObjects.ForEach((obj) => { SubscribeISave(obj.gameObject, obj);  _objs.Add(obj.Save()); });
+        //
+        //     return new SaveSlot($"CGS_{slot}", slot, new MapSave(SceneManager.GetActiveScene().name, _objs.ToArray()), GetCurrentPlayerData());
+        // }
         public void FullyLoadGame(int slot)
         {
             var _path = Application.persistentDataPath + "/Saves";
@@ -97,67 +81,67 @@ namespace DAFP.TOOLS.Common.SVNL
         private void LoadObjectAndPlayerData(AsyncOperation operation)
         {
             Debug.Log("Loading Objects Data");
-            StartCoroutine(WaitAndLoadStuff());
+            // StartCoroutine(WaitAndLoadStuff());
     
         }
-        private IEnumerator WaitAndLoadStuff()
-        {
-            for (int _i = 0; _i < 2; _i++)
-            {
-                yield return null;
-            }
-            UIManager.Singleton.HealthBar.value = CurrentSaveSlot.PlayerPlot.Health;
-            UIManager.Singleton.ShieldBar.value = CurrentSaveSlot.PlayerPlot.Shield;
-            UIManager.Singleton.AddBattery(CurrentSaveSlot.PlayerPlot.Money);
-            GameSystem.GetPlayer().transform.position = CurrentSaveSlot.PlayerPlot.Pos;
-            GameSystem.GetPlayer().transform.rotation = Quaternion.Euler(CurrentSaveSlot.PlayerPlot.Rot);
-            CurrentObjects.RemoveAll((obj) => { return obj == null; });
-            foreach (var _obj in CurrentSaveSlot.MapSave.Objects)
-            {
-                Debug.Log($"Trying to Load {_obj.Name} with ID: {_obj.ID}");
-                var _c = CurrentObjects.Find((SavebleObjectRuntime o) => { return o.UniqueID == _obj.ID; });
-    
-                if (_c!=null)
-                {
-                    _c.LoadData(_obj);
-                    continue;
-                }
-                
-    
-                //--------------------------------------------------------------
-    
-                try
-                {
-                    var _path = _obj.GetInstanceResourcePath();
-                    if (_path != null)
-                    {
-                        Debug.Log("Loaded Resource: " + _path);
-                        GameObject _inst = (GameObject)Instantiate(Resources.Load(_path));
-                        if (_inst.TryGetComponent<SavebleObjectRuntime>(out var _save_inst))
-                        {
-                            SubscribeISave(_inst, _save_inst);
-    
-                            _save_inst.LoadData(_obj);
-                        }
-                        else
-                        {
-                            _inst.transform.position = _obj.Pos;
-                            _inst.transform.rotation = Quaternion.Euler(_obj.Rot);
-                            _inst.transform.localScale = _obj.Size;
-                        }
-    
-                    }
-                }
-                catch (Exception _e)
-                {
-    
-                    Debug.LogError($"Instancable Load Error. Failed trying load {_obj.Name} with Instancable  Id of {_obj.GetInt("Instancable")} Also here is the exeption: {_e.Message} ");
-                }
-            }
-    
-    
-    
-        }
+        // private IEnumerator WaitAndLoadStuff()
+        // {
+        //     for (int _i = 0; _i < 2; _i++)
+        //     {
+        //         yield return null;
+        //     }
+        //     UIManager.Singleton.HealthBar.value = CurrentSaveSlot.PlayerPlot.Health;
+        //     UIManager.Singleton.ShieldBar.value = CurrentSaveSlot.PlayerPlot.Shield;
+        //     UIManager.Singleton.AddBattery(CurrentSaveSlot.PlayerPlot.Money);
+        //     GameSystem.GetPlayer().transform.position = CurrentSaveSlot.PlayerPlot.Pos;
+        //     GameSystem.GetPlayer().transform.rotation = Quaternion.Euler(CurrentSaveSlot.PlayerPlot.Rot);
+        //     CurrentObjects.RemoveAll((obj) => { return obj == null; });
+        //     foreach (var _obj in CurrentSaveSlot.MapSave.Objects)
+        //     {
+        //         Debug.Log($"Trying to Load {_obj.Name} with ID: {_obj.ID}");
+        //         var _c = CurrentObjects.Find((SavebleObjectRuntime o) => { return o.UniqueID == _obj.ID; });
+        //
+        //         if (_c!=null)
+        //         {
+        //             _c.LoadData(_obj);
+        //             continue;
+        //         }
+        //         
+        //
+        //         //--------------------------------------------------------------
+        //
+        //         try
+        //         {
+        //             var _path = _obj.GetInstanceResourcePath();
+        //             if (_path != null)
+        //             {
+        //                 Debug.Log("Loaded Resource: " + _path);
+        //                 GameObject _inst = (GameObject)Instantiate(Resources.Load(_path));
+        //                 if (_inst.TryGetComponent<SavebleObjectRuntime>(out var _save_inst))
+        //                 {
+        //                     SubscribeISave(_inst, _save_inst);
+        //
+        //                     _save_inst.LoadData(_obj);
+        //                 }
+        //                 else
+        //                 {
+        //                     _inst.transform.position = _obj.Pos;
+        //                     _inst.transform.rotation = Quaternion.Euler(_obj.Rot);
+        //                     _inst.transform.localScale = _obj.Size;
+        //                 }
+        //
+        //             }
+        //         }
+        //         catch (Exception _e)
+        //         {
+        //
+        //             Debug.LogError($"Instancable Load Error. Failed trying load {_obj.Name} with Instancable  Id of {_obj.GetInt("Instancable")} Also here is the exeption: {_e.Message} ");
+        //         }
+        //     }
+        //
+        //
+        //
+        // }
     
         private static void SubscribeISave(GameObject inst1, SavebleObjectRuntime inst2)
         {
@@ -183,11 +167,11 @@ namespace DAFP.TOOLS.Common.SVNL
             }
             return _slto;
         }
-        private PlayerPlotSave GetCurrentPlayerData()
+        /*private PlayerPlotSave GetCurrentPlayerData()
         {
             Player _pl = GameSystem.GetPlayer();
             return new PlayerPlotSave(UIManager.Singleton.GetHealth(), UIManager.Singleton.HealthBar.maxValue, UIManager.Singleton.ShieldBar.value, UIManager.Singleton.ShieldBar.maxValue, _pl.MaximumWeapon, UIManager.Singleton.Batteries,_pl.transform.position,_pl.transform.rotation.eulerAngles);
-        }
+        }*/
     
         public void SaveSaveSlot(SaveSlot slot)
         {

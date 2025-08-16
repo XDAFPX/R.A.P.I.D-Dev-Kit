@@ -10,7 +10,7 @@ namespace DAFP.TOOLS.BTs
         private readonly Dictionary<string, object> data = new Dictionary<string, object>();
 
 
-        public BlackBoard(Entity target, Creature self)
+        public BlackBoard(Entity target, Entity self)
         {
             data.Clear();
             data.Add("Target", target);

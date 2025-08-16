@@ -1,8 +1,10 @@
+using System;
 using UnityEngine;
 
 // <> denotes this is a generic class
-namespace DAFP.GAME.Essential
+namespace DAFP.TOOLS.Common
 {
+    [RequireComponent(typeof(GODManager))]
     public class Manager<T> : MonoBehaviour where T : Component
     {
         // create a private reference to T instance
@@ -16,18 +18,10 @@ namespace DAFP.GAME.Essential
                 if (_instance == null)
                 {
                     // find the generic instance
-                    _instance = FindObjectOfType<T>();
-                    Debug.LogWarning($"{nameof(T)} does not exist in the scene( \n CREATING A NEW ONE !!!");
+                    _instance = FindFirstObjectByType<T>();
+                    Debug.LogWarning($"{nameof(T)} does not exist in the scene");
                     // if it's null again create a new object
                     // and attach the generic instance
-                    if (_instance == null)
-                    {
-                        GameObject _obj = new GameObject();
-                        _obj.name = typeof(T).Name;
-                        var inst = _obj.AddComponent<T>();
-                        var man =  inst as Manager<T>;
-                            man.Awake();
-                    }
                 }
                 return _instance;
             }
@@ -39,11 +33,7 @@ namespace DAFP.GAME.Essential
             if (_instance == null)
             {
                 _instance = this as T;
-                DontDestroyOnLoad(this.gameObject);
-            }
-            else
-            {
-                Destroy(gameObject);
+               
             }
         }
     }
