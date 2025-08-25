@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData.Common
 {
-    [DeltaTimeModdable]
     public class AccelerationBoard : FloatBoard
     {
         protected override void OnTick()

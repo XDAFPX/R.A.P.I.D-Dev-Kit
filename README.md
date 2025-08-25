@@ -5,9 +5,10 @@ A collection of tools and stolen code(libraries) for Unity projects... Made by a
 - A rudimentary ECS, not a full one, just the EC parts.
 - Stolen and modified BTS and SFM systems.
 - TODO MAKE THE REST OF READ.md
-# Credits: 
+# Credits for all the libraries: 
 - B-DeshiDev : https://github.com/BDeshiDev
 - Pixel Rubro : https://github.com/PixelRubro
 - EliteAsian123 : https://github.com/EliteAsian123
 - TripleA : https://github.com/Triple-A-Studios
 - ArchonInteractive : https://github.com/ArchonInteractive
+- Strom : https://github.com/StromKuo

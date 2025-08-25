@@ -2,6 +2,7 @@
 using PixelRouge.Colors;
 using PixelRouge.Inspector;
 using UnityEngine;
+using UnityGetComponentCache;
 
 namespace DAFP.TOOLS.ECS.Components
 {
@@ -12,6 +13,7 @@ namespace DAFP.TOOLS.ECS.Components
         [SerializeField] private LayerMask CheckMask;
         [SerializeField] private GroundCheckPosition[] Positions;
 
+        [GetComponentCache]private GroundedBoard groundedBoard;
         protected override void OnTick()
         {
             var _isGrounded = false;
@@ -56,7 +58,7 @@ namespace DAFP.TOOLS.ECS.Components
             }
 
             // Step 5: update the GroundedBoard component
-            GetEntComponent<GroundedBoard>().Value = _isGrounded;
+            groundedBoard.Value = _isGrounded;
         }
 
         protected override void OnInitialize()

@@ -8,7 +8,7 @@ namespace DAFP.TOOLS.ECS.BigData.GlobalModifiers
     {
         protected override void OnStart()
         {
-            foreach (var _entityComponent in Host.Components)
+            foreach (var _entityComponent in Host.Components.Values)
             {
                 if (_entityComponent is IStat<Damage> _stat && !ReferenceEquals(_entityComponent, this))
                     ApplyDamageModifiers(_stat);

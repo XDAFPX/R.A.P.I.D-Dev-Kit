@@ -1,9 +1,4 @@
-﻿using System.Collections;
-using Archon.SwissArmyLib.Utils.Editor;
-using DAFP.TOOLS.Common;
-using DAFP.TOOLS.Common.Utill;
-using DAFP.TOOLS.ECS.BigData.Common;
-using DAFP.TOOLS.ECS.BigData.Modifiers;
+﻿using DAFP.TOOLS.ECS.BigData.Common;
 using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Components
@@ -12,156 +7,32 @@ namespace DAFP.TOOLS.ECS.Components
     [RequireComponent(typeof(CanMoveBoard))]
     [RequireComponent(typeof(IsStunnedBoard))]
     [RequireComponent(typeof(MovementSpeedBoard))]
-    public class UniversalMover2D : EntityComponent
+    public class UniversalMover2D 
+        : UniversalMoverBase<Vector2, Rigidbody2D, ForceMode2D>
     {
-        private Rigidbody2D rb;
-
-        [ReadOnly] [SerializeField] private Vector2 InputMovement;
-#if UNITY_EDITOR
-        [ReadOnly] [SerializeField] private Vector2 MovementPrecision;
-#endif
-        public bool CanFly;
-        public bool CapSpeed = true;
-        public bool IsInKnockback { get; private set; }
-        public bool IsInDash { get; private set; }
-
-        protected override void OnInitialize()
+        protected override Vector2 Velocity
         {
-            rb = GetComponent<Rigidbody2D>();
+            get => rb.linearVelocity;
+            set => rb.linearVelocity = value;
         }
 
-        protected override void OnStart()
-        {
-        }
+        protected override void SetVelocity(Vector2 v) => rb.linearVelocity = v;
 
-        protected override void OnTick()
-        {
-            HandleInputMovement(InputMovement);
-            InputMovement = Vector2.zero;
-        }
+        protected override void AddForce(Vector2 f, ForceMode2D m) => rb.AddForce(f, m);
+        protected override void AddForce(Vector2 f) => rb.AddForce(f);
+        protected override ForceMode2D DefaultForceMode() => ForceMode2D.Force;
+        protected override ForceMode2D ImpulseMode()      => ForceMode2D.Impulse;
 
-        public void Input(Vector2 input)
-        {
-            InputMovement = input;
-        }
-
-        private void HandleInputMovement(Vector2 inputMovement)
-        {
-            if (!Host.GetEntComponent<CanMoveBoard>().Value) return;
-            if (Host.GetEntComponent<IsStunnedBoard>().Value) return;
-
-            float AccelerationSpeed = GetEntComponent<AccelerationBoard>().Value;
-            float DecelerationSpeed = GetEntComponent<DecelerationBoard>().Value;
-            Vector2 wishVel = inputMovement * Host.GetEntComponent<MovementSpeedBoard>().Value;
-            Vector2 curVel = rb.linearVelocity;
-
-            if (!CapSpeed)
-            {
-                rb.AddForce(new Vector2(wishVel.x, CanFly ? wishVel.y : 0));
-                return;
-            }
-
-            float dt = Host.EntityTicker.DeltaTime;
-
-            // Horizontal (X)
-            float deltaX = wishVel.x - curVel.x;
-            float forceX = 0f;
-            {
-                float targetX = Mathf.Abs(wishVel.x);
-                float currentX = Mathf.Abs(curVel.x);
-                float accelX = targetX > currentX ? AccelerationSpeed : DecelerationSpeed;
-                float thresholdX = accelX * dt;
-#if UNITY_EDITOR
-                MovementPrecision.x = thresholdX;
-#endif
-                if (Mathf.Abs(deltaX) > thresholdX)
-                    forceX = Mathf.Sign(deltaX) * accelX;
-            }
-
-            // Vertical (Y)
-            float forceY = 0f;
-            if (CanFly)
-            {
-                float deltaY = wishVel.y - curVel.y;
-                float targetY = Mathf.Abs(wishVel.y);
-                float currentY = Mathf.Abs(curVel.y);
-                float accelY = targetY > currentY ? AccelerationSpeed : DecelerationSpeed;
-                float thresholdY = accelY * dt;
-#if UNITY_EDITOR
-                MovementPrecision.y = thresholdY;
-#endif
-                if (Mathf.Abs(deltaY) > thresholdY)
-                    forceY = Mathf.Sign(deltaY) * accelY;
-            }
-
-            rb.AddForce(new Vector2(forceX, forceY));
-        }
-
-        public void DoDash(Vector2 force, float time)
-        {
-            if (!Host.GetEntComponent<CanMoveBoard>().Value) return;
-            if (Host.GetEntComponent<IsStunnedBoard>().Value) return;
-            IsInDash = true;
-            StartCoroutine(Dash(force, time));
-        }
-
-        public void Jump(Vector2 jump)
-        {
-            rb.AddForce(jump, ForceMode2D.Force);
-        }
-
-        private IEnumerator Dash(Vector2 force, float time)
-        {
-            var modMove = new LockModifier<bool>(Host, false, -50);
-            var modStun = new LockModifier<bool>(Host, true, -50);
-            GetEntComponent<CanMoveBoard>().AddModifier(modMove);
-            GetEntComponent<IsStunnedBoard>().AddModifier(modStun);
-
-            rb.AddForce(force * GetEntComponent<MovementSpeedBoard>().Value, ForceMode2D.Impulse);
-            yield return new WaitForSeconds(time);
-
-            IsInDash = false;
-            Halt(force.magnitude / 2f);
-
-            GetEntComponent<CanMoveBoard>().RemoveModifier(modMove);
-            GetEntComponent<IsStunnedBoard>().RemoveModifier(modStun);
-        }
-
-        public void Halt(float divisor)
-        {
-            rb.linearVelocity /= divisor;
-        }
-
-        public void AddKnockback(Vector2 force, float time, float delay)
-        {
-            if (IsInKnockback) return;
-            StartCoroutine(Knockback(force, time, delay));
-        }
-
-        private IEnumerator Knockback(Vector2 force, float time, float delay)
-        {
-            var modMove = new LockModifier<bool>(Host, false, -40);
-            var modStun = new LockModifier<bool>(Host, true, -40);
-            GetEntComponent<CanMoveBoard>().AddModifier(modMove);
-            GetEntComponent<IsStunnedBoard>().AddModifier(modStun);
-
-            yield return new WaitForSeconds(delay);
-
-            IsInKnockback = true;
-            rb.AddForce(force, ForceMode2D.Impulse);
-            yield return new WaitForSeconds(time);
-            IsInKnockback = false;
-
-            GetEntComponent<CanMoveBoard>().RemoveModifier(modMove);
-            GetEntComponent<IsStunnedBoard>().RemoveModifier(modStun);
-        }
-
-#if UNITY_EDITOR
-        private void OnDrawGizmos()
-        {
-            Gizmos.color = Color.white;
-            Gizmos.DrawLine(transform.position, transform.position + (Vector3)InputMovement);
-        }
-#endif
+        protected override Vector2 ZeroVector => Vector2.zero;
+        protected override int Dimension       => 2;
+        protected override Vector2 Multiply(Vector2 v, float s) => v * s;
+        protected override Vector2 Divide(Vector2 v, float s)   => v / s;
+        protected override float GetComponent(Vector2 v, int a) => a == 0 ? v.x : v.y;
+        protected override Vector2 SetComponent(Vector2 v, int a, float x)
+            => a == 0 ? new Vector2(x, v.y) : new Vector2(v.x, x);
+        protected override Vector2 MaskOutAxis(Vector2 v, int a)
+            => a == 1 ? new Vector2(v.x, 0) : v;
+        protected override float Magnitude(Vector2 v) => v.magnitude;
+        protected override float Angle(Vector2 a, Vector2 b) => Vector2.Angle(a, b);
     }
 }

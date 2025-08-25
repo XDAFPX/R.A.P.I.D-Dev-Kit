@@ -21,7 +21,8 @@ namespace BDeshi.BTSM
         /// </summary>
         /// <returns>Newly Created transition.</returns>
         private readonly string stateName;
-        public override string FullStateName => $"<{stateName}>";
+
+        public override string FullStateName => stateName;
         
         public BtCompleteTransition<TState> CreateRootSuccessTransition<TState>(TState to)
         where  TState:IState

@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using DAFP.TOOLS.Common.Utill;
+using UnityEngine;
+using UnityGetComponentCache;
 
 namespace DAFP.TOOLS.ECS
 {
@@ -9,9 +11,12 @@ namespace DAFP.TOOLS.ECS
         protected abstract void OnTick();
         protected abstract void OnInitialize();
         protected abstract void OnStart();
+
         public void Initialize()
         {
-           OnInitialize();
+            AnimationNameCacheInitializer.InitializeCaches(this);
+            GetComponentCacheInitializer.InitializeCaches(this);
+            OnInitialize();
         }
 
         void ITickable.OnStart()
@@ -24,16 +29,20 @@ namespace DAFP.TOOLS.ECS
             OnTick();
         }
 
+        public virtual ITickerBase EntityComponentTicker
+        {
+            get => Host.EntityTicker;
+        }
+
         public void Register(IEntity entity)
         {
             Host = entity;
+            if (EntityComponentTicker != Host.EntityTicker &&
+                EntityComponentTicker is ITicker<IEntityComponent> customTicker)
+                World.RegisterCustomComponentTicker(this, customTicker);
         }
 
 
-        public T GetEntComponent<T>() where T : EntityComponent
-        {
-            return Host.GetEntComponent<T>();
-        }
         public void OnStartInternal()
         {
             OnStart();

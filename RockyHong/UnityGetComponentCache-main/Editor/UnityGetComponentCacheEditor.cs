@@ -1,0 +1,65 @@
+using UnityEngine;
+using UnityEditor;
+using System.Reflection;
+
+namespace UnityGetComponentCache
+{
+    [CustomPropertyDrawer(typeof(GetComponentCacheAttribute))]
+    public class GetComponentCacheDrawer : PropertyDrawer
+    {
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            EditorGUI.BeginProperty(position, label, property);
+
+            // Calculate rects for the property field and the button
+            Rect propertyRect = new Rect(position.x, position.y, position.width - 60, position.height);
+            Rect buttonRect = new Rect(position.x + position.width - 50, position.y, 50, position.height);
+
+            var component = property.serializedObject.targetObject as Component;
+            var fieldType = fieldInfo.FieldType;
+            bool isFieldNull = CheckIfFieldIsNull(component, fieldInfo);
+
+            // Determine field color
+            GUI.backgroundColor = isFieldNull ? Color.red : Color.white;
+
+            // Draw the property field
+            EditorGUI.PropertyField(propertyRect, property, label);
+            
+            // Draw the button and handle its click
+            if (GUI.Button(buttonRect, "Get"))
+            {
+                if (component != null)
+                {
+                    var newComponent = component.GetComponent(fieldType);
+                    if (newComponent != null)
+                    {
+                        fieldInfo.SetValue(component, newComponent);
+                        property.serializedObject.Update();
+                        EditorUtility.SetDirty(component); // Mark object as dirty
+                    }
+                }
+            }
+
+            // Reset the background color
+            GUI.backgroundColor = Color.white;
+
+            EditorGUI.EndProperty();
+        }
+        
+        private bool CheckIfFieldIsNull(Component component, FieldInfo field)
+        {
+            if (component == null) return true;
+
+            var value = field.GetValue(component);
+            if (value == null) return true;
+
+            // Special handling for Unity objects
+            if (value is UnityEngine.Object unityObject)
+            {
+                return unityObject == null;
+            }
+
+            return false;
+        }
+    }
+}

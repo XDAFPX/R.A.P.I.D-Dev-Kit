@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Archon.SwissArmyLib.Utils.Editor;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -7,8 +8,19 @@ namespace DAFP.TOOLS.ECS.BigData
 {
     public abstract class WhiteBoard<T> : EntityComponent, IStat<T>
     {
-        public string Name { get; set; } = typeof(WhiteBoard<T>).FullName;
+        public string Name
+        {
+            get => GetType().Name;
+            set { }
+        }
+
         public abstract bool SyncToBlackBoard { get; }
+
+        public object GetAbsoluteValue()
+        {
+            return Value;
+        }
+
 
 #if UNITY_EDITOR
         [ReadOnly] [SerializeField] private T RealValue;
@@ -26,6 +38,19 @@ namespace DAFP.TOOLS.ECS.BigData
                 _Modifiers.Add(mod.GetType().Name + $"  From : {mod.GetCurrentOwner()}");
         }
 #endif
+
+
+        public delegate void ValueChangedCallBack(T newValue, T oldValue);
+
+        public delegate void ModifierAddedCallBack(StatModifier<T> newModifier);
+
+        public delegate void ModifierRemovedCallBack(StatModifier<T> oldModifier);
+
+        public event ValueChangedCallBack OnValueChanged;
+        public event ModifierAddedCallBack OnModifierAdded;
+        public event ModifierRemovedCallBack OnModifierRemoved;
+
+        public event IStatBase.UpdateValueCallBack OnUpdateValue;
 
         public T Value
         {
@@ -57,7 +82,9 @@ namespace DAFP.TOOLS.ECS.BigData
 
         private void SetValue(T value)
         {
+            OnValueChanged?.Invoke(value, InternalValue);
             InternalValue = ClampAndProcessValue(value);
+            OnUpdateValue?.Invoke(this);
         }
 
         protected abstract T ClampAndProcessValue(T value);
@@ -72,15 +99,21 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public void AddModifier(StatModifier<T> modifier)
         {
+            if (modifier == null)
+                return;
             if (StatModifiers.Contains(modifier))
                 return;
+            OnModifierAdded?.Invoke(modifier);
             StatModifiers.Add(modifier);
         }
 
         public void RemoveModifier(StatModifier<T> modifier)
         {
+            if (modifier == null)
+                return;
             if (!StatModifiers.Contains(modifier))
                 return;
+            OnModifierRemoved?.Invoke(modifier);
             StatModifiers.Remove(modifier);
         }
 
@@ -88,8 +121,26 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public void ResetToDefault()
         {
-            StatModifiers.Clear();
+            RemoveAllModifiers();
+            var old = Value;
             ResetInternal();
+            OnValueChanged?.Invoke(Value, old);
+            OnUpdateValue?.Invoke(this);
+        }
+
+        public void RemoveAllModifiers()
+        {
+            StatModifiers.Clear();
+        }
+
+        public void RemoveAllModifiersFrom(IEntity owner)
+        {
+            StatModifiers.RemoveAll((modifier => modifier.GetCurrentOwner() == owner));
+        }
+
+        public override string ToString()
+        {
+            return Value.ToString();
         }
 
         public abstract void Randomize(float margin01);

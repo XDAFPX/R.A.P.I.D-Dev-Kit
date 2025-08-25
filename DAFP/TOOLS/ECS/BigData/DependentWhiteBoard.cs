@@ -12,8 +12,8 @@ namespace DAFP.TOOLS.ECS.BigData
         protected override void OnInitializeInternal()
         {
             
-            MaxSource = Host.GetEntComponent<TMax>();
-            MinSource = Host.GetEntComponent<TMin>();
+            MaxSource = Host.GetWorldRepresentation().GetComponent<TMax>();
+            MinSource = Host.GetWorldRepresentation().GetComponent<TMin>();
 
             if (MaxSource == null || MinSource == null)
             {

@@ -1,0 +1,19 @@
+{
+    "name": "UnityGetComponentCache.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b6a3a7c229a16e0449b93a0fbfa2f82b",
+        "GUID:d9ae007d205649d408bea48d6f7e380f"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

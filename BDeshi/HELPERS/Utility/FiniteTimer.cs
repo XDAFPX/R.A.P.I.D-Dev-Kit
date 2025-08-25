@@ -110,10 +110,6 @@ namespace Bdeshi.Helpers.Utility
             return false;
         }
 
-        public void clampedUpdateTimer(float delta)
-        {
-            Timer = Mathf.Clamp(Timer + delta, 0, MaxValue);
-        }
 
         public void safeUpdateTimer(float delta)
         {
@@ -202,8 +198,8 @@ namespace Bdeshi.Helpers.Utility
     [System.Serializable]
     public class SafeFiniteTimer
     {
-        public float Timer;
-        public float MaxValue;
+        public virtual float Timer { get; set; }
+        public virtual float MaxValue { get; set; }
 
         public void init(float maxval, float startVal = 0)
         {
@@ -288,7 +284,7 @@ namespace Bdeshi.Helpers.Utility
                 Timer += delta;
         }
 
-        public void reset()
+        public void Reset()
         {
             Timer = 0;
         }
@@ -302,10 +298,10 @@ namespace Bdeshi.Helpers.Utility
         /// Reset and set max
         /// </summary>
         /// <param name="newMax"></param>
-        public void reset(float newMax)
+        public void Reset(float newMax)
         {
             MaxValue = newMax;
-            reset();
+            Reset();
         }
 
         public void resetAndKeepExtra()
@@ -313,7 +309,7 @@ namespace Bdeshi.Helpers.Utility
             if (Timer > MaxValue)
                 Timer -= MaxValue;
             else
-                reset();
+                Reset();
         }
 
         public void complete()

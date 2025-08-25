@@ -11,20 +11,27 @@ namespace Archon.SwissArmyLib.Editor.Utils
     public class ReadOnlyDrawer : PropertyDrawer
     {
         /// <inheritdoc />
-        public override void OnGUI(Rect position,
-            SerializedProperty property,
-            GUIContent label)
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            var readOnly = (ReadOnlyAttribute) attribute;
+            var readOnly = (ReadOnlyAttribute)attribute;
 
             if (readOnly.OnlyWhilePlaying && !Application.isPlaying)
+            {
                 EditorGUI.PropertyField(position, property, label, true);
+            }
             else
             {
                 GUI.enabled = false;
                 EditorGUI.PropertyField(position, property, label, true);
                 GUI.enabled = true;
             }
+        }
+
+        /// <inheritdoc />
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            // Ensure nested/complex properties reserve the correct height
+            return EditorGUI.GetPropertyHeight(property, label, true);
         }
     }
 }

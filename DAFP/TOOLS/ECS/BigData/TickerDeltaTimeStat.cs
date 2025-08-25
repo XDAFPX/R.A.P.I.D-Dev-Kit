@@ -15,7 +15,14 @@
             this.based = based;
         }
 
-        public bool SyncToBlackBoard => false; 
+        public bool SyncToBlackBoard => false;
+        public object GetAbsoluteValue()
+        {
+            return Value;
+        }
+
+        public event IStatBase.UpdateValueCallBack OnUpdateValue;
+
         public void Randomize(float margin01)
         {
         }

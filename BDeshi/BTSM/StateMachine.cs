@@ -3,11 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.BTs;
+using DAFP.TOOLS.Common;
 using UnityEngine;
 
 namespace BDeshi.BTSM
 {
-    public interface IRunnableStateMachine
+    public interface IRunnableStateMachine : INameable
     {
         /// <summary>
         /// Transitions list for this state
@@ -121,9 +122,10 @@ namespace BDeshi.BTSM
         }
         
         
-        public StateMachine(TState startingState)
+        public StateMachine(TState startingState, string name)
         {
             this.StartingState = startingState;
+            Name = name;
         }
 
         public void Enter(bool callEnter = true)
@@ -390,5 +392,7 @@ namespace BDeshi.BTSM
             transitionsForState = default(IEnumerable<ITransitionBase>);
             return false;
         }
+
+        public string Name { get; set; }
     }
 }

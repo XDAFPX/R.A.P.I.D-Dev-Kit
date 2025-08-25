@@ -18,7 +18,7 @@ namespace DAFP.TOOLS.ECS.BigData.GlobalModifiers
 
         protected override void OnStart()
         {
-            foreach (var _entityComponent in Host.Components)
+            foreach (var _entityComponent in Host.Components.Values)
             {
                 if (_entityComponent is IStatBase _stat && !ReferenceEquals(_entityComponent, this))
                     ApplyDamageModifiers(_stat);
@@ -36,7 +36,9 @@ namespace DAFP.TOOLS.ECS.BigData.GlobalModifiers
             {
                 if (dmg is IStat<float> stat)
                 {
-                    stat.AddModifier(new MultiplyFloatModifier(new TickerDeltaTimeStat(Host.EntityTicker),Host));
+                    
+                    // Confusing... But this just adds a multiplier for deltatime for a bord. And it gets a ticker to get the deltatime specified in the component its self bia EntityComponentTicker
+                    stat.AddModifier(new MultiplyFloatModifier(new TickerDeltaTimeStat(((IEntityComponent)(dmg)).EntityComponentTicker),Host));
                     
                 }
 

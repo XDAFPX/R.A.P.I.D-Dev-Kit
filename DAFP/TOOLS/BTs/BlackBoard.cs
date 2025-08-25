@@ -10,7 +10,7 @@ namespace DAFP.TOOLS.BTs
         private readonly Dictionary<string, object> data = new Dictionary<string, object>();
 
 
-        public BlackBoard(Entity target, Entity self)
+        public BlackBoard(IEntity target, IEntity self)
         {
             data.Clear();
             data.Add("Target", target);
@@ -19,7 +19,7 @@ namespace DAFP.TOOLS.BTs
 
         public float GetDistanceToTarget(Vector2 curpos)
         {
-            return GetTarget() != null ? Vector2.Distance(GetTarget().transform.position, curpos) : Mathf.Infinity;
+            return GetTarget() != null ? Vector2.Distance(GetTarget().GetWorldRepresentation().transform.position, curpos) : Mathf.Infinity;
         }
 
         public void Set<T>(string key, T value)
@@ -42,14 +42,14 @@ namespace DAFP.TOOLS.BTs
             return data.ContainsKey(key);
         }
 
-        internal Entity GetSelf()
+        internal IEntity GetSelf()
         {
-            return Get<Entity>("Self");
+            return Get<IEntity>("Self");
         }
 
-        internal Entity GetTarget()
+        internal IEntity GetTarget()
         {
-            return Get<Entity>("Target");
+            return Get<IEntity>("Target");
         }
 
         public Dictionary<string, object> GetFullData()
