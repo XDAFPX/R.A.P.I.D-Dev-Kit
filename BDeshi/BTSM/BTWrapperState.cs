@@ -20,10 +20,10 @@ namespace BDeshi.BTSM
         /// Do that yourself.
         /// </summary>
         /// <returns>Newly Created transition.</returns>
-        private readonly string stateName;
 
-        public override string FullStateName => stateName;
-        
+        public override string FullStateName => StateName;
+        public override string StateName { get; }
+
         public BtCompleteTransition<TState> CreateRootSuccessTransition<TState>(TState to)
         where  TState:IState
         {
@@ -34,7 +34,7 @@ namespace BDeshi.BTSM
         {
             StateTagsInternal = tags ?? new HashSet<IState._stateTags>();
             this.BtRoot = btRoot;
-            this.stateName = stateName;
+            this.StateName = stateName;
         }
         
 

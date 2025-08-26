@@ -10,17 +10,19 @@ namespace BDeshi.BTSM
         {
             CantDie
         }
+
+        public  string StateName { get; }
         void EnterState();
         void Tick();
         void ExitState();
         string Prefix { get; set; }
         string FullStateName { get; }
-        string Name{ get; }
-        HashSet<_stateTags> StateTags{ get; }
+        string Name { get; }
+        HashSet<_stateTags> StateTags { get; }
         [CanBeNull] IState Parent { get; set; }
     }
 
-    public interface IMultiState: IState
+    public interface IMultiState : IState
     {
         IEnumerable<IState> GetChildStates();
         IState GetActiveState { get; }

@@ -1,15 +1,22 @@
-﻿using BDeshi.BTSM;
+﻿using Archon.SwissArmyLib.Utils.Editor;
+using BDeshi.BTSM;
+using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.BigData.Common;
+using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
 using UnityEngine;
+using UnityGetComponentCache;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    // Refactored to take input via public methods, suitable for Unity's new Input System
+    // modded script. Original by XeinTDM. Check him out he is cool asf.
+    [RequireComponent(typeof(MouseSensitivityBoard))]
+    [RequireComponent(typeof(FOVBoard))]
     [RequireComponent(typeof(FsmRunner))]
     public class FirstPersonCamera : StateDrivenEntity
     {
-        [Header("Mouse Look Settings")]
-        [Tooltip("Sensitivity of mouse movement.")]
-        public float mouseSensitivity = 100f;
+        [GetComponentCache] protected FOVBoard Fov;
+
+        [GetComponentCache] protected MouseSensitivityBoard mouseSensitivity;
 
         [Tooltip("Reference to the player's body transform for rotation.")]
         public Transform playerBody;
@@ -17,117 +24,75 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         [Tooltip("The camera component attached to this object.")]
         public Camera playerCamera;
 
-        // Internal x-axis rotation tracker
+        // Internal variable to track the camera's x-axis rotation.
         private float xRotation = 0f;
 
-        [Header("Head Bobbing Settings")]
-        [Tooltip("Speed of head bobbing.")]
+        [Header("Head Bobbing Settings")] [Tooltip("Speed of head bobbing.")]
         public float bobbingSpeed = 0.18f;
 
-        [Tooltip("Amount of head bobbing.")]
-        public float bobbingAmount = 0.2f;
+        [Tooltip("Amount of head bobbing.")] public float bobbingAmount = 0.2f;
 
         [Tooltip("Midpoint of head bobbing on the y-axis.")]
         public float midpoint = 2f;
 
-        [Header("Field of View Settings")]
-        [Tooltip("Normal field of view.")]
-        public float baseFOV = 60f;
 
-        [Tooltip("Field of view when sprinting.")]
-        public float sprintFOV = 70f;
+        [Tooltip("Field of view multiplier when sprinting.")] [ReadOnly(OnlyWhilePlaying = true)]
+        public float sprintFOVMultiplier = 70f;
 
-        [Tooltip("Speed of FOV change.")]
-        public float fovChangeSpeed = 5f;
+        protected MultiplyFloatModifier sprintMod;
 
-        [Tooltip("Flag to determine if the player is sprinting.")]
-        public bool isSprinting = false;
+        [Tooltip("Speed of FOV change.")] public float fovChangeSpeed = 5f;
 
-        [Header("Camera Sway Settings")]
-        [Tooltip("Amount of camera sway.")]
+
+        [Header("Camera Sway Settings")] [Tooltip("Amount of camera sway.")]
         public float swayAmount = 0.05f;
 
-        [Tooltip("Speed of camera sway.")]
-        public float swaySpeed = 4f;
+        [Tooltip("Speed of camera sway.")] public float swaySpeed = 4f;
 
-        // Internal timers and input storage
-        private float timer = 0f;
-        private Vector2 lookInput = Vector2.zero;
-        private Vector2 moveInput = Vector2.zero;
+        protected IState Normal => GetOrCreateState((Enter), null, (TickNormal), "NormalMode");
+        protected IState Sprint => GetOrCreateState(((EnterSprint)), (ExitSprint ), ((TickSprint)), "SprintMode");
 
-        // -- State Machine Definitions --
-
-        private IState CameraUpdateState =>
-            GetOrCreateState(null, null, CameraUpdateTick, "CameraUpdate");
-
-        protected override IState GetInitialState() => CameraUpdateState;
-
-        protected override void AddInitialStates(ref StateMachine<IState> sm)
+        private void ExitSprint()
         {
-            // No transitions; single-state loop
+            Fov.RemoveModifier(sprintMod);
         }
 
-        protected override void SetInitialData()
+        private void EnterSprint()
         {
-            // No additional data
+            Fov.AddModifier(sprintMod);
         }
 
-        protected override void StateDrivenEntityInitialize()
+        private void TickSprint()
         {
-            // Initialization logic (formerly Start)
-            if (playerCamera == null)
-            {
-                Debug.LogError("PlayerCamera is not assigned in the inspector.");
-            }
-            else
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                playerCamera.fieldOfView = baseFOV;
-            }
+            TickNormal();
         }
 
-        // Called every tick by the state machine
-        private void CameraUpdateTick()
+        protected virtual void Enter()
         {
-            HandleMouseLook();      // uses lookInput
-            HandleHeadBobbing();    // uses moveInput
-            HandleFieldOfView();
-            HandleCameraSway();     // uses lookInput
         }
 
-        // -- Input System hooks --
+        private void TickNormal()
+        {
+            HandleMouseLook();
+            HandleHeadBobbing();
+            HandleFieldOfViewNormal();
+            HandleCameraSway();
+        }
+
+        // Timer for head bobbing calculations.
+        private float timer = 0.0f;
+
+        protected Vector2 LastInput;
+        protected Vector2 LastMovementInput;
+
 
         /// <summary>
-        /// Call this from your InputAction callback for look, e.g. context.ReadValue&lt;Vector2&gt;()
+        /// Handles the mouse look functionality.
         /// </summary>
-        public void OnLook(Vector2 delta)
+        void HandleMouseLook()
         {
-            lookInput = delta;
-        }
-
-        /// <summary>
-        /// Call this from your InputAction callback for move, e.g. WASD or gamepad stick
-        /// </summary>
-        public void OnMove(Vector2 movement)
-        {
-            moveInput = movement;
-        }
-
-        /// <summary>
-        /// Call this when the sprint button is pressed/released
-        /// </summary>
-        public void OnSprint(bool sprinting)
-        {
-            isSprinting = sprinting;
-        }
-
-        // -- Handlers now using injected input --
-
-        private void HandleMouseLook()
-        {
-            // lookInput assumed to be mouse delta; scale by sensitivity
-            float mouseX = lookInput.x * mouseSensitivity * Time.deltaTime;
-            float mouseY = lookInput.y * mouseSensitivity * Time.deltaTime;
+            float mouseX = LastInput.x * mouseSensitivity.Value * EntityTicker.DeltaTime;
+            float mouseY = LastInput.y * mouseSensitivity.Value * EntityTicker.DeltaTime;
 
             xRotation -= mouseY;
             xRotation = Mathf.Clamp(xRotation, -90f, 90f);
@@ -136,29 +101,37 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             playerBody.Rotate(Vector3.up * mouseX);
         }
 
-        private void HandleHeadBobbing()
+        /// <summary>
+        /// Handles the head bobbing effect.
+        /// </summary>
+        void HandleHeadBobbing()
         {
-            float waveslice = 0f;
-            float horizontal = moveInput.x;
-            float vertical = moveInput.y;
+            float waveslice = 0.0f;
+            float horizontal = LastMovementInput.x;
+            float vertical = LastMovementInput.y;
 
-            if (Mathf.Approximately(horizontal, 0f) && Mathf.Approximately(vertical, 0f))
+            if (Mathf.Abs(horizontal) == 0 && Mathf.Abs(vertical) == 0)
             {
-                timer = 0f;
+                timer = 0.0f;
             }
             else
             {
                 waveslice = Mathf.Sin(timer);
-                timer += bobbingSpeed;
-                if (timer > Mathf.PI * 2) timer -= Mathf.PI * 2;
+                timer = timer + bobbingSpeed;
+                if (timer > Mathf.PI * 2)
+                {
+                    timer = timer - (Mathf.PI * 2);
+                }
             }
 
             Vector3 localPos = transform.localPosition;
-            if (!Mathf.Approximately(waveslice, 0f))
+            if (waveslice != 0)
             {
                 float translateChange = waveslice * bobbingAmount;
-                float totalAxes = Mathf.Clamp01(Mathf.Abs(horizontal) + Mathf.Abs(vertical));
-                localPos.y = midpoint + totalAxes * translateChange;
+                float totalAxes = Mathf.Abs(horizontal) + Mathf.Abs(vertical);
+                totalAxes = Mathf.Clamp(totalAxes, 0.0f, 1.0f);
+                translateChange = totalAxes * translateChange;
+                localPos.y = midpoint + translateChange;
             }
             else
             {
@@ -168,28 +141,69 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             transform.localPosition = localPos;
         }
 
-        private void HandleFieldOfView()
+        /// <summary>
+        /// Handles the dynamic field of view.
+        /// </summary>
+        void HandleFieldOfViewNormal()
         {
-            if (playerCamera == null) return;
-
-            float targetFOV = isSprinting ? sprintFOV : baseFOV;
-            playerCamera.fieldOfView = 
-                Mathf.Lerp(playerCamera.fieldOfView, targetFOV, fovChangeSpeed * Time.deltaTime);
+            playerCamera.fieldOfView =
+                Mathf.Lerp(playerCamera.fieldOfView, Fov.Value, fovChangeSpeed * Time.deltaTime);
         }
 
-        private void HandleCameraSway()
-        {
-            // use lookInput for sway instead of raw Input.GetAxis
-            float movementX = Mathf.Clamp(lookInput.x * swayAmount, -swayAmount, swayAmount);
-            float movementY = Mathf.Clamp(lookInput.y * swayAmount, -swayAmount, swayAmount);
-            Vector3 swayOffset = new Vector3(movementX, movementY, 0f);
 
-            transform.localPosition = Vector3.Lerp(
-                transform.localPosition,
-                transform.localPosition + swayOffset,
+        /// <summary>
+        /// Handles the camera sway effect.
+        /// </summary>
+        void HandleCameraSway()
+        {
+            float movementX = Mathf.Clamp(LastInput.x * swayAmount, -swayAmount, swayAmount);
+            float movementY = Mathf.Clamp(LastInput.y * swayAmount, -swayAmount, swayAmount);
+            Vector3 finalPosition = new Vector3(movementX, movementY, 0);
+            transform.localPosition = Vector3.Lerp(transform.localPosition, transform.localPosition + finalPosition,
                 swaySpeed * Time.deltaTime);
         }
 
         public override ITicker<IEntity> EntityTicker => World.UpdateTicker;
+
+        protected override void SetInitialData()
+        {
+            sprintMod = new MultiplyFloatModifier(new QuikStat<float>(sprintFOVMultiplier),this);
+        }
+
+        public void TransitionToNormalMode()
+        {
+            StateMachine.TransitionToInitialState();
+        }
+
+        public void TransitionToSprintMode()
+        {
+            StateMachine.ForceTakeTransition(transitionToSprint);
+        }
+
+        private ITransition<IState> transitionToSprint;
+
+        protected override void AddInitialStates(ref StateMachine<IState> sm)
+        {
+            transitionToSprint = sm.AddManualTransitionTo(Sprint);
+        }
+
+        protected override IState GetInitialState()
+        {
+            return Normal;
+        }
+
+        protected override void StateDrivenEntityInitialize()
+        {
+        }
+
+        public void OnMove(Vector2 vector2)
+        {
+            LastMovementInput = vector2;
+        }
+
+        public void OnLook(Vector2 vector2)
+        {
+            LastInput = vector2;
+        }
     }
 }

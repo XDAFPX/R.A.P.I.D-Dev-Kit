@@ -9,6 +9,7 @@ namespace BDeshi.BTSM
     /// </summary>
     public abstract class MonoBehaviourStateBase: MonoBehaviour,IState
     {
+        public abstract string StateName { get; }
         public abstract void EnterState();
         public abstract void Tick();
         public abstract void ExitState();

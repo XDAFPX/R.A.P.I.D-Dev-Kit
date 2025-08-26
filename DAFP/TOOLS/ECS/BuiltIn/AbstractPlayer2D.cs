@@ -46,28 +46,32 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private Cooldown JumpBuffer;
 
         // store last movement input for state transitions
-        private Vector2 lastMovementInput = Vector2.zero;
+        [SerializeField]protected Vector2 lastMovementInput = Vector2.zero;
 
         // Idle ticks
         private IState AirIdle => GetOrCreateState(null, null, AirIdleTick, "AirIdle");
         private IState GroundIdle => GetOrCreateState(null, null, GroundedIdleTick, "GroundIdle");
 
         // Moving ticks (delegates to the same logic as idle)
-        private IState AirMoving => GetOrCreateState(null, null, AirIdleTick, "AirMoving");
-        private IState GroundMoving => GetOrCreateState(null, null, GroundedIdleTick, "GroundMoving");
+        private IState AirMoving => GetOrCreateState(null, null, (AirMovingTick), "AirMoving");
+
+
+        private IState GroundMoving => GetOrCreateState(null, null, (GroundMovingTick), "GroundMoving");
+
 
         // Wrappers that contain the per‐mode state machines
-        private IState AirTimeWrapper   => GetOrCreateState(() => AirTimeStateMachine,   "AirTimeWrapper");
-        private IState GroundTimeWrapper=> GetOrCreateState(() => GroundTimeStateMachine,"GroundTimeWrapper");
+        private IState AirTimeWrapper => GetOrCreateState(() => AirTimeStateMachine, "AirTimeWrapper");
+        private IState GroundTimeWrapper => GetOrCreateState(() => GroundTimeStateMachine, "GroundTimeWrapper");
 
         private StateMachine<IState> AirTimeStateMachine =>
-            GetOrCreateStateMachine(() => AirIdle,   "InAirStateMachine")   as StateMachine<IState>;
-        private StateMachine<IState> GroundTimeStateMachine =>
-            GetOrCreateStateMachine(() => GroundIdle,"OnGroundStateMachine") as StateMachine<IState>;
+            GetOrCreateStateMachine(() => AirIdle, "InAirStateMachine") as StateMachine<IState>;
 
-        protected override void SetInitialData()
+        private StateMachine<IState> GroundTimeStateMachine =>
+            GetOrCreateStateMachine(() => GroundIdle, "OnGroundStateMachine") as StateMachine<IState>;
+
+        protected override void SetInitialDataAfterBinds()
         {
-            AirModifier         = new MultiplyFloatModifier(airModifierBoard, this);
+            AirModifier = new MultiplyFloatModifier(airModifierBoard, this);
             HangGravityModifier = new MultiplyFloatModifier(new QuikStat<float>(HangJumpModifier), this);
             universalCooldownController.RegisterCooldown(CoyoteTime);
             universalCooldownController.RegisterCooldown(JumpBuffer);
@@ -107,13 +111,13 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 () => lastMovementInput.sqrMagnitude <= 0f, null);
         }
 
-        private void GroundedIdleTick()
+        protected virtual void GroundedIdleTick()
         {
             CoyoteTime.SetToMin();
             CheckForJumping();
         }
 
-        private void AirIdleTick()
+        protected virtual void AirIdleTick()
         {
             if (Mathf.Abs(velocityBoard.Value.y) < HangJumpThreshold)
                 gravityBoard.AddModifier(HangGravityModifier);
@@ -123,7 +127,25 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             CheckForJumping();
         }
 
-        protected void CheckForJumping()
+        protected virtual void AirMovingTick()
+        {
+            if (Mathf.Abs(velocityBoard.Value.y) < HangJumpThreshold)
+                gravityBoard.AddModifier(HangGravityModifier);
+            else
+                gravityBoard.RemoveModifier(HangGravityModifier);
+
+            CheckForJumping();
+            InputMovement(lastMovementInput);
+        }
+
+        protected virtual void GroundMovingTick()
+        {
+            CoyoteTime.SetToMin();
+            CheckForJumping();
+            InputMovement(lastMovementInput);
+        }
+
+        protected virtual void CheckForJumping()
         {
             if (!JumpBuffer.isComplete && !CoyoteTime.isComplete)
             {
@@ -132,22 +154,35 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        public virtual void InputCutJump()
+        [BindName("OnMove")]
+        private void OnMove(InputAction.CallbackContext ctx)
+        {
+            lastMovementInput = ctx.ReadValue<Vector2>();
+        }
+
+        [BindName("OnJump")]
+        private void OnJump(InputAction.CallbackContext ctx)
+        {
+            if (ctx.canceled)
+                InputCutJump();
+            if (ctx.started)
+                InputJump();
+        }
+
+        protected virtual void InputCutJump()
         {
             CoyoteTime.SetToMax();
             universalMover.DoCutJump(transform.up, 2f);
         }
 
-        public virtual void InputJump()
+        protected virtual void InputJump()
         {
             JumpBuffer.SetToMin();
         }
 
-        // 1) capture movement input for state transitions
-        public virtual void InputMovement(Vector2 input)
+        protected virtual void InputMovement(Vector2 input)
         {
             input.Normalize();
-            lastMovementInput = input;
             universalMover.Input(input);
         }
     }

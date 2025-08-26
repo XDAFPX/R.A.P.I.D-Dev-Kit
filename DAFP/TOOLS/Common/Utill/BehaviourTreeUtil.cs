@@ -13,7 +13,7 @@ namespace DAFP.TOOLS.Common.Utill
             HashSet<IState._stateTags> tags = null)
         {
             // Try to find existing state
-            var foundState = btStateCache.Find(s => s.FullStateName == stateMachineName);
+            var foundState = btStateCache.Find(s => s.StateName == stateMachineName);
             if (foundState != null)
             {
                 if (foundState is SmWrapperState state)
@@ -32,11 +32,11 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static ModularState GetOrCreateState(
             Action Enter, Action Exit, Action Tick,
-            string stateMachineName, List<IState> btStateCache,
+            string stateName, List<IState> btStateCache,
             HashSet<IState._stateTags> tags = null)
         {
             // Try to find existing state
-            var foundState = btStateCache.Find(s => s.FullStateName == stateMachineName);
+            var foundState = btStateCache.Find(s => s.StateName == stateName);
             if (foundState != null)
             {
                 if (foundState is ModularState state)
@@ -48,7 +48,7 @@ namespace DAFP.TOOLS.Common.Utill
             }
 
             // Create, cache, and return new state
-            var newState = new ModularState(Enter, Tick, Exit, tags);
+            var newState = new ModularState(stateName,Enter, Tick, Exit, tags);
             btStateCache.Add(newState);
             return newState;
         }
@@ -78,7 +78,7 @@ namespace DAFP.TOOLS.Common.Utill
             HashSet<IState._stateTags> tags = null)
         {
             // Try to find existing state
-            var foundState = btStateCache.Find(s => s.FullStateName == stateMachineName);
+            var foundState = btStateCache.Find(s => s.StateName == stateMachineName);
             if (foundState != null)
             {
                 if (foundState is BtWrapperState state)

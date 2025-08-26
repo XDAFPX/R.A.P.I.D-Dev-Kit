@@ -20,7 +20,7 @@ namespace DAFP.TOOLS.Common.Utill
                 Debug.Log($"[AnimationNameCacheInitializer] Getting the Cache for : {monoBehaviour.GetType()}");
 
             // Step 1: Collect all fields (public, non-public, instance) from this type and its base types
-            var fields = GetAllFields(monoBehaviour.GetType());
+            var fields = FieldGetter.GetAllFields(monoBehaviour.GetType());
 
             foreach (var field in fields)
             {
@@ -38,26 +38,6 @@ namespace DAFP.TOOLS.Common.Utill
                         Debug.Log(
                             $"[AnimationNameCacheInitializer] Cached hash for “{animationName}” into {field.Name}");
                 }
-            }
-        }
-
-        /// <summary>
-        /// Recursively collects all instance fields (public & non-public) declared at each level of the inheritance chain.
-        /// This includes private fields in base classes.
-        /// </summary>
-        private static IEnumerable<FieldInfo> GetAllFields(Type type)
-        {
-            const BindingFlags flags = BindingFlags.Instance |
-                                       BindingFlags.Public |
-                                       BindingFlags.NonPublic |
-                                       BindingFlags.DeclaredOnly;
-
-            while (type != null && type != typeof(MonoBehaviour) && type != typeof(object))
-            {
-                foreach (var field in type.GetFields(flags))
-                    yield return field;
-
-                type = type.BaseType;
             }
         }
     }

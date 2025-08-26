@@ -32,7 +32,6 @@ namespace DAFP.TOOLS.ECS.Components
 
         [ReadOnly] [SerializeField] private int UpdatesPerInputSend = 1;
         public bool CanFly;
-        public bool CapSpeed = true;
         public bool IsInKnockback { get; protected set; }
         public bool IsInDash { get; protected set; }
         public float MaxFallSpeed = 50f;
@@ -172,17 +171,13 @@ namespace DAFP.TOOLS.ECS.Components
             TVec wishVel = Multiply(inputMovement, movementSpeedBoard.Value);
             TVec curVel = Velocity;
 
-            if (!CapSpeed)
-            {
-                // only apply XY or XYZ depending on CanFly
-                TVec raw = wishVel;
-                if (!CanFly)
-                    raw = MaskOutAxis(raw, 1); // axis 1 = Y
-                AddForce(raw, DefaultForceMode());
-                return;
-            }
+            // only apply XY or XYZ depending on CanFly
+            TVec raw = wishVel;
+            if (!CanFly)
+                raw = MaskOutAxis(raw, 1); // axis 1 = Y
+            AddForce(raw, DefaultForceMode());
 
-            float dt = Host.EntityTicker.DeltaTime;
+            float dt = EntityComponentTicker.DeltaTime;
             // build a force vector step by step
             TVec force = ZeroVector;
 
@@ -232,7 +227,7 @@ namespace DAFP.TOOLS.ECS.Components
 
             // impulse
             commandQueue.Enqueue(new MovementCommand((() =>
-                AddForce(Multiply(force, movementSpeedBoard.Value), ImpulseMode())),"DashAddForce"));
+                AddForce(Multiply(force, movementSpeedBoard.Value), ImpulseMode())), "DashAddForce"));
             yield return new WaitForSeconds(time);
 
             IsInDash = false;
@@ -253,7 +248,7 @@ namespace DAFP.TOOLS.ECS.Components
 
             IsInKnockback = true;
             commandQueue.Enqueue(new MovementCommand((() =>
-                AddForce(Multiply(force, movementSpeedBoard.Value), ImpulseMode())),"KnockbackAddForce"));
+                AddForce(Multiply(force, movementSpeedBoard.Value), ImpulseMode())), "KnockbackAddForce"));
             yield return new WaitForSeconds(time);
             IsInKnockback = false;
 

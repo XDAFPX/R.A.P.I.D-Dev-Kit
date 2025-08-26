@@ -5,15 +5,15 @@ namespace BDeshi.BTSM
 {
     public abstract class MultiStateBase : IMultiState
     {
+        public string StateName { get; }
         public abstract void EnterState();
         public abstract void Tick();
         public abstract void ExitState();
         public string Prefix { get; set; }
-        public string FullStateName => $"<{stateName}>";
+        public string FullStateName => $"{StateName}";
         public HashSet<IState._stateTags> StateTags => StateTagsInternal;
         protected HashSet<IState._stateTags> StateTagsInternal;
 
-        private readonly string stateName;
         public string Name => this.GetType().Name;
         public IState Parent { get; set; }
         protected List<IState> Children;
@@ -22,7 +22,8 @@ namespace BDeshi.BTSM
         {
             Children = children;
             StateTagsInternal = stateTagsInternal;
-            this.stateName = stateName;
+            StateName = stateName;
+            this.StateName = stateName;
         }
 
         public IEnumerable<IState> GetChildStates()

@@ -10,6 +10,7 @@ namespace BDeshi.BTSM
         public abstract void ExitState();
         public string Prefix { get; set; }
         public virtual string FullStateName => Prefix + "_" + GetParentChainName();
+        public abstract string StateName { get; }
         public HashSet<IState._stateTags> StateTags => StateTagsInternal;
         protected HashSet<IState._stateTags> StateTagsInternal;
         public IState Parent { get; set; }

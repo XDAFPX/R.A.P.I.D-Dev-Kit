@@ -6,15 +6,15 @@ namespace BDeshi.BTSM
 {
     public class SmWrapperState : StateBase
     {
-        private readonly string stateName;
-        public override string FullStateName => stateName;
+        public override string FullStateName => $"{StateName}.{machine?.CurState?.FullStateName}";
+        public override string StateName { get; }
 
         private IRunnableStateMachine machine; 
         
-        public SmWrapperState( string stateName, [NotNull] IRunnableStateMachine machine, HashSet<IState._stateTags> tags = null)
+        public SmWrapperState( string StateName, [NotNull] IRunnableStateMachine machine, HashSet<IState._stateTags> tags = null)
         {
             StateTagsInternal = tags ?? new HashSet<IState._stateTags>();
-            this.stateName = stateName;
+            this.StateName = StateName;
             this.machine = machine;
         }
 
