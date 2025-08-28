@@ -7,9 +7,11 @@ using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
 using DAFP.TOOLS.ECS.Components;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityGetComponentCache;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
@@ -23,7 +25,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     [RequireComponent(typeof(UniversalCooldownController))]
     public abstract class AbstractPlayer3D : AbstractGamePlayer
     {
-        public override ITicker<IEntity> EntityTicker => World.UpdateTicker;
+        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]public override ITicker<IEntity> EntityTicker { get; }
 
         // component caches
         [GetComponentCache] protected GroundedBoard groundedBoard;
@@ -246,5 +248,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             /* handled every frame */
         }
+
     }
 }

@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
+using DAFP.TOOLS.ECS.GlobalState;
 using UnityEngine;
 
 namespace DAFP.TOOLS.ECS
 {
-    public class UpdateTicker<T> : ITicker<T> where T : ITickable
+    public class UpdateTicker<T> : BlackListedTicker<T> where T : ITickable
     {
-        public void OnStart()
+        public override void OnStart()
         {
             foreach (var _tickable in Subscribed)
             {
@@ -13,7 +14,7 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
-        public void Tick()
+        public override void Tick()
         {
             foreach (var _tickable in Subscribed)
             {
@@ -21,8 +22,13 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
-        public float UpdatesPerSecond => 1 / Time.deltaTime;
-        public float DeltaTime => Time.deltaTime;
-        public HashSet<T> Subscribed { get; } = new();
+
+        public override float UpdatesPerSecond => 1 / Time.deltaTime;
+        public override float DeltaTime => Time.deltaTime;
+        public override HashSet<T> Subscribed { get; } = new();
+
+        public UpdateTicker(HashSet<IGlobalGameState> blackList) : base(blackList)
+        {
+        }
     }
 }

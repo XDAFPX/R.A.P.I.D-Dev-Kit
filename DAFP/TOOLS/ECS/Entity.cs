@@ -5,7 +5,9 @@ using UnityEngine;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.Services;
 using UnityGetComponentCache;
+using Zenject;
 using Random = UnityEngine.Random;
 
 namespace DAFP.TOOLS.ECS
@@ -20,6 +22,8 @@ namespace DAFP.TOOLS.ECS
             = new Dictionary<Type, IEntityComponent>();
 
         protected BlackBoard Memory;
+        [Inject]protected World world;
+
 
         private void GatherComponents()
         {
@@ -32,7 +36,7 @@ namespace DAFP.TOOLS.ECS
 
         private void OnUpdateStat(IStatBase stat)
         {
-            if(!stat.SyncToBlackBoard)
+            if (!stat.SyncToBlackBoard)
                 return;
             Memory.Set(stat.Name, stat.GetAbsoluteValue());
         }
@@ -59,9 +63,10 @@ namespace DAFP.TOOLS.ECS
 
         public void Initialize()
         {
+            
             Memory = new BlackBoard(null, this);
             id = Guid.NewGuid().ToString();
-            World.RegisterEntity(this, EntityTicker);
+            world.RegisterEntity(this, EntityTicker);
             GatherComponents();
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this);
@@ -122,6 +127,11 @@ namespace DAFP.TOOLS.ECS
         public string ID => id;
         public event IEntity.TickCallBack OnTick;
 
+        public World GetWorld()
+        {
+            return world;
+        }
+
         public virtual void RemovePet(IOwnable pet)
         {
             Pets.Remove(pet);
@@ -154,6 +164,11 @@ namespace DAFP.TOOLS.ECS
                 Owners.Add(newOwner);
                 newOwner?.AddPet(this);
             }
+        }
+
+        protected virtual void OnDestroy()
+        {
+            world.RemoveEntity(this);
         }
 
         public void Randomize(float margin01)

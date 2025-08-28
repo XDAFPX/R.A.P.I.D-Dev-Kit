@@ -6,9 +6,11 @@ using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
 using DAFP.TOOLS.ECS.Components;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityGetComponentCache;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
@@ -31,7 +33,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         [GetComponentCache] private VelocityBoard2D velocityBoard;
         [GetComponentCache] private UniversalMover2D universalMover;
         [GetComponentCache] private UniversalCooldownController universalCooldownController;
-        public override ITicker<IEntity> EntityTicker => World.UpdateTicker;
+        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]public override ITicker<IEntity> EntityTicker { get; }
 
         [SerializeField] private float HangJumpThreshold;
         [SerializeField] private float HangJumpModifier;
@@ -185,5 +187,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             input.Normalize();
             universalMover.Input(input);
         }
+
     }
 }

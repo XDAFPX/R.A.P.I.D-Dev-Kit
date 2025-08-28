@@ -7,9 +7,11 @@ using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Modifiers;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityGetComponentCache;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.Components
 {
@@ -38,7 +40,8 @@ namespace DAFP.TOOLS.ECS.Components
         private Queue<MovementCommand> commandQueue = new();
 
         private int resetTimer;
-        public override ITickerBase EntityComponentTicker => World.ComponentFixedUpdateTicker;
+        
+        [ Inject(Id = "DefaultPhysicsComponentGameplayTicker")]public override ITickerBase EntityComponentTicker { get; }
 
         [GetComponentCache] private AccelerationBoard accelerationBoard;
         [GetComponentCache] private DecelerationBoard decelerationBoard;

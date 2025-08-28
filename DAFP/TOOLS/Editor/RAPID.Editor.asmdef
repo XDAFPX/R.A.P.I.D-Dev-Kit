@@ -1,0 +1,19 @@
+{
+    "name": "RAPID.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:3881e4dff4bb78a41851c8048969ccbb",
+        "GUID:2eb47287257cd484bbaee7a7ab7e904a"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

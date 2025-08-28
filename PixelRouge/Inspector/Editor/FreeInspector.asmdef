@@ -1,0 +1,19 @@
+{
+    "name": "FreeInspector",
+    "rootNamespace": "",
+    "references": [
+        "GUID:a8d066686a0ac4f4bba27c21de65cd1e",
+        "GUID:3881e4dff4bb78a41851c8048969ccbb"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

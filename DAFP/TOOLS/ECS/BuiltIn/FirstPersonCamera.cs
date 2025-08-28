@@ -3,8 +3,10 @@ using BDeshi.BTSM;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityGetComponentCache;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
@@ -163,7 +165,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 swaySpeed * Time.deltaTime);
         }
 
-        public override ITicker<IEntity> EntityTicker => World.UpdateTicker;
+        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]public override ITicker<IEntity> EntityTicker { get; }
 
         protected override void SetInitialData()
         {
@@ -205,5 +207,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             LastInput = vector2;
         }
+
     }
 }

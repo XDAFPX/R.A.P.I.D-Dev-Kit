@@ -1,9 +1,7 @@
 {
     "name": "PixelRouge",
     "rootNamespace": "",
-    "references": [
-        "GUID:b816fd5882cf7a24aaacb2a52e032e30"
-    ],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

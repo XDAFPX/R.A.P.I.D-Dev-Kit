@@ -1,16 +1,17 @@
 ﻿using System.Collections.Generic;
+using DAFP.TOOLS.ECS.GlobalState;
 
 namespace DAFP.TOOLS.ECS
 {
-    public class Ticker<T> : ITicker<T> where T : ITickable
+    public class Ticker<T> : BlackListedTicker<T> where T : ITickable
     {
-        public Ticker(float updatesPerSecond)
+        public Ticker(float updatesPerSecond, HashSet<IGlobalGameState> blackList) : base(blackList)
         {
             UpdatesPerSecond = updatesPerSecond;
         }
 
-        public virtual void OnStart()
-        { 
+        public override void OnStart()
+        {
             foreach (var _tickable in Subscribed)
             {
                 _tickable.OnStart();
@@ -18,7 +19,7 @@ namespace DAFP.TOOLS.ECS
         }
 
 
-        public void Tick()
+        public override void Tick()
         {
             foreach (var _tickable in Subscribed)
             {
@@ -26,8 +27,9 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
-        public float UpdatesPerSecond { get; }
-        public float DeltaTime => 1 / UpdatesPerSecond;
-        public HashSet<T> Subscribed { get; } = new HashSet<T>();
+        public float Elapsed = 0;
+        public override float UpdatesPerSecond { get; }
+        public override float DeltaTime => 1 / UpdatesPerSecond;
+        public override HashSet<T> Subscribed { get; } = new HashSet<T>();
     }
 }

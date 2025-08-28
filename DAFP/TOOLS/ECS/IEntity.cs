@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using DAFP.TOOLS.Common;
+using DAFP.TOOLS.ECS.Services;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -19,5 +20,6 @@ namespace DAFP.TOOLS.ECS
         public delegate void TickCallBack(IEntity ent);
 
         public event TickCallBack OnTick;
+        public World GetWorld();
     }
 }

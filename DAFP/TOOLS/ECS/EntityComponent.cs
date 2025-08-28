@@ -39,7 +39,7 @@ namespace DAFP.TOOLS.ECS
             Host = entity;
             if (EntityComponentTicker != Host.EntityTicker &&
                 EntityComponentTicker is ITicker<IEntityComponent> customTicker)
-                World.RegisterCustomComponentTicker(this, customTicker);
+                Host.GetWorld().RegisterCustomComponentTicker(this, customTicker);
         }
 
 

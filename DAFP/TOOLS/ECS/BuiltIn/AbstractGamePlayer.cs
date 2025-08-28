@@ -27,7 +27,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
            }
            SetInitialDataAfterBinds();
         }
+        
 
         protected abstract void SetInitialDataAfterBinds();
+
     }
 }
