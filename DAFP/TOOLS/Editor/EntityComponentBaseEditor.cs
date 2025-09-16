@@ -1,12 +1,13 @@
 ﻿using Archon.SwissArmyLib.ResourceSystem;
 using DAFP.TOOLS.ECS;
+using PixelRouge.Inspector;
 using UnityEditor;
 using UnityEngine;
 
 namespace DAFP.TOOLS.Editor
 {
-    [CustomEditor(typeof(EntityComponent),true)]
-    public class EntityComponentBaseEditor : UnityEditor.Editor
+    [CustomEditor(typeof(EntityComponent), true)]
+    public class EntityComponentBaseEditor : ImprovedEditor
     {
         public override void OnInspectorGUI()
         {
@@ -16,7 +17,12 @@ namespace DAFP.TOOLS.Editor
                 DrawProgressBar(provider);
             }
 
-            DrawDefaultInspector();
+            DisableEverything = false;
+            if (_entityComponent.Host != null)
+                if (_entityComponent.Host is Entity ent)
+                    DisableEverything = ent.IsReadOnly;
+
+            base.OnInspectorGUI();
         }
 
         private static void DrawProgressBar(IPercentageProvider provider)
@@ -26,7 +32,7 @@ namespace DAFP.TOOLS.Editor
             // Use EditorGUIUtility.currentViewWidth for a reasonable width
             var barRect = GUILayoutUtility.GetRect(EditorGUIUtility.currentViewWidth - 40, 20);
             EditorGUI.ProgressBar(barRect, provider.Percentage,
-                $"-- {provider.GetFormatedCurValue()} / {provider.GetFormatedMaxValue()} --"); 
+                $"-- {provider.GetFormatedCurValue()} / {provider.GetFormatedMaxValue()} --");
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.Separator();
         }

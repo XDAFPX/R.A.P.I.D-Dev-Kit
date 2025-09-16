@@ -1,32 +1,105 @@
 ﻿using System;
 using System.Collections.Generic;
+using Archon.SwissArmyLib.Utils.Editor;
 using DAFP.TOOLS.BTs;
 using UnityEngine;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.GlobalState;
+using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
+using PixelRouge.Inspector;
+using UnityEventBus;
 using UnityGetComponentCache;
 using Zenject;
 using Random = UnityEngine.Random;
 
 namespace DAFP.TOOLS.ECS
 {
-    public abstract class Entity : MonoBehaviour, IEntity, IDisposable, IPet, IRandomizeable
+    public abstract class Entity : MonoBehaviour, IEntity, IDisposable, IPet, IRandomizeable, ISavable,
+        IListener<IGlobalStateChanged>, IListener<OnSaveMadeOrLoaded>
     {
+        [ReadOnly] [SerializeField] private string id;
+
         [InspectorName("RandomizingFrom0To100")] [Range(0, 100)] [SerializeField]
         private float Variety = 10;
 
-        // 1. Use a Dictionary for O(1) lookups instead of a HashSet
+        [NeverReadOnly] [SerializeField] public string ConfigStateName;
+
+        [ShowHelpBoxIf("ShowHelp", "Are you sure you wanna change that? That can mess with the logic..")]
+        [NeverReadOnly]
+        public string ConfigDomainSufix;
+
         public Dictionary<Type, IEntityComponent> Components { get; }
             = new Dictionary<Type, IEntityComponent>();
 
         protected BlackBoard Memory;
-        [Inject]protected World world;
+        [Inject] protected World world;
+        [Inject] protected ISaveSystem saveSystem;
+
+        public bool ShowHelp => ConfigDomainSufix == null || ConfigDomainSufix.Length > 0;
+
+        [Button("Bake to Config.json", EButtonMode.EditorOnly)]
+        public void SaveToConfig()
+        {
+            GatherComponents();
+            var ent = ((IEntity)this);
+            ent.GetConfigService().Save(ent.GetConfigSerializer().Save(this),
+                ent.GetConfigSerializer().GetDomainName() + ConfigDomainSufix,
+                ConfigStateName, ent.Name);
+            IsReadOnly =
+                ((IEntity)this).GetConfigService().SaveExist(getFullDomainName(this), ConfigStateName, Name);
+        }
+
+        [Button("Load baked from Config.json", EButtonMode.EditorOnly)]
+        public void LoadFromConfig()
+        {
+            if (Components == null || Components.Count == 0)
+                GatherComponents();
+            var ent = ((IEntity)this);
+            ent.GetConfigSerializer().Load(
+                ent.GetConfigService().Load(ent.GetConfigSerializer().GetDomainName() + ConfigDomainSufix,
+                    ConfigStateName, ent.Name), ent);
+            IsReadOnly =
+                ((IEntity)this).GetConfigService().SaveExist(getFullDomainName(this), ConfigStateName, Name);
+        }
+
+        [Button("-- Delete baked from Config.json --", EButtonMode.EditorOnly)]
+        public void DeleteConfig()
+        {
+            var ent = ((IEntity)this);
+            ent.GetConfigService().DeleteSave(getFullDomainName(this), ConfigStateName, Name);
+            IsReadOnly =
+                ((IEntity)this).GetConfigService().SaveExist(getFullDomainName(this), ConfigStateName, Name);
+        }
+
+        [Button("Generate new ID", EButtonMode.EditorOnly)]
+        public void GenNewID()
+        {
+            id = Guid.NewGuid().ToString();
+        }
+
+        protected string getFullDomainName(IEntity ent) =>
+            ent.GetConfigSerializer().GetDomainName() + ConfigDomainSufix;
+
+        [HideInInspector] [SerializeField] public bool IsReadOnly;
+
+        private void OnValidate()
+        {
+            if (!String.IsNullOrEmpty(ConfigStateName))
+                IsReadOnly =
+                    ((IEntity)this).GetConfigService().SaveExist(getFullDomainName(this), ConfigStateName, Name);
+            if (IsReadOnly && !String.IsNullOrEmpty(ConfigStateName))
+                LoadFromConfig();
+        }
+
+        // 1. Use a Dictionary for O(1) lookups instead of a HashSet
 
 
         private void GatherComponents()
         {
+            Components.Clear();
             foreach (var component in gameObject.GetComponents<IEntityComponent>())
             {
                 AddEntComponent(component);
@@ -46,14 +119,18 @@ namespace DAFP.TOOLS.ECS
         {
             if (component is IStatBase { SyncToBlackBoard: true } stat)
             {
-                Memory.Set(stat.Name, stat.GetAbsoluteValue());
-                stat.OnUpdateValue += OnUpdateStat;
+                if (Memory != null)
+                {
+                    Memory.Set(stat.Name, stat.GetAbsoluteValue());
+                    stat.OnUpdateValue += OnUpdateStat;
+                }
             }
 
             Components[component.GetType()] = component;
             component.Register(this);
         }
 
+        protected virtual Type ConfigHandler => null;
         public abstract ITicker<IEntity> EntityTicker { get; }
 
         private void Awake()
@@ -61,15 +138,26 @@ namespace DAFP.TOOLS.ECS
             Initialize();
         }
 
+        private void Start()
+        {
+            OnStart();
+        }
+
+        public void Reset()
+        {
+            GenNewID();
+        }
+
         public void Initialize()
         {
-            
             Memory = new BlackBoard(null, this);
-            id = Guid.NewGuid().ToString();
+            if (String.IsNullOrEmpty(id))
+                id = Guid.NewGuid().ToString();
             world.RegisterEntity(this, EntityTicker);
             GatherComponents();
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this);
+            saveSystem.Bus.Subscribe(this);
             foreach (IEntityComponent _component in Components.Values)
             {
                 _component.Initialize();
@@ -116,7 +204,6 @@ namespace DAFP.TOOLS.ECS
         }
 
         protected HashSet<IOwnable> Pets = new HashSet<IOwnable>();
-        private string id;
 
 
         public virtual void AddPet(IOwnable pet)
@@ -168,6 +255,7 @@ namespace DAFP.TOOLS.ECS
 
         protected virtual void OnDestroy()
         {
+            saveSystem.Bus.UnSubscribe(this);
             world.RemoveEntity(this);
         }
 
@@ -178,6 +266,34 @@ namespace DAFP.TOOLS.ECS
                 if (component is IRandomizeable randomizeable)
                     randomizeable.Randomize(margin01);
             }
+        }
+
+        public virtual Dictionary<string, object> Save()
+        {
+            return new Dictionary<string, object>();
+        }
+
+        public virtual void Load(Dictionary<string, object> save)
+        {
+        }
+
+        public virtual string Name
+        {
+            get => GetType().FullName;
+            set { }
+        }
+
+        public virtual void React(in IGlobalStateChanged e)
+        {
+            if (e.Author.GetType() == ConfigHandler)
+            {
+                ConfigStateName = e.NewState.StateName;
+                LoadFromConfig();
+            }
+        }
+
+        public virtual void React(in OnSaveMadeOrLoaded e)
+        {
         }
     }
 }

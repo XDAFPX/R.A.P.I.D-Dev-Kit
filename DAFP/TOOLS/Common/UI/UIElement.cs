@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.Common.UI
 {
+    /*
     public class UIElement : MonoBehaviour
     {
         public Animator Animator { private set;  get; }
@@ -100,8 +101,8 @@ namespace DAFP.TOOLS.Common.UI
             if (!Animator.HasState(0, _hash)) { NoAnimFound($"{animatorName}_UIE_Idle"); return; }
             Animator.Play(_hash);
         }
+        */
        
     }
     
     
-}

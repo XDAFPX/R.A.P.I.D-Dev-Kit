@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      red_texture5_dotgrid_0: -5797408015913144412
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

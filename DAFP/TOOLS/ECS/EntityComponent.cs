@@ -1,4 +1,5 @@
-﻿using DAFP.TOOLS.Common.Utill;
+﻿using System;
+using DAFP.TOOLS.Common.Utill;
 using UnityEngine;
 using UnityGetComponentCache;
 
@@ -7,7 +8,7 @@ namespace DAFP.TOOLS.ECS
     // [RequireComponent(typeof(Entity))]
     public abstract class EntityComponent : MonoBehaviour, IEntityComponent
     {
-        protected IEntity Host;
+        public IEntity Host;
         protected abstract void OnTick();
         protected abstract void OnInitialize();
         protected abstract void OnStart();
@@ -17,6 +18,11 @@ namespace DAFP.TOOLS.ECS
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this);
             OnInitialize();
+        }
+
+        private void OnValidate()
+        {
+            Host = GetComponent<IEntity>();
         }
 
         void ITickable.OnStart()

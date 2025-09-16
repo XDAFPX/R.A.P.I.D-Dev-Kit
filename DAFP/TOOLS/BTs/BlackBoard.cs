@@ -5,7 +5,14 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.BTs
 {
-    public class BlackBoard
+    public interface IBlackBoard
+    {
+        void Set<T>(string key, T value);
+        T Get<T>(string key);
+        bool Has(string key);
+    }
+
+    public class BlackBoard : IBlackBoard
     {
         private readonly Dictionary<string, object> data = new Dictionary<string, object>();
 
@@ -19,7 +26,9 @@ namespace DAFP.TOOLS.BTs
 
         public float GetDistanceToTarget(Vector2 curpos)
         {
-            return GetTarget() != null ? Vector2.Distance(GetTarget().GetWorldRepresentation().transform.position, curpos) : Mathf.Infinity;
+            return GetTarget() != null
+                ? Vector2.Distance(GetTarget().GetWorldRepresentation().transform.position, curpos)
+                : Mathf.Infinity;
         }
 
         public void Set<T>(string key, T value)

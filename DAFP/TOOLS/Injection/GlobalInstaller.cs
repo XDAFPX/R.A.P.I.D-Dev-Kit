@@ -3,19 +3,27 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.GlobalState;
+using DAFP.TOOLS.ECS.Serialization;
 using UnityEngine;
 using Zenject;
 using ITickable = Zenject.ITickable;
 
 namespace DAFP.TOOLS.Injection
 {
-    public abstract class GlobalInstaller<T, TCursorService> : Zenject.MonoInstaller where T : IGlobalGameStateHandler
+    public abstract class
+        GlobalInstaller<TGameStateService, TCursorService, TSaveService, TConfigService, TSettingsSaveService> : Zenject.MonoInstaller
+        where TGameStateService : IGlobalGameStateHandler
         where TCursorService : IGlobalCursorStateHandler
+        where TSaveService : ISaveSystem
+        where TConfigService : IGlobalConfigStateHandler
+        where TSettingsSaveService : IGlobalSettingsSaveSystem
 
     {
         protected abstract Dictionary<Type, Type> GetServices();
         protected abstract string GetGameDefaultGameState(InjectContext arg);
-        protected abstract TCursorService GetCursorStateHandler(InjectContext arg);
+        protected abstract string GetDefaultDifficultyState(InjectContext arg);
+        protected abstract string GetDefaultCursorState(InjectContext arg);
+        protected abstract string GetDefaultDifficultyStateDomainName(InjectContext arg);
 
         protected virtual void InstallTickers()
         {
@@ -27,9 +35,14 @@ namespace DAFP.TOOLS.Injection
 
         public override void InstallBindings()
         {
+            Container.Bind<GlobalStates>().AsSingle().NonLazy();
             Container.Bind<string>().WithId("DefaultGameState").FromMethod(GetGameDefaultGameState).AsCached();
+            Container.Bind<string>().WithId("DefaultDifficulty").FromMethod(GetDefaultDifficultyState).AsCached();
+            Container.Bind<string>().WithId("DefaultDifficultyDomain").FromMethod(GetDefaultDifficultyStateDomainName)
+                .AsCached();
+            Container.Bind<string>().WithId("DefaultCursorState").FromMethod((GetDefaultCursorState))
+                .AsCached();
             Container.Bind<TCursorService>()
-                .FromMethod(GetCursorStateHandler)
                 .AsSingle().NonLazy();
             // 2) Expose it via interface
             Container.Bind<IGlobalCursorStateHandler>()
@@ -37,18 +50,26 @@ namespace DAFP.TOOLS.Injection
                 .FromResolve();
 
             // 3) Bind concrete game-state handler
-            Container.Bind<T>()
+            Container.Bind<TGameStateService>()
                 .AsSingle().NonLazy();
             // 4) Expose it via interface
             Container.Bind<IGlobalGameStateHandler>()
-                .To<T>()
+                .To<TGameStateService>()
                 .FromResolve();
 
-            // Now these FromResolve() calls will succeed
+            Container.Bind<TConfigService>().AsSingle().NonLazy();
+            Container.Bind<IGlobalConfigStateHandler>().To<TConfigService>().FromResolve();
+            
+            
+            
+            Container.Bind<ITickable>().To<TConfigService>().FromResolve();
+            Container.Bind<IInitializable>().To<TConfigService>().FromResolve();
             Container.Bind<ITickable>().To<TCursorService>().FromResolve();
             Container.Bind<IInitializable>().To<TCursorService>().FromResolve();
-            Container.Bind<ITickable>().To<T>().FromResolve();
-            Container.Bind<IInitializable>().To<T>().FromResolve();
+            Container.Bind<ITickable>().To<TGameStateService>().FromResolve();
+            Container.Bind<IInitializable>().To<TGameStateService>().FromResolve();
+            
+            
             InstallTickers();
             if (GetServices().Count > 0)
             {
@@ -58,6 +79,11 @@ namespace DAFP.TOOLS.Injection
                         .AsSingle().NonLazy();
                 }
             }
+
+            Container.Bind<TSaveService>().AsSingle().NonLazy();
+            Container.Bind<ISaveSystem>().To<TSaveService>().FromResolve();
+            Container.Bind<TSettingsSaveService>().AsSingle().NonLazy();
+            Container.Bind<IGlobalSettingsSaveSystem>().To<TSettingsSaveService>().FromResolve();
         }
     }
 }

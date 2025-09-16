@@ -1,4 +1,5 @@
-﻿using DAFP.TOOLS.ECS.GlobalState;
+﻿using System.Collections.Generic;
+using DAFP.TOOLS.ECS.GlobalState;
 using UnityEngine;
 using Zenject;
 
@@ -8,9 +9,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     {
         [Inject]
         public UniversalGameStateHandler([Inject(Id = "DefaultGameState")] string defaultState,
-            IGlobalCursorStateHandler cursorStateHandler) : base(defaultState, cursorStateHandler)
+            IGlobalCursorStateHandler cursorStateHandler,GlobalStates states) : base(defaultState, cursorStateHandler,states)
         {
         }
+
+        private StateChangeRequest<IGlobalCursorState> lastCursorRequest;
 
         protected override IGlobalGameState[] GetPreBuildStates()
         {
@@ -18,8 +21,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 new BasicGlobalGameState("PlayState",
                     (() =>
                     {
-                        Debug.Log("STAAAAAAAAA");
-                        cursorStateHandler.PushState(new CursorStateChangeRequest(
+                        cursorStateHandler.PopState(lastCursorRequest);
+                        lastCursorRequest = cursorStateHandler.PushState(new CursorStateChangeRequest(
                             cursorStateHandler.GetState("Default"), 1, nameof(UniversalGameStateHandler),
                             CursorLockMode.Locked, false));
                     }), null, (() => { }));
@@ -28,7 +31,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 new BasicGlobalGameState("UIState",
                     (() =>
                     {
-                        cursorStateHandler.PushState(new CursorStateChangeRequest(
+                        cursorStateHandler.PopState(lastCursorRequest);
+                        lastCursorRequest = cursorStateHandler.PushState(new CursorStateChangeRequest(
                             cursorStateHandler.GetState("Default"), 1, nameof(UniversalGameStateHandler),
                             CursorLockMode.None, true));
                     }), null, (() => { }));
@@ -36,6 +40,20 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             {
                 DefaultGamePlayState, DefaultUIState
             };
+        }
+
+        public override Dictionary<string, object> Save()
+        {
+            return new Dictionary<string, object>() { { "CurrentState", Current().StateName } };
+        }
+
+        public override void Load(Dictionary<string, object> save)
+        {
+            if (save.TryGetValue("CurrentState", out var _value))
+            {
+                ResetToDefault();
+                PushState(new StateChangeRequest<IGlobalGameState>(GetState(_value as string), 0, "SaveSys"));
+            }
         }
     }
 }

@@ -9,16 +9,15 @@ using JetBrains.Annotations;
 using UnityEngine;
 using Zenject;
 
-// TODO make entity sound events. WAIT SCRATCH THAT MAKE AN EVENTBUS 
 namespace DAFP.TOOLS.ECS.Services
 {
     public abstract class World : MonoBehaviour, IService
 
     {
-        protected readonly HashSet<IEntity> ENTITIES = new HashSet<IEntity>();
+        public readonly List<IEntity> ENTITIES = new();
         protected readonly HashSet<ITickerBase> TICKERS = new();
 
-        protected readonly HashSet<IGamePlayer> PLAYERS = new();
+        public readonly HashSet<IGamePlayer> PLAYERS = new();
 
 
         public void RegisterTicker([NotNull] ITickerBase ticker)
@@ -59,7 +58,13 @@ namespace DAFP.TOOLS.ECS.Services
                 PLAYERS.Remove(pl);
             ENTITIES.Remove(ent);
             ent.EntityTicker.Subscribed.Remove(ent);
-
+            foreach (var _entityComponent in ent.Components)
+            {
+                if (_entityComponent.Value.EntityComponentTicker != ent.EntityTicker)
+                {
+                    _entityComponent.Value.EntityComponentTicker.Remove(_entityComponent.Value);
+                }
+            }
             if (ent is IOwnable _ownable)
                 RemovePet(_ownable);
         }
@@ -79,13 +84,6 @@ namespace DAFP.TOOLS.ECS.Services
             Initialize();
         }
 
-        public void Start()
-        {
-            foreach (var Tticker in TICKERS)
-            {
-                Tticker.OnStart();
-            }
-        }
 
         private void FixedUpdate()
         {
@@ -101,7 +99,13 @@ namespace DAFP.TOOLS.ECS.Services
         public void Initialize()
         {
             id = Guid.NewGuid().ToString();
-
+            ENTITIES.Clear();
+            foreach (var _tickerBase in TICKERS)
+            {
+                _tickerBase.ResetToDefault();
+            }
+            TICKERS.Clear();
+            PLAYERS.Clear();
             HasInitialized = true;
         }
 

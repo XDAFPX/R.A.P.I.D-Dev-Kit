@@ -5,12 +5,13 @@ namespace DAFP.TOOLS.ECS.GlobalState
 {
     // 3) Your specialized handler now simply derives from the generic manager
     public abstract class GlobalGameStateHandler
-        : GlobalStateManager<IGlobalGameState>, IGlobalGameStateHandler
+        : GlobalStateHandler<IGlobalGameState>, IGlobalGameStateHandler
     {
         protected IGlobalCursorStateHandler cursorStateHandler;
 
-        protected GlobalGameStateHandler(string defaultState, IGlobalCursorStateHandler cursorStateHandler) : base(
-            defaultState)
+        protected GlobalGameStateHandler(string defaultState, IGlobalCursorStateHandler cursorStateHandler,
+            GlobalStates states) : base(
+            defaultState, states)
         {
             this.cursorStateHandler = cursorStateHandler;
         }
@@ -21,12 +22,8 @@ namespace DAFP.TOOLS.ECS.GlobalState
     {
     }
 
-    public interface IGlobalGameStateHandler : Zenject.ITickable, Zenject.IInitializable
+    public interface IGlobalGameStateHandler : Zenject.ITickable, Zenject.IInitializable,
+        IGlobalStateHandler<IGlobalGameState>
     {
-        IGlobalGameState Default { get; }
-        void PushState(StateChangeRequest<IGlobalGameState> request);
-        void PopState(StateChangeRequest<IGlobalGameState> request);
-        IGlobalGameState Current();
-        IGlobalGameState GetState(string name);
     }
 }

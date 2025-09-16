@@ -11,7 +11,22 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public PlayerInput Input { get; }
         public AbstractUniversalInputController Controller { get; }
 
-        public void Bind(string name, InputAction action, bool safe =false)
+        public Dictionary<InputAction, Action<InputAction.CallbackContext>> BindedActions { get; }
+
+        public void UnBindAll()
+        {
+            foreach (var _bindedAction in BindedActions)
+            {
+                _bindedAction.Key.performed -= _bindedAction.Value;
+                _bindedAction.Key.canceled -= _bindedAction.Value;
+                _bindedAction.Key.started -= _bindedAction.Value;
+            }
+
+            BindedActions.Clear();
+            Binds.Clear();
+        }
+
+        public void Bind(string name, InputAction action, bool safe = false)
         {
             if (!Binds.ContainsKey(name))
             {
@@ -29,9 +44,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 Binds[name]?.Invoke(ctx);
             }
 
+            BindedActions.Add(action, SafeInvoke);
             action.performed += SafeInvoke;
-            action.started   += SafeInvoke;
-            action.canceled  += SafeInvoke;
+            action.started += SafeInvoke;
+            action.canceled += SafeInvoke;
         }
     }
 }

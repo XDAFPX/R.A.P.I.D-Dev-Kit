@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Archon.SwissArmyLib.Utils.Editor;
 using UnityEngine;
@@ -16,9 +17,9 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public abstract bool SyncToBlackBoard { get; }
 
-        public object GetAbsoluteValue()
+        public virtual object GetAbsoluteValue()
         {
-            return Value;
+            return InternalValue;
         }
 
 
@@ -141,6 +142,19 @@ namespace DAFP.TOOLS.ECS.BigData
         public override string ToString()
         {
             return Value.ToString();
+        }
+
+
+        public virtual void SetAbsoluteValue(object value)
+        {
+            try
+            {
+                InternalValue = (T)value;
+            }
+            catch
+            {
+                InternalValue = (T)Convert.ChangeType(value, typeof(T));
+            }
         }
 
         public abstract void Randomize(float margin01);

@@ -10,6 +10,11 @@ namespace DAFP.TOOLS.ECS.Components
     public class UniversalMover3D 
         : UniversalMoverBase<Vector3, Rigidbody, ForceMode>
     {
+        protected override float GetMass()
+        {
+            return rb.mass;
+        }
+
         protected override Vector3 Velocity
         {
             get => rb.linearVelocity;

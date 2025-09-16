@@ -7,6 +7,7 @@ using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
 using DAFP.TOOLS.ECS.Components;
+using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -23,9 +24,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     [RequireComponent(typeof(AirModifierBoard))]
     [RequireComponent(typeof(UniversalMover3D))]
     [RequireComponent(typeof(UniversalCooldownController))]
+    [RequireComponent(typeof(UniversalJumper3D))]
     public abstract class AbstractPlayer3D : AbstractGamePlayer
     {
-        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]public override ITicker<IEntity> EntityTicker { get; }
+        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
+        public override ITicker<IEntity> EntityTicker { get; }
 
         // component caches
         [GetComponentCache] protected GroundedBoard groundedBoard;
@@ -37,35 +40,35 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         [GetComponentCache] protected UniversalCooldownController cooldowns;
         [GetComponentCache] protected AccelerationBoard accelerationBoard;
         [GetComponentCache] protected DecelerationBoard decelerationBoard;
+        [GetComponentCache] protected UniversalJumper3D universalJumper;
 
         // tuning fields
-        [Header("Hang-jump")] [SerializeField] protected float HangJumpThreshold = 1f;
+        [Header("Hang-jump")]
+        [SerializeField] protected float HangJumpThreshold = 1f;
         [SerializeField] protected float HangJumpGravity = 0.5f;
 
-        [Header("Double Jump")] [SerializeField]
-        protected int DoubleJumps = 1;
+        [Header("Double Jump")]
+        [SerializeField] protected int DoubleJumps = 1;
 
-        [SerializeField] [ReadOnly(OnlyWhilePlaying = true)]
-        protected Cooldown JumpBuffer;
-
-        [SerializeField] [ReadOnly(OnlyWhilePlaying = true)]
-        protected Cooldown CoyoteTime;
-
-        [Header("Dash")] [SerializeField] protected int DashCharges = 1;
+        [Header("Dash")]
+        [SerializeField] protected int DashCharges = 1;
         [SerializeField] protected Cooldown dashReload;
         [SerializeField] protected Cooldown dashUse;
         [SerializeField] protected float DashDistance = 5f;
         [SerializeField] protected float DashSpeedMultiplier = 2f;
         [SerializeField] protected bool RequireGroundToReload = true;
 
-        [Header("Slide")] [SerializeField] protected float SlideSpeedBoost = 5f;
+        [Header("Slide")]
+        [SerializeField] protected float SlideSpeedBoost = 5f;
         [SerializeField] protected float SlideDragMultiplier = 0.3f;
 
-        [Header("Wall-run")] [SerializeField] protected float WallRunSpeed = 5f;
+        [Header("Wall-run")]
+        [SerializeField] protected float WallRunSpeed = 5f;
         [SerializeField] protected float WallRunStickForce = 2f;
         [SerializeField] protected float WallRunDetectionDist = 1f;
 
-        [Header("Grapple")] [SerializeField] protected Transform GrappleStartPoint;
+        [Header("Grapple")]
+        [SerializeField] protected Transform GrappleStartPoint;
         [SerializeField] protected float GrappleSpring = 8f;
         [SerializeField] protected float GrappleDamp = 5f;
         [SerializeField] protected float GrappleMinPct = 0.1f;
@@ -82,38 +85,32 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         // states
         protected IState AirIdle => GetOrCreateState(null, null, AirIdleTick, "AirIdle");
         protected IState GroundIdle => GetOrCreateState(null, null, GroundIdleTick, "GroundIdle");
-
-        // Moving ticks (delegates to the same logic as idle)
         protected IState AirMoving => GetOrCreateState(null, null, AirMovingTick, "AirMoving");
         protected IState GroundMoving => GetOrCreateState(null, null, GroundMovingTick, "GroundMoving");
-
-
         protected IState AirStateWrapper => GetOrCreateState(() => AirMachine, "Air3D");
         protected IState GroundWrapper => GetOrCreateState(() => GroundMachine, "Ground3D");
 
         protected StateMachine<IState> AirMachine =>
             GetOrCreateStateMachine(() => AirIdle, "InAirSM") as StateMachine<IState>;
-
         protected StateMachine<IState> GroundMachine =>
             GetOrCreateStateMachine(() => GroundIdle, "OnGroundSM") as StateMachine<IState>;
 
+        public MultiplyFloatModifier AirModifier { get; set; }
+
         protected override void SetInitialDataAfterBinds()
         {
-            // jump gravity modifier
+            // hang-jump gravity modifier
             HangGravityModifier = new MultiplyFloatModifier(new QuikStat<float>(HangJumpGravity), this);
             AirModifier = new MultiplyFloatModifier(airModifierBoard, this);
-            // cooldowns
-            cooldowns.RegisterCooldown(JumpBuffer);
-            cooldowns.RegisterCooldown(CoyoteTime);
+
+            // dash cooldowns
             cooldowns.RegisterCooldown(dashReload);
             cooldowns.RegisterCooldown(dashUse);
 
-            // initial counters
+            // counters
             jumpsLeft = DoubleJumps;
             dashLeft = DashCharges;
         }
-
-        public MultiplyFloatModifier AirModifier { get; set; }
 
         protected override IState GetInitialState() => GroundWrapper;
 
@@ -128,27 +125,22 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             sm.AddTransition(AirStateWrapper, GroundWrapper,
                 () => groundedBoard.Value,
                 () => OnGroundTimeStart());
-            GroundMachine.AddTransition(GroundIdle, GroundMoving,
-                () => lastMovementInput.sqrMagnitude > 0f, (OnMovementStart));
-            GroundMachine.AddTransition(GroundMoving, GroundIdle,
-                () => lastMovementInput.sqrMagnitude <= 0f, (OnMovementStop));
 
-            // inside air machine: idle <-> moving
+            // ground: idle <-> moving
+            GroundMachine.AddTransition(GroundIdle, GroundMoving,
+                () => lastMovementInput.sqrMagnitude > 0f, OnMovementStart);
+            GroundMachine.AddTransition(GroundMoving, GroundIdle,
+                () => lastMovementInput.sqrMagnitude <= 0f, OnMovementStop);
+
+            // air: idle <-> moving
             AirMachine.AddTransition(AirIdle, AirMoving,
                 () => lastMovementInput.sqrMagnitude > 0f, OnMovementStart);
             AirMachine.AddTransition(AirMoving, AirIdle,
                 () => lastMovementInput.sqrMagnitude <= 0f, OnMovementStop);
         }
 
-        protected virtual void OnMovementStop()
-        {
-            
-        }
-
-        protected virtual void OnMovementStart()
-        {
-            
-        }
+        protected virtual void OnMovementStart() { }
+        protected virtual void OnMovementStop() { }
 
         protected virtual void OnGroundTimeStart()
         {
@@ -166,8 +158,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         protected virtual void GroundMovingTick()
         {
-            CoyoteTime.SetToMin();
-            CheckForJumping();
+            universalJumper.TickGround();
             InputMovement(lastMovementInput);
         }
 
@@ -178,14 +169,13 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             else
                 gravityBoard.RemoveModifier(HangGravityModifier);
 
-            CheckForJumping();
+            universalJumper.TickAir();
             InputMovement(lastMovementInput);
         }
 
         protected virtual void GroundIdleTick()
         {
-            CoyoteTime.SetToMin();
-            CheckForJumping();
+            universalJumper.TickGround();
         }
 
         protected virtual void AirIdleTick()
@@ -195,17 +185,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             else
                 gravityBoard.RemoveModifier(HangGravityModifier);
 
-            CheckForJumping();
-        }
-
-        protected void CheckForJumping()
-        {
-            if (!JumpBuffer.isComplete && !CoyoteTime.isComplete)
-            {
-                JumpBuffer.SetToMax();
-
-                mover.DoJump(transform.up * jumpStrengthBoard.Value);
-            }
+            universalJumper.TickAir();
         }
 
         [BindName("OnMove")]
@@ -215,39 +195,20 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
         [BindName("OnJump")]
-        protected virtual void  OnJump(InputAction.CallbackContext ctx)
+        protected virtual void OnJump(InputAction.CallbackContext ctx)
         {
-            if (ctx.canceled)
-                InputCutJump();
-            if (ctx.started)
-                InputJump();
+            universalJumper.OnJump(ctx);
         }
 
         protected virtual void InputMovement(Vector2 v)
         {
             var dir = new Vector3(v.x, 0, v.y).normalized;
-            Vector3 worldMove = transform.TransformDirection(dir).normalized;
+            var worldMove = transform.TransformDirection(dir).normalized;
             mover.Input(worldMove);
         }
 
-        protected virtual void InputJump()
-        {
-            JumpBuffer.Reset();
-            CoyoteTime.SetToMax();
-        }
-
-        protected virtual void InputCutJump() => mover.DoCutJump(transform.up, 2f);
         protected virtual void InputDash() => dashUse.Reset();
-
-        protected virtual void InputSlide()
-        {
-            /* handled every frame */
-        }
-
-        protected virtual void InputGrapple()
-        {
-            /* handled every frame */
-        }
-
+        protected virtual void InputSlide() { /* handled every frame */ }
+        protected virtual void InputGrapple() { /* handled every frame */ }
     }
 }

@@ -10,6 +10,11 @@ namespace DAFP.TOOLS.ECS.Components
     public class UniversalMover2D 
         : UniversalMoverBase<Vector2, Rigidbody2D, ForceMode2D>
     {
+        protected override float GetMass()
+        {
+            return rb.mass;
+        }
+
         protected override Vector2 Velocity
         {
             get => rb.linearVelocity;

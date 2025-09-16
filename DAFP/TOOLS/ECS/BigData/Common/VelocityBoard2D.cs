@@ -11,7 +11,7 @@ namespace DAFP.TOOLS.ECS.BigData.Common
     {
         private Rigidbody2D Rb;
 
-        [Range(0,100)][SerializeField] private int FrameBufferSize = 10;
+        [Range(0, 100)] [SerializeField] private int FrameBufferSize = 10;
         public readonly Queue<Vector2> VelocityHistory = new Queue<Vector2>();
 
         protected override void OnStart()
@@ -21,17 +21,23 @@ namespace DAFP.TOOLS.ECS.BigData.Common
             DefaultValue = Rb.linearVelocity;
         }
 
+        public override void SetAbsoluteValue(object value)
+        {
+            base.SetAbsoluteValue(value);
+            Rb.linearVelocity = Value;
+        }
+
         protected override void OnInitializeInternal()
         {
         }
 
 
-        [Min(0)][SerializeField] private float TopVelocity;
-        [Min(0)][SerializeField] private float MinVelocity;
+        [Min(0)] [SerializeField] private float TopVelocity;
+        [Min(0)] [SerializeField] private float MinVelocity;
         public override Vector3 MinValue => Vector3.one * MinVelocity;
+
         protected override Vector3 ClampAndProcessValue(Vector3 value)
         {
-            
             var val = Vector3.ClampMagnitude(value, MaxValue.magnitude);
             val = val.ClampMinMagnitude(MinValue.magnitude);
 

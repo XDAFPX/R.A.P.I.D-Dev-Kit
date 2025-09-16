@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      dark_texture4_dotgrid_0: -5772035527132006195
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

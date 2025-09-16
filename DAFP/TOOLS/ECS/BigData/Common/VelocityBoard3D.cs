@@ -11,33 +11,33 @@ namespace DAFP.TOOLS.ECS.BigData.Common
     {
         private Rigidbody Rb;
 
-        [Range(0,100)]
-        [SerializeField]
-        private int FrameBufferSize = 10;
-        
+        [Range(0, 100)] [SerializeField] private int FrameBufferSize = 10;
+
         public readonly Queue<Vector3> VelocityHistory = new Queue<Vector3>();
 
-        [Min(0)]
-        [SerializeField]
-        private float TopVelocity;
+        [Min(0)] [SerializeField] private float TopVelocity;
 
-        [Min(0)]
-        [SerializeField]
-        private float MinVelocity;
+        [Min(0)] [SerializeField] private float MinVelocity;
 
         public override Vector3 MinValue => Vector3.one * MinVelocity;
         public override Vector3 MaxValue => Vector3.one * TopVelocity;
 
         protected override void OnInitializeInternal()
         {
-            // Nothing to initialize here
+            Rb = GetComponent<Rigidbody>();
+            InternalValue = Rb.linearVelocity;
+            DefaultValue = Rb.linearVelocity;
         }
 
         protected override void OnStart()
         {
-            Rb = GetComponent<Rigidbody>();
-            InternalValue = Rb.linearVelocity;
-            DefaultValue = Rb.linearVelocity;
+        }
+
+
+        public override void SetAbsoluteValue(object value)
+        {
+            base.SetAbsoluteValue(value);
+            Rb.linearVelocity = Value;
         }
 
         protected override Vector3 ClampAndProcessValue(Vector3 value)

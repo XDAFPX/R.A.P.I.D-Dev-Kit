@@ -14,14 +14,13 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    [RequireComponent(typeof(JumpStrengthBoard))]
     [RequireComponent(typeof(MovementSpeedBoard))]
     [RequireComponent(typeof(GroundedBoard))]
     [RequireComponent(typeof(GravityBoard2D))]
     [RequireComponent(typeof(VelocityBoard2D))]
     [RequireComponent(typeof(AirModifierBoard))]
     [RequireComponent(typeof(UniversalMover2D))]
-    [RequireComponent(typeof(UniversalCooldownController))]
+    [RequireComponent(typeof(UniversalJumper2D))]
     public abstract class AbstractPlayer2D : AbstractGamePlayer
     {
         [GetComponentCache] private GroundedBoard groundedBoard;
@@ -29,11 +28,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         [GetComponentCache] private AccelerationBoard accelerationBoard;
         [GetComponentCache] private DecelerationBoard decelerationBoard;
         [GetComponentCache] private GravityBoard2D gravityBoard;
-        [GetComponentCache] private JumpStrengthBoard jumpStrengthBoard;
         [GetComponentCache] private VelocityBoard2D velocityBoard;
         [GetComponentCache] private UniversalMover2D universalMover;
-        [GetComponentCache] private UniversalCooldownController universalCooldownController;
-        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]public override ITicker<IEntity> EntityTicker { get; }
+        [GetComponentCache] private UniversalJumper2D universalJumper;
+
+        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
+        public override ITicker<IEntity> EntityTicker { get; }
 
         [SerializeField] private float HangJumpThreshold;
         [SerializeField] private float HangJumpModifier;
@@ -41,33 +41,21 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private StatModifier<float> AirModifier;
         private StatModifier<float> HangGravityModifier;
 
-        [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]
-        private Cooldown CoyoteTime;
-
-        [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]
-        private Cooldown JumpBuffer;
-
         // store last movement input for state transitions
-        [SerializeField]protected Vector2 lastMovementInput = Vector2.zero;
+        [SerializeField] protected Vector2 lastMovementInput = Vector2.zero;
 
-        // Idle ticks
+        // Idle and moving states…
         private IState AirIdle => GetOrCreateState(null, null, AirIdleTick, "AirIdle");
         private IState GroundIdle => GetOrCreateState(null, null, GroundedIdleTick, "GroundIdle");
+        private IState AirMoving => GetOrCreateState(null, null, AirMovingTick, "AirMoving");
+        private IState GroundMoving => GetOrCreateState(null, null, GroundMovingTick, "GroundMoving");
 
-        // Moving ticks (delegates to the same logic as idle)
-        private IState AirMoving => GetOrCreateState(null, null, (AirMovingTick), "AirMoving");
-
-
-        private IState GroundMoving => GetOrCreateState(null, null, (GroundMovingTick), "GroundMoving");
-
-
-        // Wrappers that contain the per‐mode state machines
+        // Wrappers for ground/air sub-machines
         private IState AirTimeWrapper => GetOrCreateState(() => AirTimeStateMachine, "AirTimeWrapper");
         private IState GroundTimeWrapper => GetOrCreateState(() => GroundTimeStateMachine, "GroundTimeWrapper");
 
         private StateMachine<IState> AirTimeStateMachine =>
             GetOrCreateStateMachine(() => AirIdle, "InAirStateMachine") as StateMachine<IState>;
-
         private StateMachine<IState> GroundTimeStateMachine =>
             GetOrCreateStateMachine(() => GroundIdle, "OnGroundStateMachine") as StateMachine<IState>;
 
@@ -75,16 +63,15 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             AirModifier = new MultiplyFloatModifier(airModifierBoard, this);
             HangGravityModifier = new MultiplyFloatModifier(new QuikStat<float>(HangJumpModifier), this);
-            universalCooldownController.RegisterCooldown(CoyoteTime);
-            universalCooldownController.RegisterCooldown(JumpBuffer);
         }
 
         protected override IState GetInitialState() => GroundTimeWrapper;
 
         protected override void AddInitialStates(ref StateMachine<IState> sm)
         {
-            // top‐level transitions between ground & air
-            sm.AddTransition(GroundTimeWrapper, AirTimeWrapper,
+            // top-level transitions between ground & air
+            sm.AddTransition(
+                GroundTimeWrapper, AirTimeWrapper,
                 () => !groundedBoard.Value,
                 () =>
                 {
@@ -92,7 +79,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     accelerationBoard.AddModifier(AirModifier);
                 });
 
-            sm.AddTransition(AirTimeWrapper, GroundTimeWrapper,
+            sm.AddTransition(
+                AirTimeWrapper, GroundTimeWrapper,
                 () => groundedBoard.Value,
                 () =>
                 {
@@ -100,23 +88,26 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     accelerationBoard.RemoveModifier(AirModifier);
                 });
 
-            // inside ground machine: idle <-> moving
-            GroundTimeStateMachine.AddTransition(GroundIdle, GroundMoving,
+            // ground: idle <-> moving
+            GroundTimeStateMachine.AddTransition(
+                GroundIdle, GroundMoving,
                 () => lastMovementInput.sqrMagnitude > 0f, null);
-            GroundTimeStateMachine.AddTransition(GroundMoving, GroundIdle,
+            GroundTimeStateMachine.AddTransition(
+                GroundMoving, GroundIdle,
                 () => lastMovementInput.sqrMagnitude <= 0f, null);
 
-            // inside air machine: idle <-> moving
-            AirTimeStateMachine.AddTransition(AirIdle, AirMoving,
+            // air: idle <-> moving
+            AirTimeStateMachine.AddTransition(
+                AirIdle, AirMoving,
                 () => lastMovementInput.sqrMagnitude > 0f, null);
-            AirTimeStateMachine.AddTransition(AirMoving, AirIdle,
+            AirTimeStateMachine.AddTransition(
+                AirMoving, AirIdle,
                 () => lastMovementInput.sqrMagnitude <= 0f, null);
         }
 
         protected virtual void GroundedIdleTick()
         {
-            CoyoteTime.SetToMin();
-            CheckForJumping();
+            universalJumper.TickGround();
         }
 
         protected virtual void AirIdleTick()
@@ -126,7 +117,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             else
                 gravityBoard.RemoveModifier(HangGravityModifier);
 
-            CheckForJumping();
+            universalJumper.TickAir();
         }
 
         protected virtual void AirMovingTick()
@@ -136,24 +127,14 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             else
                 gravityBoard.RemoveModifier(HangGravityModifier);
 
-            CheckForJumping();
+            universalJumper.TickAir();
             InputMovement(lastMovementInput);
         }
 
         protected virtual void GroundMovingTick()
         {
-            CoyoteTime.SetToMin();
-            CheckForJumping();
+            universalJumper.TickGround();
             InputMovement(lastMovementInput);
-        }
-
-        protected virtual void CheckForJumping()
-        {
-            if (!JumpBuffer.isComplete && !CoyoteTime.isComplete)
-            {
-                JumpBuffer.SetToMax();
-                universalMover.DoJump(transform.up * jumpStrengthBoard.Value);
-            }
         }
 
         [BindName("OnMove")]
@@ -165,21 +146,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         [BindName("OnJump")]
         private void OnJump(InputAction.CallbackContext ctx)
         {
-            if (ctx.canceled)
-                InputCutJump();
-            if (ctx.started)
-                InputJump();
-        }
-
-        protected virtual void InputCutJump()
-        {
-            CoyoteTime.SetToMax();
-            universalMover.DoCutJump(transform.up, 2f);
-        }
-
-        protected virtual void InputJump()
-        {
-            JumpBuffer.SetToMin();
+            universalJumper.OnJump(ctx);
         }
 
         protected virtual void InputMovement(Vector2 input)
@@ -187,6 +154,5 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             input.Normalize();
             universalMover.Input(input);
         }
-
     }
 }

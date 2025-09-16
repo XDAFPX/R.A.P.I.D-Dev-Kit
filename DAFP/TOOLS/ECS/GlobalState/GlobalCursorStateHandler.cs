@@ -6,9 +6,9 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
-    public abstract class GlobalCursorStateHandler : GlobalStateManager<IGlobalCursorState>, IGlobalCursorStateHandler
+    public abstract class GlobalCursorStateHandler : GlobalStateHandler<IGlobalCursorState>, IGlobalCursorStateHandler
     {
-        public GlobalCursorStateHandler(string defaultState) : base(defaultState)
+        public GlobalCursorStateHandler(string defaultState,GlobalStates states) : base(defaultState,states)
         {
         }
     }
@@ -101,12 +101,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
         public CursorAnimation2D Animation { get; }
     }
 
-    public interface IGlobalCursorStateHandler : Zenject.ITickable , Zenject.IInitializable
+    public interface IGlobalCursorStateHandler : Zenject.ITickable , Zenject.IInitializable, IGlobalStateHandler<IGlobalCursorState>
     {
-        IGlobalCursorState Default { get; }
-        void PushState(StateChangeRequest<IGlobalCursorState> request);
-        void PopState(StateChangeRequest<IGlobalCursorState> request);
-        IGlobalCursorState Current();
-        IGlobalCursorState GetState(string name);
     }
 }

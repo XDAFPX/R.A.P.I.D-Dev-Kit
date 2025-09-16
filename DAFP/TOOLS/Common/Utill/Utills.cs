@@ -1,12 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using DAFP.TOOLS.ECS.Serialization;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Random = UnityEngine.Random;
 
 namespace DAFP.TOOLS.Common.Utill
 {
     public static class Utills
     {
+
         public static Vector3 Randomize(this Vector3 vector3, float margin01)
         {
             vector3 += new Vector3(Random.Range(vector3.x * -margin01, vector3.x * margin01),
@@ -54,7 +61,7 @@ namespace DAFP.TOOLS.Common.Utill
             float magnitude = Mathf.Sqrt(sqrMagnitude);
             float scale = minLength / magnitude;
 
-            return new (vector.x * scale, vector.y * scale,vector.z*scale);
+            return new(vector.x * scale, vector.y * scale, vector.z * scale);
         }
 
         public static Vector2 ClampMinMagnitude(this Vector2 vector, float minLength)
@@ -167,6 +174,72 @@ namespace DAFP.TOOLS.Common.Utill
             if (_animatorinfo.Length > 0)
                 return _animatorinfo[0].clip.name;
             return "";
+        }
+
+
+        public static void ApplyConcreteDeserialization(this IDictionary<string, object> dict)
+        {
+            var keys = dict.Keys.ToList();
+
+            foreach (var key in keys)
+            {
+                var value = dict[key];
+
+                if (value is JObject jObj)
+                {
+                    // Deserialize the JObject into its concrete type
+                    var concrete = ISerializer.TryDeserializeToConcrete(jObj);
+                    dict[key] = concrete;
+
+                    // If the result is another dictionary, recurse into it
+                    if (concrete is IDictionary<string, object> childDict)
+                        childDict.ApplyConcreteDeserialization();
+                }
+                else if (value is IDictionary<string, object> childDict)
+                {
+                    // If the value is already a nested dictionary, recurse into it
+                    childDict.ApplyConcreteDeserialization();
+                }
+
+                // Finally, convert any long values to int
+                var newValue = dict[key];
+                if (newValue is long longVal)
+                {
+                    dict[key] = (int)(longVal % Int32.MaxValue);
+                }
+            }
+        }
+
+        public static string ToText<TKey, TValue>(
+            IDictionary<TKey, TValue> dictionary,
+            string kvSeparator = ": ",
+            string itemSeparator = "\n")
+        {
+            if (dictionary == null || dictionary.Count == 0)
+                return string.Empty;
+
+            var sb = new StringBuilder();
+            foreach (var kvp in dictionary)
+            {
+                sb.Append(kvp.Key)
+                    .Append(kvSeparator)
+                    .Append(kvp.Value)
+                    .Append(itemSeparator);
+            }
+
+            // Remove the trailing separator if present
+            if (sb.Length >= itemSeparator.Length)
+                sb.Length -= itemSeparator.Length;
+
+            return sb.ToString();
+        }
+
+        public static void AddSave(this Dictionary<string, object> s, Dictionary<string, object> s2)
+        {
+            foreach (var _o in s2)
+            {
+                s[_o.Key] = _o.Value;
+            }
         }
 
         public static void DrawDebugCone(Vector2 origin, Vector2 direction, float angle, float length, Color color)

@@ -15,10 +15,6 @@ namespace DAFP.TOOLS.ECS.Components
             IInputController.Controllers.Add(this);
         }
 
-        private void OnDestroy()
-        {
-            IInputController.Controllers.Remove(this);
-        }
 
         public bool IsLocked => isLocked;
 
@@ -33,6 +29,15 @@ namespace DAFP.TOOLS.ECS.Components
         }
 
         [field: GetComponentCache] public PlayerInput Input { get; }
-        public abstract void OnRegisterController(IGamePlayer player);
+
+        private IGamePlayer GPlayer;
+
+        public void OnRegisterController(IGamePlayer player)
+        {
+            GPlayer = player;
+            OnRegisterControllerInternal(player);
+        }
+
+        public abstract void OnRegisterControllerInternal(IGamePlayer pl);
     }
 }

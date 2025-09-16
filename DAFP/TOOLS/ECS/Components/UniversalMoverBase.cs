@@ -40,8 +40,9 @@ namespace DAFP.TOOLS.ECS.Components
         private Queue<MovementCommand> commandQueue = new();
 
         private int resetTimer;
-        
-        [ Inject(Id = "DefaultPhysicsComponentGameplayTicker")]public override ITickerBase EntityComponentTicker { get; }
+
+        [Inject(Id = "DefaultPhysicsComponentGameplayTicker")]
+        public override ITickerBase EntityComponentTicker { get; }
 
         [GetComponentCache] private AccelerationBoard accelerationBoard;
         [GetComponentCache] private DecelerationBoard decelerationBoard;
@@ -197,7 +198,7 @@ namespace DAFP.TOOLS.ECS.Components
                 float target = Mathf.Abs(wish);
                 float current = Mathf.Abs(cur);
                 float speed = target > current ? accel : decel;
-                float threshold = speed * dt;
+                float threshold = speed * dt / GetMass();
 #if UNITY_EDITOR
                 MovementPrecision = SetComponent(MovementPrecision, axis, threshold);
 #endif
@@ -261,6 +262,8 @@ namespace DAFP.TOOLS.ECS.Components
 
 
         // --- ABSTRACT / HELPERS TO IMPLEMENT IN SUBCLASS --
+
+        protected abstract float GetMass();
         protected abstract TVec Velocity { get; set; }
         protected abstract void SetVelocity(TVec v);
         protected abstract void AddForce(TVec force, TMode mode);

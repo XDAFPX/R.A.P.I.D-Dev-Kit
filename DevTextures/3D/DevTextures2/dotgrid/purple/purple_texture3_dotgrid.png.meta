@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      purple_texture3_dotgrid_0: -8234189716060652186
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

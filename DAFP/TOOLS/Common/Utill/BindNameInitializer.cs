@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 using DAFP.TOOLS.ECS.BuiltIn;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace DAFP.TOOLS.Common.Utill
 {
-  public static class BindNameInitializer
+    public static class BindNameInitializer
     {
         public static void Initialize(IGamePlayer player)
         {
@@ -16,7 +18,6 @@ namespace DAFP.TOOLS.Common.Utill
             // 2) gather methods and expected delegate type
             var allMethods   = MethodGetter.GetAllMethods(pluginType);
             var callbackType = typeof(InputAction.CallbackContext);
-            var actionType   = typeof(Action<>).MakeGenericType(callbackType);
 
             foreach (var method in allMethods)
             {
@@ -27,19 +28,47 @@ namespace DAFP.TOOLS.Common.Utill
                 var att   = method.GetCustomAttribute<BindName>();
                 var parms = method.GetParameters();
 
-                // 4) signature must be void Method(InputAction.CallbackContext)
-                if (method.ReturnType != typeof(void) ||
-                    parms.Length != 1 ||
-                    parms[0].ParameterType != callbackType)
+                // 4) only accept signature void or Task Method(InputAction.CallbackContext)
+                if (parms.Length != 1 || parms[0].ParameterType != callbackType)
                     continue;
 
-                // 5) create delegate for static or instance method
-                Delegate del = method.IsStatic
-                    ? Delegate.CreateDelegate(actionType, method)
-                    : Delegate.CreateDelegate(actionType, player, method);
+                bool returnsVoid = method.ReturnType == typeof(void);
+                bool returnsTask = method.ReturnType == typeof(Task);
+                if (!returnsVoid && !returnsTask)
+                    continue;
 
-                // 6) add to plugin.Binds
-                player.Binds.Add(att.Name, (Action<InputAction.CallbackContext>)del);
+                Action<InputAction.CallbackContext> wrapper;
+
+                if (returnsVoid)
+                {
+                    // 5a) for void methods, directly create Action<CallbackContext>
+                    var del = method.IsStatic
+                        ? Delegate.CreateDelegate(typeof(Action<InputAction.CallbackContext>), method)
+                        : Delegate.CreateDelegate(typeof(Action<InputAction.CallbackContext>), player, method);
+
+                    wrapper = (Action<InputAction.CallbackContext>)del;
+                }
+                else
+                {
+                    // 5b) for async Task methods, create Func<CallbackContext, Task> then wrap
+                    var funcType = typeof(Func<,>).MakeGenericType(callbackType, typeof(Task));
+                    var funcDel = method.IsStatic
+                        ? Delegate.CreateDelegate(funcType, method)
+                        : Delegate.CreateDelegate(funcType, player, method);
+
+                    var invokeAsync = (Func<InputAction.CallbackContext, Task>)funcDel;
+
+                    wrapper = ctx =>
+                    {
+                        // fire-and-forget, optionally handle exceptions
+                        _ = invokeAsync(ctx).ContinueWith(t =>
+                        {
+                            Debug.LogException(t.Exception);
+                        }, TaskContinuationOptions.OnlyOnFaulted);
+                    };
+                }
+
+                player.Binds.Add(att.Name, wrapper);
             }
         }
     }
