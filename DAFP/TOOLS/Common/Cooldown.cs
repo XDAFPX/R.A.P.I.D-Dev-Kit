@@ -93,5 +93,11 @@ namespace DAFP.TOOLS.Common
             if (modifiers == null)
                 modifiers = new List<StatModifier<float>>();
         }
+
+
+        public override string ToString()
+        {
+            return $"[{Name}] left : {MaxValue-Timer}s";
+        }
     }
 }

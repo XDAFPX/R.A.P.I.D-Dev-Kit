@@ -1,8 +1,10 @@
-﻿using Archon.SwissArmyLib.Utils.Editor;
+﻿using System.Collections.Generic;
+using Archon.SwissArmyLib.Utils.Editor;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.BigData.Common;
+using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using UnityGetComponentCache;
 
@@ -33,12 +35,10 @@ namespace DAFP.TOOLS.ECS.Components
 
         protected override void OnStart()
         {
-            
         }
 
         protected override void OnTick()
         {
-            
         }
 
         /// <summary>Call every frame while grounded.</summary>
@@ -56,7 +56,6 @@ namespace DAFP.TOOLS.ECS.Components
 
         private void TryJump()
         {
-            // if both buffers are active → perform jump
             if (!JumpBuffer.isComplete && !CoyoteTime.isComplete)
             {
                 JumpBuffer.SetToMax();
@@ -71,14 +70,15 @@ namespace DAFP.TOOLS.ECS.Components
             {
                 // buffer jump press
                 JumpBuffer.SetToMin();
+                CoyoteTime.SetToMax();
             }
             else if (ctx.canceled)
             {
                 // cut jump early
-                CoyoteTime.SetToMax();
                 PerformCutJump(UpVector, CutJumpDivisor);
             }
         }
+
 
         /// <summary>Unit up vector for this mover (e.g. Vector2 or Vector3).</summary>
         protected abstract TVec UpVector { get; }

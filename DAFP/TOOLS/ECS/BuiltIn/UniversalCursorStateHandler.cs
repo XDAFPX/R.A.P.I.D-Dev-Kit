@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using UnityEngine;
+using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
@@ -10,8 +11,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     public class UniversalCursorStateHandler : GlobalCursorStateHandler, IComparable<ISavable>
     {
         [Inject]
-        public UniversalCursorStateHandler([Inject(Id = "DefaultCursorState")] string defaultState,
-            [Inject] GlobalStates states) : base(defaultState, states)
+        public UniversalCursorStateHandler([Inject(Id = "DefaultCursorState")] string defaultState
+            ,[Inject(Id = "GlobalStateBus")] IEventBus bus) : base(defaultState, bus)
         {
         }
 

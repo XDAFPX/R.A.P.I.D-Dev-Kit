@@ -1,4 +1,5 @@
-﻿using Archon.SwissArmyLib.Utils.Editor;
+﻿using System.Collections.Generic;
+using Archon.SwissArmyLib.Utils.Editor;
 using BDeshi.BTSM;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
@@ -86,7 +87,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         protected Vector2 LastInput;
         protected Vector2 LastMovementInput;
-
 
         /// <summary>
         /// Handles the mouse look functionality.
@@ -208,5 +208,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             LastInput = vector2;
         }
 
+        public override void Load(Dictionary<string, object> save)
+        {
+            base.Load(save);
+            xRotation = transform.localRotation.eulerAngles.x;
+        }
     }
 }

@@ -30,14 +30,14 @@ namespace DAFP.TOOLS.ECS.Components
 
         [field: GetComponentCache] public PlayerInput Input { get; }
 
-        private IGamePlayer GPlayer;
+        private IBindedEntity GPlayer;
 
-        public void OnRegisterController(IGamePlayer player)
+        public void OnRegisterController(IBindedEntity player)
         {
             GPlayer = player;
             OnRegisterControllerInternal(player);
         }
 
-        public abstract void OnRegisterControllerInternal(IGamePlayer pl);
+        public abstract void OnRegisterControllerInternal(IBindedEntity pl);
     }
 }

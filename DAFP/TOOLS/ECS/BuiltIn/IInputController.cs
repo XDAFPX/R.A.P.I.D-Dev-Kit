@@ -10,6 +10,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public void Lock();
         public void UnLock();
         public PlayerInput Input { get; }
-        public void OnRegisterController(IGamePlayer player);
+        public void OnRegisterController(IBindedEntity player);
     }
 }

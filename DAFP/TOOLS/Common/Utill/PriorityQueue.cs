@@ -38,7 +38,7 @@ namespace DAFP.TOOLS.Common.Utill
 
         public PriorityQueueDebugView(PriorityQueue<TElement, TPriority> queue)
         {
-            ArgumentNullException.ThrowIfNull(queue);
+            ThrowIfNullArgument.ThrowIfNull(queue);
 
             _queue = queue;
             _sort = true;
@@ -61,7 +61,7 @@ namespace DAFP.TOOLS.Common.Utill
         internal const string Argument_InvalidOffLen = "Invalid offset or length.";
     }
 
-    internal static class ArgumentNullException
+    internal static class ThrowIfNullArgument
     {
         public static void ThrowIfNull(object o)
         {
@@ -292,7 +292,7 @@ namespace DAFP.TOOLS.Common.Utill
         ///     that is populated with the specified elements and priorities.
         /// </summary>
         /// <param name="items">The pairs of elements and priorities with which to populate the queue.</param>
-        /// <exception cref="ArgumentNullException">
+        /// <exception cref="ThrowIfNullArgument">
         ///     The specified <paramref name="items" /> argument was <see langword="null" />.
         /// </exception>
         /// <remarks>
@@ -314,7 +314,7 @@ namespace DAFP.TOOLS.Common.Utill
         ///     Custom comparer dictating the ordering of elements.
         ///     Uses <see cref="Comparer{T}.Default" /> if the argument is <see langword="null" />.
         /// </param>
-        /// <exception cref="ArgumentNullException">
+        /// <exception cref="ThrowIfNullArgument">
         ///     The specified <paramref name="items" /> argument was <see langword="null" />.
         /// </exception>
         /// <remarks>
@@ -323,7 +323,7 @@ namespace DAFP.TOOLS.Common.Utill
         /// </remarks>
         public PriorityQueue(IEnumerable<(TElement Element, TPriority Priority)> items, IComparer<TPriority>? comparer)
         {
-            ArgumentNullException.ThrowIfNull(items);
+            ThrowIfNullArgument.ThrowIfNull(items);
 
             _nodes = EnumerableHelpers.ToArray(items, out _size);
             _comparer = InitializeComparer(comparer);
@@ -493,12 +493,12 @@ namespace DAFP.TOOLS.Common.Utill
         ///     Enqueues a sequence of element/priority pairs to the <see cref="PriorityQueue{TElement, TPriority}" />.
         /// </summary>
         /// <param name="items">The pairs of elements and priorities to add to the queue.</param>
-        /// <exception cref="ArgumentNullException">
+        /// <exception cref="ThrowIfNullArgument">
         ///     The specified <paramref name="items" /> argument was <see langword="null" />.
         /// </exception>
         public void EnqueueRange(IEnumerable<(TElement Element, TPriority Priority)> items)
         {
-            ArgumentNullException.ThrowIfNull(items);
+            ThrowIfNullArgument.ThrowIfNull(items);
 
             int count = 0;
             ICollection<(TElement Element, TPriority Priority)>? collection =
@@ -557,12 +557,12 @@ namespace DAFP.TOOLS.Common.Utill
         /// </summary>
         /// <param name="elements">The elements to add to the queue.</param>
         /// <param name="priority">The priority to associate with the new elements.</param>
-        /// <exception cref="ArgumentNullException">
+        /// <exception cref="ThrowIfNullArgument">
         ///     The specified <paramref name="elements" /> argument was <see langword="null" />.
         /// </exception>
         public void EnqueueRange(IEnumerable<TElement> elements, TPriority priority)
         {
-            ArgumentNullException.ThrowIfNull(elements);
+            ThrowIfNullArgument.ThrowIfNull(elements);
 
             int count;
             if (elements is ICollection<(TElement Element, TPriority Priority)> collection &&
@@ -970,7 +970,7 @@ namespace DAFP.TOOLS.Common.Utill
 
             void ICollection.CopyTo(Array array, int index)
             {
-                ArgumentNullException.ThrowIfNull(array);
+                ThrowIfNullArgument.ThrowIfNull(array);
 
                 if (array.Rank != 1)
                 {

@@ -1,4 +1,8 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections.Generic;
+using DAFP.TOOLS.Common;
+using DAFP.TOOLS.ECS.Serialization;
+using UnityEngine;
 
 namespace Bdeshi.Helpers.Utility
 {
@@ -196,7 +200,7 @@ namespace Bdeshi.Helpers.Utility
     }
     
     [System.Serializable]
-    public class SafeFiniteTimer
+    public class SafeFiniteTimer : ISavable,IResetable
     {
         public virtual float Timer { get; set; }
         public virtual float MaxValue { get; set; }
@@ -327,5 +331,27 @@ namespace Bdeshi.Helpers.Utility
         public float Ratio => Mathf.Clamp01(Timer / MaxValue);
 
         public float ReverseRatio => 1 - Ratio;
+        public Dictionary<string, object> Save()
+        {
+            return new Dictionary<string, object>() { { "time", Timer } };
+        }
+
+        public void Load(Dictionary<string, object> save)
+        {
+            if (save.TryGetValue("time", out var _value))
+            {
+                Timer = (float)_value;
+            }
+        }
+
+        public void ResetToDefault()
+        {
+            Reset();
+        }
+
+        public override string ToString()
+        {
+            return $"[{base.ToString()}] left : {MaxValue-Timer}s";
+        }
     }
 }

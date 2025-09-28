@@ -25,7 +25,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     [RequireComponent(typeof(UniversalMover3D))]
     [RequireComponent(typeof(UniversalCooldownController))]
     [RequireComponent(typeof(UniversalJumper3D))]
-    public abstract class AbstractPlayer3D : AbstractGamePlayer
+    public abstract class AbstractPlayer3D : AbstractBindedEntity
     {
         [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
         public override ITicker<IEntity> EntityTicker { get; }
@@ -189,14 +189,15 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
         [BindName("OnMove")]
-        protected virtual void OnMove(InputAction.CallbackContext ctx)
+        protected virtual void OnMove(InputBind.CallbackContext ctx)
         {
             lastMovementInput = ctx.ReadValue<Vector2>();
         }
 
         [BindName("OnJump")]
-        protected virtual void OnJump(InputAction.CallbackContext ctx)
+        protected virtual void OnJump(InputBind.CallbackContext ctx)
         {
+            
             universalJumper.OnJump(ctx);
         }
 

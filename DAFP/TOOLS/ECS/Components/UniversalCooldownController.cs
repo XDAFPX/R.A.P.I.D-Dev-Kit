@@ -1,24 +1,25 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using Archon.SwissArmyLib.Utils.Editor;
 using Bdeshi.Helpers.Utility;
 using DAFP.TOOLS.Common;
+using DAFP.TOOLS.ECS.Serialization;
 using SKUnityToolkit.SerializableDictionary;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
 namespace DAFP.TOOLS.ECS.Components
 {
-    public class UniversalCooldownController : EntityComponent
+    public class UniversalCooldownController : EntityComponent, ISavable
     {
-
         [ReadOnly] [SerializeField] private SerializableHashSet<Cooldown> Cooldowns = new();
 
         public void RegisterCooldown(Cooldown down)
         {
-
             Cooldowns.Add(down);
         }
+
         protected override void OnTick()
         {
             foreach (var _cooldown in Cooldowns)
@@ -34,6 +35,30 @@ namespace DAFP.TOOLS.ECS.Components
         protected override void OnStart()
         {
         }
+
+        public Dictionary<string, object> Save()
+        {
+            var save = new Dictionary<string, object>();
+            foreach (var _cooldown in Cooldowns)
+            {
+                save.Add(_cooldown.Name, _cooldown.Save());
+            }
+
+            return save;
+        }
+
+        public void Load(Dictionary<string, object> save)
+        {
+            foreach (var _cooldown in Cooldowns)
+            {
+                if (save.TryGetValue(_cooldown.Name, out var _value))
+                {
+                    _cooldown.Load(_value as Dictionary<string, object>);
+                }
+            }
+            
+        }
+
     }
 
     // [System.Serializable]

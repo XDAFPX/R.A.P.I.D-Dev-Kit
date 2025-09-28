@@ -41,10 +41,12 @@ namespace DAFP.TOOLS.ECS.Serialization
             if (save.TryGetValue(ent.GetType().FullName + "." + ISerializer.ENT_BASIC_DATA_NAME, out var _value))
             {
                 var transform_save = _value as Dictionary<string, object>;
+
+
                 if (transform_save.TryGetValue("Position", out var _o))
                 {
                     if (_o is Vector3 vv)
-                        ent.GetWorldRepresentation().transform.position = vv;
+                        ent.GetWorldRepresentation().transform.localPosition = vv;
                 }
 
                 if (transform_save.TryGetValue("Scale", out var _s))
@@ -69,9 +71,10 @@ namespace DAFP.TOOLS.ECS.Serialization
 
             var transform_save = new Dictionary<string, object>();
 
-            transform_save.Add("Position", ent.GetWorldRepresentation().transform.position);
+            transform_save.Add("Position", ent.GetWorldRepresentation().transform.localPosition);
             transform_save.Add("Rotation", ent.GetWorldRepresentation().transform.rotation);
             transform_save.Add("Scale", ent.GetWorldRepresentation().transform.localScale);
+            transform_save.Add("Name", ent.GetWorldRepresentation().name);
             transform_save.Add("ID", ent.ID);
 
             save.Add(ent.GetType().FullName + "." + ISerializer.ENT_BASIC_DATA_NAME, transform_save);

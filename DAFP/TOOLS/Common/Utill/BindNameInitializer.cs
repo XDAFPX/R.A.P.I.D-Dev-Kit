@@ -10,14 +10,14 @@ namespace DAFP.TOOLS.Common.Utill
 {
     public static class BindNameInitializer
     {
-        public static void Initialize(IGamePlayer player)
+        public static void Initialize(IBindedEntity player)
         {
             // 1) reflect plugin type and its Binds dictionary
             var pluginType = player.GetType();
 
             // 2) gather methods and expected delegate type
             var allMethods   = MethodGetter.GetAllMethods(pluginType);
-            var callbackType = typeof(InputAction.CallbackContext);
+            var callbackType = typeof(InputBind.CallbackContext);
 
             foreach (var method in allMethods)
             {
@@ -28,7 +28,7 @@ namespace DAFP.TOOLS.Common.Utill
                 var att   = method.GetCustomAttribute<BindName>();
                 var parms = method.GetParameters();
 
-                // 4) only accept signature void or Task Method(InputAction.CallbackContext)
+                // 4) only accept signature void or Task Method(InputBind.CallbackContext)
                 if (parms.Length != 1 || parms[0].ParameterType != callbackType)
                     continue;
 
@@ -37,16 +37,16 @@ namespace DAFP.TOOLS.Common.Utill
                 if (!returnsVoid && !returnsTask)
                     continue;
 
-                Action<InputAction.CallbackContext> wrapper;
+                Action<InputBind.CallbackContext> wrapper;
 
                 if (returnsVoid)
                 {
                     // 5a) for void methods, directly create Action<CallbackContext>
                     var del = method.IsStatic
-                        ? Delegate.CreateDelegate(typeof(Action<InputAction.CallbackContext>), method)
-                        : Delegate.CreateDelegate(typeof(Action<InputAction.CallbackContext>), player, method);
+                        ? Delegate.CreateDelegate(typeof(Action<InputBind.CallbackContext>), method)
+                        : Delegate.CreateDelegate(typeof(Action<InputBind.CallbackContext>), player, method);
 
-                    wrapper = (Action<InputAction.CallbackContext>)del;
+                    wrapper = (Action<InputBind.CallbackContext>)del;
                 }
                 else
                 {
@@ -56,7 +56,7 @@ namespace DAFP.TOOLS.Common.Utill
                         ? Delegate.CreateDelegate(funcType, method)
                         : Delegate.CreateDelegate(funcType, player, method);
 
-                    var invokeAsync = (Func<InputAction.CallbackContext, Task>)funcDel;
+                    var invokeAsync = (Func<InputBind.CallbackContext, Task>)funcDel;
 
                     wrapper = ctx =>
                     {

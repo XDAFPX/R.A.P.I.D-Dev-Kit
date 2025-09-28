@@ -6,19 +6,15 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class UniversalDifficultyConfigStateHandler : GlobalConfigStateHandler, IEventInvoker,IGlobalSettingsSavable
+    public class UniversalDifficultyConfigStateHandler : GlobalConfigStateHandler, IEventInvoker, IGlobalSettingsSavable
     {
-        private readonly ISaveSystem saveSystem;
-
         [Inject]
         public UniversalDifficultyConfigStateHandler([Inject(Id = "DefaultDifficulty")] string defaultState,
-            ISaveSystem saveSystem,[Inject(Id = "DefaultDifficultyDomain")] string domain,GlobalStates states) : base(defaultState,states)
+            [Inject(Id = "DefaultDifficultyDomain")]
+            string domain, [Inject(Id = "GlobalStateBus")] IEventBus bus) : base(defaultState,bus)
         {
-            this.saveSystem = saveSystem;
             this.domain = domain;
         }
-
-        protected override IEventBus CustomBus => saveSystem.Bus;
 
 
         protected override IConfigState[] GetPreBuildStates()
@@ -42,6 +38,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
         private readonly string domain;
+
         public override string GetDomain()
         {
             return domain;

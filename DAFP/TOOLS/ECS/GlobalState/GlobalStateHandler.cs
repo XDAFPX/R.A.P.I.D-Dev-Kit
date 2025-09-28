@@ -57,7 +57,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
     public abstract class GlobalStateHandler<T> : Zenject.ITickable, Zenject.IInitializable, IGlobalStateHandlerBase,
         ISavable where T : class, IState
     {
-        protected virtual IEventBus CustomBus => null;
+        private readonly IEventBus bus;
         private T[] States { get; }
         public T Default { get; }
         protected StateMachine<T> StateMachine;
@@ -70,9 +70,9 @@ namespace DAFP.TOOLS.ECS.GlobalState
 
         protected abstract T[] GetPreBuildStates();
 
-        protected GlobalStateHandler(string defaultState, GlobalStates states)
+        protected GlobalStateHandler(string defaultState,IEventBus bus)
         {
-            states.Register(this);
+            this.bus = bus;
             States = GetPreBuildStates();
             Default = States.FirstOrDefault((state => state.StateName == defaultState));
             if (Default == null)
@@ -113,9 +113,9 @@ namespace DAFP.TOOLS.ECS.GlobalState
 
             T current = Current();
 
-            if (CustomBus != null && current != old)
+            if (bus != null && current != old)
             {
-                CustomBus.Send(new GlobalStateChangedEvent<T>(current, old, this) as IGlobalStateChanged);
+                bus.Send(new GlobalStateChangedEvent<T>(current, old, this) as IGlobalStateChanged);
             }
         }
 

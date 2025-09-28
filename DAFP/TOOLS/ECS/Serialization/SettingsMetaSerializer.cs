@@ -9,9 +9,15 @@ namespace DAFP.TOOLS.ECS.Serialization
         {
         }
 
-        public Dictionary<string, object> SaveMetaData()
+        public void TryChangeCurrentScene(Dictionary<string, object> save, int scene)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Dictionary<string, object> SaveMetaData(Dictionary<string, object> psave)
         {
             return new Dictionary<string, object>();
         }
+
     }
 }

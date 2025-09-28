@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using BDeshi.BTSM;
 using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
+using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
     public abstract class GlobalCursorStateHandler : GlobalStateHandler<IGlobalCursorState>, IGlobalCursorStateHandler
     {
-        public GlobalCursorStateHandler(string defaultState,GlobalStates states) : base(defaultState,states)
+        public GlobalCursorStateHandler(string defaultState,IEventBus sus) : base(defaultState,sus)
         {
         }
     }

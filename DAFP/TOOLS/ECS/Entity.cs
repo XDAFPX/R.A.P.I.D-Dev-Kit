@@ -37,6 +37,7 @@ namespace DAFP.TOOLS.ECS
         protected BlackBoard Memory;
         [Inject] protected World world;
         [Inject] protected ISaveSystem saveSystem;
+        [Inject(Id = "GlobalStateBus")] protected IEventBus GlobalStateBus;
 
         public bool ShowHelp => ConfigDomainSufix == null || ConfigDomainSufix.Length > 0;
 
@@ -58,6 +59,14 @@ namespace DAFP.TOOLS.ECS
             if (Components == null || Components.Count == 0)
                 GatherComponents();
             var ent = ((IEntity)this);
+
+            if (!ent.GetConfigService().SaveExist(ent.GetConfigSerializer().GetDomainName() + ConfigDomainSufix,
+                    ConfigStateName, ent.Name))
+            {
+                Debug.LogWarning($"{Name} cannot load the state of {ConfigStateName} (save does not exist )");
+                return;
+            }
+
             ent.GetConfigSerializer().Load(
                 ent.GetConfigService().Load(ent.GetConfigSerializer().GetDomainName() + ConfigDomainSufix,
                     ConfigStateName, ent.Name), ent);
@@ -158,6 +167,7 @@ namespace DAFP.TOOLS.ECS
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this);
             saveSystem.Bus.Subscribe(this);
+            GlobalStateBus.Subscribe(this);
             foreach (IEntityComponent _component in Components.Values)
             {
                 _component.Initialize();
@@ -256,6 +266,7 @@ namespace DAFP.TOOLS.ECS
         protected virtual void OnDestroy()
         {
             saveSystem.Bus.UnSubscribe(this);
+            GlobalStateBus.UnSubscribe(this);
             world.RemoveEntity(this);
         }
 

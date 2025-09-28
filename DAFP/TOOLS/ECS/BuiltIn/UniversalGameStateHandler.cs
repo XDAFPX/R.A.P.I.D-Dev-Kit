@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using DAFP.TOOLS.ECS.GlobalState;
 using UnityEngine;
+using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
@@ -9,7 +10,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     {
         [Inject]
         public UniversalGameStateHandler([Inject(Id = "DefaultGameState")] string defaultState,
-            IGlobalCursorStateHandler cursorStateHandler,GlobalStates states) : base(defaultState, cursorStateHandler,states)
+            IGlobalCursorStateHandler cursorStateHandler, [Inject(Id = "GlobalStateBus")] IEventBus vus) : base(defaultState,
+            cursorStateHandler,vus)
         {
         }
 

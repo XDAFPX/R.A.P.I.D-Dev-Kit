@@ -10,6 +10,16 @@ namespace DAFP.TOOLS.ECS.Components
     public class UniversalMover3D 
         : UniversalMoverBase<Vector3, Rigidbody, ForceMode>
     {
+        protected override Vector3 Normalize(Vector3 vec)
+        {
+            return Vector3.Normalize(vec);
+        }
+
+        protected override float DotProduct(Vector3 vec1, Vector3 vec2)
+        {
+            return Vector3.Dot(vec1, vec2);
+        }
+
         protected override float GetMass()
         {
             return rb.mass;
@@ -31,6 +41,11 @@ namespace DAFP.TOOLS.ECS.Components
         protected override Vector3 ZeroVector => Vector3.zero;
         protected override int Dimension       => 3;
         protected override Vector3 Multiply(Vector3 v, float s) => v * s;
+        protected override Vector3 Subtract(Vector3 v, Vector3 v1)
+        {
+            return v - v1;
+        }
+
         protected override Vector3 Divide(Vector3 v, float s)   => v / s;
         protected override float GetComponent(Vector3 v, int a)
             => a == 0 ? v.x : (a == 1 ? v.y : v.z);

@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using BDeshi.BTSM;
+using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
     public abstract class GlobalConfigStateHandler : GlobalStateHandler<IConfigState>,IGlobalConfigStateHandler
     {
-        public GlobalConfigStateHandler(string defaultState,GlobalStates states) : base(defaultState,states)
+        public GlobalConfigStateHandler(string defaultState, IEventBus bus) : base(defaultState,bus)
         {
         }
 

@@ -21,7 +21,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     [RequireComponent(typeof(AirModifierBoard))]
     [RequireComponent(typeof(UniversalMover2D))]
     [RequireComponent(typeof(UniversalJumper2D))]
-    public abstract class AbstractPlayer2D : AbstractGamePlayer
+    public abstract class AbstractPlayer2D : AbstractBindedEntity
     {
         [GetComponentCache] private GroundedBoard groundedBoard;
         [GetComponentCache] private AirModifierBoard airModifierBoard;
@@ -138,13 +138,13 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
         [BindName("OnMove")]
-        private void OnMove(InputAction.CallbackContext ctx)
+        private void OnMove(InputBind.CallbackContext ctx)
         {
             lastMovementInput = ctx.ReadValue<Vector2>();
         }
 
         [BindName("OnJump")]
-        private void OnJump(InputAction.CallbackContext ctx)
+        private void OnJump(InputBind.CallbackContext ctx)
         {
             universalJumper.OnJump(ctx);
         }

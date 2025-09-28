@@ -170,11 +170,12 @@ namespace DAFP.TOOLS.ECS.Components
             if (!canMoveBoard.Value) return;
             if (isStunnedBoard.Value) return;
 
-            float accel = accelerationBoard.Value;
+
+
+                        float accel = accelerationBoard.Value;
             float decel = decelerationBoard.Value;
             TVec wishVel = Multiply(inputMovement, movementSpeedBoard.Value);
             TVec curVel = Velocity;
-
             // only apply XY or XYZ depending on CanFly
             TVec raw = wishVel;
             if (!CanFly)
@@ -211,6 +212,39 @@ namespace DAFP.TOOLS.ECS.Components
 
             AddForce(force, DefaultForceMode());
         }
+
+        // private void GroundAccel(TVec inputMovement) Deprecated
+        // {
+        //     if (movementSpeedBoard.Value == 0)
+        //         return;
+        //     var wishvel = Multiply(inputMovement, movementSpeedBoard.Value);
+        //     var pushvec = Subtract(wishvel, Velocity);
+        //     var addspeed = Magnitude(pushvec);
+        //     var accelspeed = accelerationBoard.Value * EntityComponentTicker.DeltaTime * addspeed;
+        //     pushvec = Normalize(pushvec);
+        //
+        //     if (accelspeed > addspeed)
+        //         accelspeed = addspeed;
+        //     AddForce(Multiply(pushvec,accelspeed));
+        // }
+        //
+        // private void AirAccel(TVec inputMovement)
+        // {
+        //     var wish_velocity = Normalize(inputMovement);
+        //     float wish_speed = movementSpeedBoard.Value;
+        //
+        //     if (wish_speed > 30)
+        //         wish_speed = 30;
+        //     var current_speed = DotProduct(Velocity, wish_velocity);
+        //
+        //     float add_speed = wish_speed - current_speed;
+        //     if (add_speed <= 0)
+        //         return;
+        //     var accel_speed = movementSpeedBoard.Value * accelerationBoard.Value * EntityComponentTicker.DeltaTime;
+        //     if (accel_speed > add_speed)
+        //         accel_speed = add_speed;
+        //     AddForce(Multiply(wish_velocity, accel_speed));
+        // }
 
         private void ClampMaxFallSpeed()
         {
@@ -263,6 +297,8 @@ namespace DAFP.TOOLS.ECS.Components
 
         // --- ABSTRACT / HELPERS TO IMPLEMENT IN SUBCLASS --
 
+        protected abstract TVec Normalize(TVec vec);
+        protected abstract float DotProduct(TVec vec1, TVec vec2);
         protected abstract float GetMass();
         protected abstract TVec Velocity { get; set; }
         protected abstract void SetVelocity(TVec v);
@@ -278,6 +314,7 @@ namespace DAFP.TOOLS.ECS.Components
         protected abstract int Dimension { get; }
 
         protected abstract TVec Multiply(TVec v, float scalar);
+        protected abstract TVec Subtract(TVec v, TVec v1);
         protected abstract TVec Divide(TVec v, float scalar);
         protected abstract float GetComponent(TVec v, int axis);
         protected abstract TVec SetComponent(TVec v, int axis, float value);

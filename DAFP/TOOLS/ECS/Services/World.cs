@@ -14,10 +14,11 @@ namespace DAFP.TOOLS.ECS.Services
     public abstract class World : MonoBehaviour, IService
 
     {
+        public static readonly Ticker<IEntity> EMPTY_TICKER = new Ticker<IEntity>(0, new HashSet<IGlobalGameState>()); 
         public readonly List<IEntity> ENTITIES = new();
         protected readonly HashSet<ITickerBase> TICKERS = new();
 
-        public readonly HashSet<IGamePlayer> PLAYERS = new();
+        public readonly HashSet<IBindedEntity> PLAYERS = new();
 
 
         public void RegisterTicker([NotNull] ITickerBase ticker)
@@ -36,9 +37,11 @@ namespace DAFP.TOOLS.ECS.Services
             }
         }
 
-        public void RegisterEntity([NotNull] IEntity ent, [NotNull] ITicker<IEntity> ticker)
+        public void RegisterEntity(IEntity ent, ITicker<IEntity> ticker)
         {
-            if (ent is IGamePlayer pl)
+            if (ent == null || ticker == null)
+                return;
+            if (ent is IBindedEntity pl)
                 PLAYERS.Add(pl);
             if (ENTITIES.Contains(ent))
                 return;
@@ -54,19 +57,27 @@ namespace DAFP.TOOLS.ECS.Services
 
         public void RemoveEntity([NotNull] IEntity ent)
         {
-            if (ent is IGamePlayer pl)
+            if (ent is IBindedEntity pl)
                 PLAYERS.Remove(pl);
-            ENTITIES.Remove(ent);
-            ent.EntityTicker.Subscribed.Remove(ent);
-            foreach (var _entityComponent in ent.Components)
+            try
             {
-                if (_entityComponent.Value.EntityComponentTicker != ent.EntityTicker)
+                ENTITIES.Remove(ent);
+                ent.EntityTicker.Subscribed.Remove(ent);
+                foreach (var _entityComponent in ent.Components)
                 {
-                    _entityComponent.Value.EntityComponentTicker.Remove(_entityComponent.Value);
+                    if (_entityComponent.Value.EntityComponentTicker != ent.EntityTicker)
+                    {
+                        _entityComponent.Value.EntityComponentTicker.Remove(_entityComponent.Value);
+                    }
                 }
+
+                if (ent is IOwnable _ownable)
+                    RemovePet(_ownable);
             }
-            if (ent is IOwnable _ownable)
-                RemovePet(_ownable);
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Unregistered entity : {ent.Name} was removed :: {e} ");
+            }
         }
 
         public void RegisterCustomComponentTicker([NotNull] IEntityComponent ent,
@@ -104,6 +115,7 @@ namespace DAFP.TOOLS.ECS.Services
             {
                 _tickerBase.ResetToDefault();
             }
+
             TICKERS.Clear();
             PLAYERS.Clear();
             HasInitialized = true;
@@ -143,6 +155,8 @@ namespace DAFP.TOOLS.ECS.Services
 
             foreach (var _tickerBase in TICKERS.OfType<Ticker<ITickable>>())
             {
+                if(_tickerBase.UpdatesPerSecond==0)
+                    continue;
                 _tickerBase.Elapsed += Time.deltaTime;
                 if (_tickerBase.Elapsed >= _tickerBase.DeltaTime)
                 {

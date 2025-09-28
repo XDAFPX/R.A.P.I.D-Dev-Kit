@@ -10,6 +10,16 @@ namespace DAFP.TOOLS.ECS.Components
     public class UniversalMover2D 
         : UniversalMoverBase<Vector2, Rigidbody2D, ForceMode2D>
     {
+        protected override Vector2 Normalize(Vector2 vec)
+        {
+            return vec.normalized;
+        }
+
+        protected override float DotProduct(Vector2 vec1, Vector2 vec2)
+        {
+            return Vector2.Dot(vec1, vec2);
+        }
+
         protected override float GetMass()
         {
             return rb.mass;
@@ -31,6 +41,11 @@ namespace DAFP.TOOLS.ECS.Components
         protected override Vector2 ZeroVector => Vector2.zero;
         protected override int Dimension       => 2;
         protected override Vector2 Multiply(Vector2 v, float s) => v * s;
+        protected override Vector2 Subtract(Vector2 v, Vector2 v1)
+        {
+            return v - v1;
+        }
+
         protected override Vector2 Divide(Vector2 v, float s)   => v / s;
         protected override float GetComponent(Vector2 v, int a) => a == 0 ? v.x : v.y;
         protected override Vector2 SetComponent(Vector2 v, int a, float x)

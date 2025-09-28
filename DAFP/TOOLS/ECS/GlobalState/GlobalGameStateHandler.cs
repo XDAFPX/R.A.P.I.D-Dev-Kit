@@ -1,4 +1,5 @@
 ﻿using BDeshi.BTSM;
+using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.GlobalState
@@ -9,9 +10,9 @@ namespace DAFP.TOOLS.ECS.GlobalState
     {
         protected IGlobalCursorStateHandler cursorStateHandler;
 
-        protected GlobalGameStateHandler(string defaultState, IGlobalCursorStateHandler cursorStateHandler,
-            GlobalStates states) : base(
-            defaultState, states)
+        protected GlobalGameStateHandler(string defaultState, IGlobalCursorStateHandler cursorStateHandler,IEventBus bus
+            ) : base(
+            defaultState,bus)
         {
             this.cursorStateHandler = cursorStateHandler;
         }

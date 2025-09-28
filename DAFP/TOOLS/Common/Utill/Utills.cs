@@ -13,7 +13,6 @@ namespace DAFP.TOOLS.Common.Utill
 {
     public static class Utills
     {
-
         public static Vector3 Randomize(this Vector3 vector3, float margin01)
         {
             vector3 += new Vector3(Random.Range(vector3.x * -margin01, vector3.x * margin01),
@@ -201,12 +200,32 @@ namespace DAFP.TOOLS.Common.Utill
                     childDict.ApplyConcreteDeserialization();
                 }
 
+                // Finally, convert any double values to float
+                var newValue1 = dict[key];
+                if (newValue1 is double double1)
+                {
+                    dict[key] = Convert.ToSingle(double1);
+                }
+
                 // Finally, convert any long values to int
                 var newValue = dict[key];
                 if (newValue is long longVal)
                 {
                     dict[key] = (int)(longVal % Int32.MaxValue);
                 }
+            }
+        }
+
+        public static void ForEach<T>(this HashSet<T> set, Action<T> action)
+        {
+            if (set == null)
+                throw new ArgumentNullException(nameof(set));
+            if (action == null)
+                throw new ArgumentNullException(nameof(action));
+
+            foreach (var item in set)
+            {
+                action(item);
             }
         }
 
