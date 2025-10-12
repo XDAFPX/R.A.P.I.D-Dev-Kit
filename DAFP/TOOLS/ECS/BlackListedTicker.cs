@@ -9,7 +9,7 @@ namespace DAFP.TOOLS.ECS
         public abstract void OnStart();
         protected HashSet<IGlobalGameState> BlackList;
 
-        protected BlackListedTicker(HashSet<IGlobalGameState> blackList)
+        protected BlackListedTicker(HashSet<IGlobalGameState> blackList, int priority)
         {
             BlackList = blackList;
         }
@@ -35,6 +35,7 @@ namespace DAFP.TOOLS.ECS
         }
 
         public abstract HashSet<T> Subscribed { get; }
+        public int Priority { get; }
 
         public void ResetToDefault()
         {

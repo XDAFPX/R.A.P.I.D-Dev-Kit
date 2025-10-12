@@ -24,7 +24,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             Fsm = GetComponent<FsmRunner>();
 
-            Fsm.InitializeData(new BlackBoard(null, this));
+            Fsm.InitializeData(Memory);
             SetInitialData();
             var _sm = new StateMachine<IState>(GetInitialState(), "root");
             StateMachine = _sm;

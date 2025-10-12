@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Serialization;
+using DAFP.TOOLS.ECS.ViewModel;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -187,7 +189,7 @@ namespace DAFP.TOOLS.Common.Utill
                 if (value is JObject jObj)
                 {
                     // Deserialize the JObject into its concrete type
-                    var concrete = ISerializer.TryDeserializeToConcrete(jObj);
+                    var concrete = ISerializer<ISavable>.TryDeserializeToConcrete(jObj);
                     dict[key] = concrete;
 
                     // If the result is another dictionary, recurse into it
@@ -284,6 +286,162 @@ namespace DAFP.TOOLS.Common.Utill
                 Vector2 stepDir = Quaternion.Euler(0, 0, stepAngle) * direction;
                 Debug.DrawRay(origin + stepDir * (length * 0.95f), stepDir * (length * 0.05f), color);
             }
+        }
+
+        public static void DrawDebugPosition(Vector3 position, float size = 0.1f, Color? color = null,
+            float duration = 0f,
+            bool depthTest = true)
+        {
+            Color drawColor = color ?? Color.white;
+            // Principal axes
+            Vector3[] axes = { Vector3.right, Vector3.up, Vector3.forward };
+
+            foreach (var axis in axes)
+            {
+                // Positive direction
+                Debug.DrawRay(position, axis * size, drawColor, duration, depthTest);
+                // Negative direction
+                Debug.DrawRay(position, -axis * size, drawColor, duration, depthTest);
+            }
+        }
+
+        public static IEnumerable<IViewModel> GetActiveViews(this IEnumerable<IViewModel> models)
+        {
+            var find = models.Where((model => model.Enabled));
+            return find;
+        }
+
+        public static Bounds Add(this Bounds a, Bounds b)
+        {
+            if (a.size == Vector3.zero) return b;
+            if (b.size == Vector3.zero) return a;
+
+            Vector3 min = Vector3.Min(a.min, b.min);
+            Vector3 max = Vector3.Max(a.max, b.max);
+            Bounds combined = new Bounds();
+            combined.SetMinMax(min, max);
+            return combined;
+        }
+
+        /// <summary>
+        ///   Returns a new Bounds whose center is the difference of the two centers 
+        ///   and whose size is the difference of the two sizes.
+        /// </summary>
+        public static Bounds Subtract(this Bounds a, Bounds b)
+        {
+            return new Bounds(a.center - b.center, a.size - b.size);
+        }
+
+
+        public static void DisableAll(this IEnumerable<ISwitchable> models)
+        {
+            foreach (var _switchable in models)
+            {
+                _switchable.Disable();
+            }
+        }
+
+        public static void EnableAll(this IEnumerable<ISwitchable> models)
+        {
+            foreach (var _switchable in models)
+            {
+                _switchable.Enable();
+            }
+        }
+
+        public static void Enable(this IEnumerable<DebugDrawLayer> models, string name)
+        {
+            var find = models.FirstOrDefault((model => model.Name == name));
+            if (find == null)
+                return;
+            find.Enable();
+        }
+
+        public static void Disable(this IEnumerable<DebugDrawLayer> models, string name)
+        {
+            var find = models.FirstOrDefault((model => model.Name == name));
+            if (find == null)
+                return;
+            find.Disable();
+        }
+
+        public static void SwitchTo<T>(this IEnumerable<IViewModel> models)
+        {
+            var find = models.FirstOrDefault((model => model.GetType().IsSubclassOf(typeof(T))));
+            if (find == null)
+                return;
+            foreach (var _viewModel in models)
+            {
+                if (_viewModel == find)
+                    continue;
+                _viewModel.Disable();
+            }
+
+            find.Enable();
+        }
+
+        public static INameable FindByName(this IEnumerable<INameable> nameables, string name)
+        {
+            return nameables.FirstOrDefault((nameable => nameable.Name == name));
+        }
+
+        /// <summary>
+        /// Calculates the combined bounds of all colliders (2D or 3D) on the given GameObject and its children.
+        /// </summary>
+        public static Bounds CalculateCombinedBounds(GameObject root)
+        {
+            // --- 3D Colliders ---
+            Collider[] colliders3D = root.GetComponentsInChildren<Collider>();
+            // --- 2D Colliders ---
+            Collider2D[] colliders2D = root.GetComponentsInChildren<Collider2D>();
+
+            if (colliders3D.Length == 0 && colliders2D.Length == 0)
+            {
+                return new Bounds(Vector3.zero, Vector3.zero);
+            }
+
+            bool initialized = false;
+            Bounds combined = new Bounds(Vector3.zero, Vector3.zero);
+
+            // --- Handle 3D Colliders ---
+            foreach (var col in colliders3D)
+            {
+                Bounds localBounds = new Bounds(
+                    root.transform.InverseTransformPoint(col.bounds.center),
+                    col.bounds.size
+                );
+
+                if (!initialized)
+                {
+                    combined = localBounds;
+                    initialized = true;
+                }
+                else
+                {
+                    combined.Encapsulate(localBounds);
+                }
+            }
+
+            // --- Handle 2D Colliders ---
+            foreach (var col in colliders2D)
+            {
+                Bounds localBounds = new Bounds(
+                    root.transform.InverseTransformPoint(col.bounds.center),
+                    col.bounds.size
+                );
+
+                if (!initialized)
+                {
+                    combined = localBounds;
+                    initialized = true;
+                }
+                else
+                {
+                    combined.Encapsulate(localBounds);
+                }
+            }
+
+            return combined;
         }
     }
 }

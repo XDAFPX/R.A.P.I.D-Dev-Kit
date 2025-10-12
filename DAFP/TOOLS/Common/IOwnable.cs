@@ -1,10 +1,8 @@
-﻿using DAFP.TOOLS.ECS;
-
-namespace DAFP.TOOLS.Common
+﻿namespace DAFP.TOOLS.Common
 {
-    public interface IOwnable
+    public interface IOwnable<TOwner> where TOwner : IOwner<TOwner>
     {
-        IEntity GetCurrentOwner();
-        void ChangeOwner(IEntity newOwner);
+        TOwner GetCurrentOwner();
+        void ChangeOwner(TOwner newOwner);
     }
 }

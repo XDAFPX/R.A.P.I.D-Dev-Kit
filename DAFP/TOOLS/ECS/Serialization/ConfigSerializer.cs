@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Serialization
 {
-    public class ConfigSerializer : ISerializer
+    public class ConfigSerializer : ISerializer<IEntity>
     {
         public virtual void OnDesirializeAdditionalStats(IStatBase stat, Dictionary<string, object> data)
         {
@@ -20,7 +20,7 @@ namespace DAFP.TOOLS.ECS.Serialization
         public virtual Dictionary<string, object> Save(IEntity ent)
         {
             var data = new Dictionary<string, object>();
-            data.Add($"{ent.GetType().FullName}.{ISerializer.ENT_ADDITIONS_DATA_NAME}", ISerializer.DefaultSave(ent));
+            data.Add($"{ent.GetType().FullName}.{ISerializer<IEntity>.ENT_ADDITIONS_DATA_NAME}", ISerializer<IEntity>.DefaultSave(ent));
             var _compdata = new Dictionary<string, object>();
             foreach (var _componentsValue in ent.Components.Values)
             {
@@ -37,16 +37,16 @@ namespace DAFP.TOOLS.ECS.Serialization
                 }
             }
 
-            data.Add(ISerializer.ENT_COMPONENTS_DATA_NAME, _compdata);
+            data.Add(ISerializer<IEntity>.ENT_COMPONENTS_DATA_NAME, _compdata);
             return data;
         }
 
         protected virtual void SaveStat(ref Dictionary<string, object> _statdata, IStatBase stat
             )
         {
-            _statdata.Add($"{ISerializer.STAT_DEFAULT}", stat.GetAbsoluteDefault());
-            _statdata.Add($"{ISerializer.STAT_MIN}", stat.GetAbsoluteMin());
-            _statdata.Add($"{ISerializer.STAT_MAX}", stat.GetAbsoluteMax());
+            _statdata.Add($"{ISerializer<IEntity>.STAT_DEFAULT}", stat.GetAbsoluteDefault());
+            _statdata.Add($"{ISerializer<IEntity>.STAT_MIN}", stat.GetAbsoluteMin());
+            _statdata.Add($"{ISerializer<IEntity>.STAT_MAX}", stat.GetAbsoluteMax());
             _statdata.AddSave(OnAddAdditionalStats(stat));
         }
 
@@ -54,9 +54,9 @@ namespace DAFP.TOOLS.ECS.Serialization
         {
             save.ApplyConcreteDeserialization();
 
-            ISerializer.DefaultLoad(
-                save.GetValueOrDefault($"{ent.GetType().FullName}.{ISerializer.ENT_ADDITIONS_DATA_NAME}"), ent);
-            if (save.TryGetValue(ISerializer.ENT_COMPONENTS_DATA_NAME, out var obj))
+            ISerializer<IEntity>.DefaultLoad(
+                save.GetValueOrDefault($"{ent.GetType().FullName}.{ISerializer<IEntity>.ENT_ADDITIONS_DATA_NAME}"), ent);
+            if (save.TryGetValue(ISerializer<IEntity>.ENT_COMPONENTS_DATA_NAME, out var obj))
             {
                 Dictionary<string, object> comp_data = obj as Dictionary<string, object>;
                 foreach (var _entityComponent in ent.Components)
@@ -82,17 +82,17 @@ namespace DAFP.TOOLS.ECS.Serialization
 
         protected virtual void LoadStat(Dictionary<string, object> stat_data, IStatBase stat)
         {
-            if (stat_data.TryGetValue(ISerializer.STAT_DEFAULT, out var _value1))
+            if (stat_data.TryGetValue(ISerializer<IEntity>.STAT_DEFAULT, out var _value1))
             {
                 stat.SetAbsoluteDefault(_value1);
             }
 
-            if (stat_data.TryGetValue(ISerializer.STAT_MAX, out var _value2))
+            if (stat_data.TryGetValue(ISerializer<IEntity>.STAT_MAX, out var _value2))
             {
                 stat.SetAbsoluteMax(_value2);
             }
 
-            if (stat_data.TryGetValue(ISerializer.STAT_MIN, out var _value3))
+            if (stat_data.TryGetValue(ISerializer<IEntity>.STAT_MIN, out var _value3))
             {
                 stat.SetAbsoluteMin(_value3);
             }

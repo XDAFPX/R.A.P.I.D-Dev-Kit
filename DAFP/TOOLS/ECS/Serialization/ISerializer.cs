@@ -6,10 +6,10 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Serialization
 {
-    public interface ISerializer
+    public interface ISerializer<T> where T : ISavable
     {
-        public Dictionary<string, object> Save(IEntity obj);
-        public void Load(Dictionary<string, object> save, IEntity ent);
+        public Dictionary<string, object> Save(T obj);
+        public void Load(Dictionary<string, object> save, T ent);
 
         public string GetDomainName();
 

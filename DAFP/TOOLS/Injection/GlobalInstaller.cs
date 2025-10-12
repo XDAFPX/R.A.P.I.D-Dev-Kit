@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.Audio;
+using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.UI;
 using NRandom;
 using NRandom.Unity;
 using PixelRouge.Direction;
+using UGizmo;
 using UnityEngine;
 using UnityEventBus;
 using Zenject;
@@ -18,7 +21,7 @@ namespace DAFP.TOOLS.Injection
 {
     public abstract class
         GlobalInstaller<TGameStateService, TCursorService, TSaveService, TConfigService, TSettingsSaveService,
-            TAudioService, TRandomService> : Zenject.MonoInstaller
+            TAudioService, TRandomService, TConsoleService, TGizmosService, TDebugService> : Zenject.MonoInstaller
         where TGameStateService : IGlobalGameStateHandler
         where TCursorService : IGlobalCursorStateHandler
         where TSaveService : ISaveSystem
@@ -26,6 +29,9 @@ namespace DAFP.TOOLS.Injection
         where TSettingsSaveService : IGlobalSettingsSaveSystem
         where TAudioService : IAudioSystem
         where TRandomService : IRandom, new()
+        where TConsoleService : IMessenger
+        where TGizmosService : IGlobalGizmos
+        where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IMessenger>
     {
         [SerializeField] private GameObject[] _uiSystemPrefabs;
 
@@ -34,8 +40,30 @@ namespace DAFP.TOOLS.Injection
         protected abstract string GetDefaultDifficultyState(InjectContext arg);
         protected abstract string GetDefaultCursorState(InjectContext arg);
         protected abstract string GetDefaultDifficultyStateDomainName(InjectContext arg);
+        protected abstract bool GetDefaultConsoleUnlockState(InjectContext arg);
 
-        /// <summary>
+        protected IList<DebugDrawLayer> GetDefaultDebugDrawLayers(InjectContext arg)
+        {
+            return new List<DebugDrawLayer>()
+            {
+                shared,
+                new DebugDrawLayer("Triggers"),
+                new DebugDrawLayer("HitBoxes"),
+                new DebugDrawLayer("BoundingBoxes",true),
+                new DebugDrawLayer("Positions",true),
+                new DebugDrawLayer("EyeVectors"),
+                new DebugDrawLayer("Velocities"),
+                new DebugDrawLayer("Names")
+            };
+        }
+
+        private static DebugDrawLayer shared = new DebugDrawLayer("Shared",true);
+
+        protected DebugDrawLayer GetDefaultSharedDebugDrawLayer(InjectContext arg)
+        {
+            return shared;
+        }
+
         /// 2) Return the prefab list for binding
         /// </summary>
         protected virtual IEnumerable<GameObject> GetUISystemPrefabs()
@@ -46,7 +74,8 @@ namespace DAFP.TOOLS.Injection
         protected virtual void InstallTickers()
         {
             Container.Bind<ITickerBase>().WithId("DefaultPhysicsComponentGameplayTicker")
-                .FromMethod(_ => new FixedUpdateTicker<IEntityComponent>(new())).AsSingle().Lazy();
+                .FromMethod(_ => new FixedUpdateTicker<IEntityComponent>(new())).AsCached();
+
             Container.Bind<ITicker<IEntity>>().WithId("DefaultUpdateEntityGameplayTicker")
                 .FromMethod(_ => new UpdateTicker<IEntity>(new())).AsSingle().Lazy();
         }
@@ -58,8 +87,11 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<string>().WithId("DefaultDifficultyDomain").FromMethod(GetDefaultDifficultyStateDomainName)
                 .AsCached();
             Container.Bind<string>().WithId("DefaultCursorState").FromMethod(GetDefaultCursorState).AsCached();
+            Container.Bind<bool>().WithId("ConsoleUnlocked").FromMethod(GetDefaultConsoleUnlockState).AsCached();
             Container.Bind<IEventBus>().WithId("GlobalStateBus").FromMethod((context => new GlobalStateBus()))
                 .AsSingle().NonLazy();
+            Container.Bind<IList<DebugDrawLayer>>().FromMethod(GetDefaultDebugDrawLayers).AsSingle();
+            Container.Bind<DebugDrawLayer>().FromMethod(GetDefaultSharedDebugDrawLayer).AsSingle();
 
 
             Container.Bind<TRandomService>()
@@ -98,6 +130,11 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<UtillGlobalBoard>().AsSingle().NonLazy();
             Container.Bind<GlobalBlackBoard>().To<UtillGlobalBoard>().FromResolve();
             Container.Bind<ITickable>().To<UtillGlobalBoard>().FromResolve();
+            Container.Bind<TConsoleService>().AsSingle().NonLazy();
+            Container.Bind<TGizmosService>().AsSingle().NonLazy();
+            Container.Bind<TDebugService>().AsSingle().NonLazy();
+            Container.Bind<Zenject.ITickable>().To<TDebugService>().FromResolve();
+            Container.Bind<IDebugSys<IGlobalGizmos, IMessenger>>().To<TDebugService>().FromResolve();
 
             InstallTickers();
 

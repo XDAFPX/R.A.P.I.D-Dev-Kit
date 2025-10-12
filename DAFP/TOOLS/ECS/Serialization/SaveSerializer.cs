@@ -11,13 +11,13 @@ namespace DAFP.TOOLS.ECS.Serialization
         public override Dictionary<string, object> OnAddAdditionalStats(IStatBase stat)
         {
             var dict = new Dictionary<string, object>();
-            dict.Add(ISerializer.STAT_VAL, stat.GetAbsoluteValue());
+            dict.Add(ISerializer<IEntity>.STAT_VAL, stat.GetAbsoluteValue());
             return dict;
         }
 
         public override void OnDesirializeAdditionalStats(IStatBase stat, Dictionary<string, object> data)
         {
-            if (data.TryGetValue(ISerializer.STAT_VAL, out var _value))
+            if (data.TryGetValue(ISerializer<IEntity>.STAT_VAL, out var _value))
             {
                 stat.SetAbsoluteValue(_value);
             }
@@ -38,7 +38,7 @@ namespace DAFP.TOOLS.ECS.Serialization
             }
 
             save.ApplyConcreteDeserialization();
-            if (save.TryGetValue(ent.GetType().FullName + "." + ISerializer.ENT_BASIC_DATA_NAME, out var _value))
+            if (save.TryGetValue(ent.GetType().FullName + "." + ISerializer<IEntity>.ENT_BASIC_DATA_NAME, out var _value))
             {
                 var transform_save = _value as Dictionary<string, object>;
 
@@ -77,7 +77,7 @@ namespace DAFP.TOOLS.ECS.Serialization
             transform_save.Add("Name", ent.GetWorldRepresentation().name);
             transform_save.Add("ID", ent.ID);
 
-            save.Add(ent.GetType().FullName + "." + ISerializer.ENT_BASIC_DATA_NAME, transform_save);
+            save.Add(ent.GetType().FullName + "." + ISerializer<IEntity>.ENT_BASIC_DATA_NAME, transform_save);
             return save;
         }
 

@@ -27,7 +27,7 @@ namespace DAFP.TOOLS.ECS
         public override float DeltaTime => Time.fixedDeltaTime;
         public override HashSet<T> Subscribed { get; } = new();
 
-        public FixedUpdateTicker(HashSet<IGlobalGameState> blackList) : base(blackList)
+        public FixedUpdateTicker(HashSet<IGlobalGameState> blackList,int pr =0) : base(blackList,pr)
         {
         }
     }

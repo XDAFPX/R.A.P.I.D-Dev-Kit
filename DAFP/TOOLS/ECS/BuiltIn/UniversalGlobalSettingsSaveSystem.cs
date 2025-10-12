@@ -21,7 +21,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             this.theblacks = theblacks;
         }
 
-        public void SaveAll(ISerializationService saveService, ISerializer serializer, IMetaSerializer metaSerializer,
+        public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer, IMetaSerializer metaSerializer,
             int slot)
         {
             Dictionary<string, object> Data = new();
@@ -64,7 +64,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             throw new NotImplementedException();
         }
 
-        public async Task LoadAll(ISerializationService saveService, ISerializer serializer,
+        public async Task LoadAll(ISerializationService saveService, ISerializer<IEntity> serializer,
             IMetaSerializer metaSerializer, Action OnEnd, int slot)
         {
             Dictionary<string, object> Data =

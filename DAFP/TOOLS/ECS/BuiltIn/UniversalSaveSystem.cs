@@ -30,7 +30,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             this.boards = boards;
         }
 
-        public void SaveAll(ISerializationService saveService, ISerializer serializer, IMetaSerializer metaSerializer,
+        public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer, IMetaSerializer metaSerializer,
             int slot)
         {
             Dictionary<string, object> _allData =
@@ -139,7 +139,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         private (string, string, string) GetPath(int slot) => ("DefaultSaves", $"Slot{slot}", "GameSave.Save");
 
-        public async Task LoadAll(ISerializationService saveService, ISerializer serializer,
+        public async Task LoadAll(ISerializationService saveService, ISerializer<IEntity> serializer,
             IMetaSerializer metaSerializer, Action OnEnd, int slot)
         {
             if (slot != -1)

@@ -9,6 +9,53 @@ namespace DAFP.TOOLS.BTs
 {
     public class Nodes
     {
+        public class EmptyNode : BtNodeBase
+        {
+            private readonly BtStatus status;
+
+            public EmptyNode(BtStatus stat = BtStatus.Success)
+            {
+                status = stat;
+            }
+
+            public override void Enter()
+            {
+            }
+
+            public override void Exit()
+            {
+            }
+
+            public override BtStatus InternalTick()
+            {
+                return status;
+            }
+        }
+
+        public class ActionNode : BtNodeBase
+        {
+            private readonly System.Action action;
+
+            public ActionNode(System.Action action)
+            {
+                this.action = action;
+            }
+
+            public override void Enter()
+            {
+            }
+
+            public override void Exit()
+            {
+            }
+
+            public override BtStatus InternalTick()
+            {
+                action.Invoke();
+                return BtStatus.Success;
+            }
+        }
+
         public class LoSCheckNode3D : EnemyNode
         {
             private readonly LayerMask mask;

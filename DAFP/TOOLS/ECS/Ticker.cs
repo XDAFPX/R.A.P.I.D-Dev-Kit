@@ -5,7 +5,7 @@ namespace DAFP.TOOLS.ECS
 {
     public class Ticker<T> : BlackListedTicker<T> where T : ITickable
     {
-        public Ticker(float updatesPerSecond, HashSet<IGlobalGameState> blackList) : base(blackList)
+        public Ticker(float updatesPerSecond, HashSet<IGlobalGameState> blackList,int pr =0) : base(blackList,pr)
         {
             UpdatesPerSecond = updatesPerSecond;
         }

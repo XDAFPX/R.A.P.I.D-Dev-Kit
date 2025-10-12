@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common;
+using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.GlobalState;
 using JetBrains.Annotations;
@@ -16,14 +17,18 @@ namespace DAFP.TOOLS.ECS.Services
     {
         public static readonly Ticker<IEntity> EMPTY_TICKER = new Ticker<IEntity>(0, new HashSet<IGlobalGameState>()); 
         public readonly List<IEntity> ENTITIES = new();
-        protected readonly HashSet<ITickerBase> TICKERS = new();
+        protected readonly List<ITickerBase> TICKERS = new();
 
-        public readonly HashSet<IBindedEntity> PLAYERS = new();
+        public readonly HashSet<IBindedEntity> BINDED_ENTITIES = new();
 
 
         public void RegisterTicker([NotNull] ITickerBase ticker)
         {
+            if(TICKERS.Contains(ticker))
+                return;
+            
             TICKERS.Add(ticker);
+            TICKERS.Sort();
         }
 
         public void SubscribeToOnTickEntities<T>(IEntity.TickCallBack callBack) where T : IEntity
@@ -42,13 +47,13 @@ namespace DAFP.TOOLS.ECS.Services
             if (ent == null || ticker == null)
                 return;
             if (ent is IBindedEntity pl)
-                PLAYERS.Add(pl);
+                BINDED_ENTITIES.Add(pl);
             if (ENTITIES.Contains(ent))
                 return;
             RegisterTicker(ticker);
             ticker.Subscribed.Add(ent);
             ENTITIES.Add(ent);
-            if (ent is IOwnable _ownable)
+            if (ent is IEntityOwnable _ownable)
                 AddPet(_ownable);
 
             Debug.Log(
@@ -58,7 +63,7 @@ namespace DAFP.TOOLS.ECS.Services
         public void RemoveEntity([NotNull] IEntity ent)
         {
             if (ent is IBindedEntity pl)
-                PLAYERS.Remove(pl);
+                BINDED_ENTITIES.Remove(pl);
             try
             {
                 ENTITIES.Remove(ent);
@@ -71,7 +76,7 @@ namespace DAFP.TOOLS.ECS.Services
                     }
                 }
 
-                if (ent is IOwnable _ownable)
+                if (ent is IEntityOwnable _ownable)
                     RemovePet(_ownable);
             }
             catch (Exception e)
@@ -107,6 +112,8 @@ namespace DAFP.TOOLS.ECS.Services
             Tick();
         }
 
+
+
         public void Initialize()
         {
             id = Guid.NewGuid().ToString();
@@ -117,12 +124,13 @@ namespace DAFP.TOOLS.ECS.Services
             }
 
             TICKERS.Clear();
-            PLAYERS.Clear();
+            BINDED_ENTITIES.Clear();
             HasInitialized = true;
         }
 
         public void FixedTick()
         {
+            
             foreach (var _ticker in TICKERS.OfType<FixedUpdateTicker<IEntity>>())
             {
                 SafeTick(_ticker);
@@ -170,18 +178,18 @@ namespace DAFP.TOOLS.ECS.Services
         public bool HasInitialized { get; set; }
 
 
-        protected HashSet<IOwnable> Pets = new HashSet<IOwnable>();
+        protected HashSet<IEntityOwnable> Pets = new HashSet<IEntityOwnable>();
         private string id;
 
 
-        public virtual void AddPet(IOwnable pet)
+        public virtual void AddPet(IEntityOwnable pet)
         {
             Pets.Add(pet);
         }
 
         public string ID => id;
 
-        public virtual void RemovePet(IOwnable pet)
+        public virtual void RemovePet(IEntityOwnable pet)
         {
             Pets.Remove(pet);
         }

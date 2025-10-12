@@ -8,7 +8,7 @@ namespace DAFP.TOOLS.ECS.BigData
     /// Abstract modifier record for IStat, implementing IPet and IDisposable.
     /// </summary>
     [Serializable]
-    public abstract class StatModifier<T> : IOwnable,
+    public abstract class StatModifier<T> : IEntityOwnable,
         IDisposable,
         IComparable<StatModifier<T>>
     {

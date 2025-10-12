@@ -1,6 +1,9 @@
-﻿using DAFP.TOOLS.ECS.GlobalState;
+﻿using System.Collections.Generic;
+using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
+using DAFP.TOOLS.ECS.ViewModel;
 using NRandom;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -24,11 +27,16 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public void Transition(int SceneIndex)
         {
             saveSystem.SaveAll(new SaveSerializationService(), new SaveSerializer(),
-                new SaveMetaSerializer(world, randomSys), 0);
-            saveSystem.TryChangeCurrentScene(new SaveSerializationService(), new SaveMetaSerializer(world, randomSys), SceneIndex,
+                new SaveMetaSerializer(World, randomSys), 0);
+            saveSystem.TryChangeCurrentScene(new SaveSerializationService(), new SaveMetaSerializer(World, randomSys), SceneIndex,
                 0);
-            saveSystem.LoadAll(new SaveSerializationService(), new SaveSerializer(), new SaveMetaSerializer(world, randomSys),
+            saveSystem.LoadAll(new SaveSerializationService(), new SaveSerializer(), new SaveMetaSerializer(World, randomSys),
                 null, 0);
+        }
+
+        public override NonEmptyList<IViewModel> SetupView()
+        {
+            return new NonEmptyList<IViewModel>(new EmptyView());
         }
 
         public override ITicker<IEntity> EntityTicker { get; } = null;

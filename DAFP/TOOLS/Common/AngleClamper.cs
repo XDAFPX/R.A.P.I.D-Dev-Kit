@@ -2,10 +2,11 @@
 
 namespace DAFP.TOOLS.Common
 {
+    [System.Serializable]
     public class AngleClamper
     {
-        private readonly float Min;
-        private readonly float Max;
+        [SerializeField]private  float Min;
+        [SerializeField]private float Max;
 
         public AngleClamper(float min, float max)
         {

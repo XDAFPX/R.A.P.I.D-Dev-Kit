@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
 using Archon.SwissArmyLib.Utils.Editor;
 using BDeshi.BTSM;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
 using DAFP.TOOLS.ECS.Services;
+using DAFP.TOOLS.ECS.ViewModel;
 using UnityEngine;
 using UnityGetComponentCache;
 using Zenject;
@@ -163,6 +165,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             Vector3 finalPosition = new Vector3(movementX, movementY, 0);
             transform.localPosition = Vector3.Lerp(transform.localPosition, transform.localPosition + finalPosition,
                 swaySpeed * Time.deltaTime);
+        }
+
+        public override NonEmptyList<IViewModel> SetupView()
+        {
+            return new NonEmptyList<IViewModel>() { new EmptyView() };
         }
 
         [Inject(Id = "DefaultUpdateEntityGameplayTicker")]public override ITicker<IEntity> EntityTicker { get; }
