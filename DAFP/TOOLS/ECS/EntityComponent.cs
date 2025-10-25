@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.DebugSystem;
 using UnityEngine;
 using UnityGetComponentCache;
 
@@ -48,6 +50,10 @@ namespace DAFP.TOOLS.ECS
                 Host.GetWorld().RegisterCustomComponentTicker(this, customTicker);
         }
 
+        public virtual IEnumerable<IDebugDrawer> SetupDebugDrawers()
+        {
+            return Array.Empty<IDebugDrawer>();
+        }
 
         public void OnStartInternal()
         {
@@ -57,6 +63,11 @@ namespace DAFP.TOOLS.ECS
         public GameObject GetWorldRepresentation()
         {
             return gameObject;
+        }
+
+        private void OnDrawGizmos()
+        {
+            //DO NOIT OVERRIDE
         }
     }
 }

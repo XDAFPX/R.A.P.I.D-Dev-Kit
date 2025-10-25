@@ -33,7 +33,7 @@ namespace DAFP.TOOLS.ECS.Components
 
         protected override void SetVelocity(Vector2 v) => rb.linearVelocity = v;
 
-        protected override void AddForce(Vector2 f, ForceMode2D m) => rb.AddForce(f, m);
+        public override void AddForce(Vector2 f, ForceMode2D m) => rb.AddForce(f, m);
         protected override void AddForce(Vector2 f) => rb.AddForce(f);
         protected override ForceMode2D DefaultForceMode() => ForceMode2D.Force;
         protected override ForceMode2D ImpulseMode()      => ForceMode2D.Impulse;

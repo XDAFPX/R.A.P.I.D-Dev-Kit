@@ -8,7 +8,7 @@ using UnityEngine;
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
     public interface IDebugSys<out TGizmos, out TMessenger> : IDrawable, IOwner<IDebugDrawable>,
-        Zenject.ITickable
+        Zenject.ITickable, IOwner<IDebugSys<IGlobalGizmos, IMessenger>>
         where TGizmos : IGlobalGizmos where TMessenger : IMessenger
     {
         public TGizmos Gizmos { get; }
@@ -24,7 +24,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
         void IDrawable.Draw()
         {
-            foreach (var _ownable in Pets)
+            foreach (var _ownable in ((IOwner<IDebugDrawable>)this).Pets)
             {
                 if (_ownable is IDrawable drawable)
                 {
@@ -39,7 +39,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
                 return;
             if (pet == null)
                 return;
-            Pets.Add(pet);
+            ((IOwner<IDebugDrawable>)this).Pets.Add(pet);
         }
 
         bool IOwner<IDebugDrawable>.RemovePet(IOwnable<IDebugDrawable> pet)
@@ -48,7 +48,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
                 return false;
             if (pet == null)
                 return false;
-            Pets.Remove(pet);
+            ((IOwner<IDebugDrawable>)this).Pets.Remove(pet);
 
             return true;
         }

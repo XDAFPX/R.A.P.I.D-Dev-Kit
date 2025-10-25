@@ -162,7 +162,7 @@ namespace PixelRouge.Colors
         /// contrasts better with this color <paramref name="color"/>.
         /// </summary>
         /// <seealso cref="http://stackoverflow.com/questions/2241447/make-foregroundcolor-black-or-white-depending-on-background"/>
-        public static Color GetContrastingColor(Color color)
+        public static Color GetContrastingColor(this Color color)
         {
             var colorProduct = color.r * color.r * 0.241f + color.g * color.g * 0.691f + color.b * color.b * 0.068f;
 

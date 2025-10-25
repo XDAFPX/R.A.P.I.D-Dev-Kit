@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
+using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.ViewModel;
 using RapidLib.DAFP.TOOLS.Common;
 using UnityEditor.PackageManager.Requests;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class EmptyView : EntityPetImpl, IViewModel
+    public class EmptyView :  IViewModel
     {
 
         public string Name { get; set; } = "Empty";
@@ -20,8 +21,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public bool Enabled { get; } = false;
         public IViewModel Construct(IEntity owner)
         {
-            ChangeOwner(owner);
+            ((IEntityPet)this).ChangeOwner(owner);
             return this;
         }
+
+        public List<IEntity> Owners { get; } = new();
     }
 }

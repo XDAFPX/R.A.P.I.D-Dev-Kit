@@ -302,7 +302,7 @@ namespace DAFP.TOOLS.ECS.Components
         protected abstract float GetMass();
         protected abstract TVec Velocity { get; set; }
         protected abstract void SetVelocity(TVec v);
-        protected abstract void AddForce(TVec force, TMode mode);
+        public abstract void AddForce(TVec force, TMode mode);
         protected abstract void AddForce(TVec force); // default ForceMode if any
         protected abstract TMode DefaultForceMode(); // e.g. ForceMode.Force or ForceMode2D.Force
         protected abstract TMode ImpulseMode(); // e.g. ForceMode.Impulse or ForceMode2D.Impulse

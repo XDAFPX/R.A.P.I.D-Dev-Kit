@@ -26,10 +26,6 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
         public abstract void DrawInternal();
 
-        public void Init(IDebugDrawable drawable)
-        {
-            ((IOwnable<IDebugDrawable>)this).ChangeOwner(drawable);
-        }
 
         public class BoundingBoxDrawer : EntityDebugDrawer
         {

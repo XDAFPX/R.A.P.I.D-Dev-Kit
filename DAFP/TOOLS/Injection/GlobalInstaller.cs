@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.Audio;
+using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
@@ -21,7 +22,8 @@ namespace DAFP.TOOLS.Injection
 {
     public abstract class
         GlobalInstaller<TGameStateService, TCursorService, TSaveService, TConfigService, TSettingsSaveService,
-            TAudioService, TRandomService, TConsoleService, TGizmosService, TDebugService> : Zenject.MonoInstaller
+            TAudioService, TRandomService, TConsoleService, TGizmosService, TDebugService,
+            TConsoleInterpriter> : Zenject.MonoInstaller
         where TGameStateService : IGlobalGameStateHandler
         where TCursorService : IGlobalCursorStateHandler
         where TSaveService : ISaveSystem
@@ -32,6 +34,8 @@ namespace DAFP.TOOLS.Injection
         where TConsoleService : IMessenger
         where TGizmosService : IGlobalGizmos
         where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IMessenger>
+        where TConsoleInterpriter : ICommandInterpriter
+
     {
         [SerializeField] private GameObject[] _uiSystemPrefabs;
 
@@ -42,6 +46,8 @@ namespace DAFP.TOOLS.Injection
         protected abstract string GetDefaultDifficultyStateDomainName(InjectContext arg);
         protected abstract bool GetDefaultConsoleUnlockState(InjectContext arg);
 
+        protected abstract Font GetDefaultConsoleFont(InjectContext arg);
+
         protected IList<DebugDrawLayer> GetDefaultDebugDrawLayers(InjectContext arg)
         {
             return new List<DebugDrawLayer>()
@@ -49,15 +55,16 @@ namespace DAFP.TOOLS.Injection
                 shared,
                 new DebugDrawLayer("Triggers"),
                 new DebugDrawLayer("HitBoxes"),
-                new DebugDrawLayer("BoundingBoxes",true),
-                new DebugDrawLayer("Positions",true),
+                new DebugDrawLayer("BoundingBoxes", true),
+                new DebugDrawLayer("Positions", true),
                 new DebugDrawLayer("EyeVectors"),
                 new DebugDrawLayer("Velocities"),
-                new DebugDrawLayer("Names")
+                new DebugDrawLayer("Names"),
+                new DebugDrawLayer("ViewModels", true)
             };
         }
 
-        private static DebugDrawLayer shared = new DebugDrawLayer("Shared",true);
+        private static DebugDrawLayer shared = new DebugDrawLayer("Shared", true);
 
         protected DebugDrawLayer GetDefaultSharedDebugDrawLayer(InjectContext arg)
         {
@@ -71,6 +78,30 @@ namespace DAFP.TOOLS.Injection
             return _uiSystemPrefabs ?? Array.Empty<GameObject>();
         }
 
+        protected virtual float GetDefaultConsoleFontSize()
+        {
+            return 23;
+        }
+
+        protected virtual IEnumerable<Type> GetConsoleCommands()
+        {
+            return new Type[]
+            {
+                typeof(UniversalCommandInterpriter.HelpCommand), typeof(UniversalCommandInterpriter.QuitCommand),
+                typeof(UniversalCommandInterpriter.LoadLevelCommand), typeof(UniversalCommandInterpriter.VersionCommand),
+                typeof(UniversalCommandInterpriter.ChangeSceneCommand),typeof(UniversalCommandInterpriter.PlayAudioCommand),
+                typeof(UniversalCommandInterpriter.MatCommand)
+            };
+        }
+
+        private void BindCommands()
+        {
+            foreach (var _consoleCommand in GetConsoleCommands())
+            {
+                Container.Bind<IConsoleCommand>().To(_consoleCommand).AsTransient().Lazy();
+            }
+        }
+
         protected virtual void InstallTickers()
         {
             Container.Bind<ITickerBase>().WithId("DefaultPhysicsComponentGameplayTicker")
@@ -82,11 +113,14 @@ namespace DAFP.TOOLS.Injection
 
         public override void InstallBindings()
         {
+            // "ConsoleCommandInterpriter"
             Container.Bind<string>().WithId("DefaultGameState").FromMethod(GetGameDefaultGameState).AsCached();
             Container.Bind<string>().WithId("DefaultDifficulty").FromMethod(GetDefaultDifficultyState).AsCached();
             Container.Bind<string>().WithId("DefaultDifficultyDomain").FromMethod(GetDefaultDifficultyStateDomainName)
                 .AsCached();
             Container.Bind<string>().WithId("DefaultCursorState").FromMethod(GetDefaultCursorState).AsCached();
+            Container.Bind<float>().WithId("ConsoleTextSize").FromMethod(GetDefaultConsoleFontSize).AsCached();
+            Container.Bind<Font>().WithId("ConsoleFont").FromMethod(GetDefaultConsoleFont).AsCached();
             Container.Bind<bool>().WithId("ConsoleUnlocked").FromMethod(GetDefaultConsoleUnlockState).AsCached();
             Container.Bind<IEventBus>().WithId("GlobalStateBus").FromMethod((context => new GlobalStateBus()))
                 .AsSingle().NonLazy();
@@ -130,11 +164,7 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<UtillGlobalBoard>().AsSingle().NonLazy();
             Container.Bind<GlobalBlackBoard>().To<UtillGlobalBoard>().FromResolve();
             Container.Bind<ITickable>().To<UtillGlobalBoard>().FromResolve();
-            Container.Bind<TConsoleService>().AsSingle().NonLazy();
-            Container.Bind<TGizmosService>().AsSingle().NonLazy();
-            Container.Bind<TDebugService>().AsSingle().NonLazy();
-            Container.Bind<Zenject.ITickable>().To<TDebugService>().FromResolve();
-            Container.Bind<IDebugSys<IGlobalGizmos, IMessenger>>().To<TDebugService>().FromResolve();
+
 
             InstallTickers();
 
@@ -164,6 +194,17 @@ namespace DAFP.TOOLS.Injection
             }
 
             Container.BindInterfacesAndSelfTo<RootUISys>().AsSingle().NonLazy();
+
+
+            BindCommands();
+            Container.BindInterfacesAndSelfTo<TConsoleInterpriter>().AsSingle().NonLazy();
+            Container.Bind<ICommandInterpriter>().WithId("ConsoleCommandInterpriter").To<TConsoleInterpriter>()
+                .FromResolve();
+            Container.Bind<TConsoleService>().AsSingle().NonLazy();
+            Container.Bind<TGizmosService>().AsSingle().NonLazy();
+            Container.Bind<TDebugService>().AsSingle().NonLazy();
+            Container.Bind<Zenject.ITickable>().To<TDebugService>().FromResolve();
+            Container.Bind<IDebugSys<IGlobalGizmos, IMessenger>>().To<TDebugService>().FromResolve();
         }
     }
 }

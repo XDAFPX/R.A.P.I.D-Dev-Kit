@@ -14,24 +14,56 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     public class DefaultLevelTransition : Entity
     {
         [Inject] private ISaveSystem saveSystem;
-        [Inject] private IRandom randomSys;
+        [Inject] private IRandom RandomSys;
 
-        // public void Transition(string Scenename)
-        // {
-        //     var index = SceneManager.GetSceneByName(Scenename).buildIndex;
-        //     saveSystem.TryChangeCurrentScene(new SaveSerializationService(), new SaveMetaSerializer(world), index);
-        //     saveSystem.LoadAll(new SaveSerializationService(), new SaveSerializer(), new SaveMetaSerializer(world),
-        //         null);
-        // }
+        public static void Transition(
+            string sceneName,
+            ISaveSystem saveSystem,
+            World world,
+            IRandom randomSys)
+        {
+            int sceneIndex = GetSceneIndexByName(sceneName);
+            Transition(sceneIndex, saveSystem, world, randomSys);
+        }
+
+        public static void Transition(
+            int sceneIndex,
+            ISaveSystem saveSystem,
+            World world,
+            IRandom randomSys)
+        {
+            var serializationService = new SaveSerializationService();
+            var serializer = new SaveSerializer();
+            var metaSerializer = new SaveMetaSerializer(world, randomSys);
+
+            saveSystem.SaveAll(serializationService, serializer, metaSerializer, 0);
+            saveSystem.TryChangeCurrentScene(serializationService, metaSerializer, sceneIndex, 0);
+            saveSystem.LoadAll(serializationService, serializer, metaSerializer, null, 0);
+        }
+
+        public void Transition(string scenename)
+        {
+            Transition(scenename,SaveSystem,World,RandomSys);
+        }
 
         public void Transition(int SceneIndex)
         {
-            saveSystem.SaveAll(new SaveSerializationService(), new SaveSerializer(),
-                new SaveMetaSerializer(World, randomSys), 0);
-            saveSystem.TryChangeCurrentScene(new SaveSerializationService(), new SaveMetaSerializer(World, randomSys), SceneIndex,
-                0);
-            saveSystem.LoadAll(new SaveSerializationService(), new SaveSerializer(), new SaveMetaSerializer(World, randomSys),
-                null, 0);
+            Transition(SceneIndex,SaveSystem,World,RandomSys);
+        }
+
+        public static int GetSceneIndexByName(string sceneName)
+        {
+            int count = SceneManager.sceneCountInBuildSettings;
+
+            for (int i = 0; i < count; i++)
+            {
+                string path = SceneUtility.GetScenePathByBuildIndex(i);
+                string name = System.IO.Path.GetFileNameWithoutExtension(path);
+                if (name.Equals(sceneName, System.StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+
+            return -1; // not found
         }
 
         public override NonEmptyList<IViewModel> SetupView()

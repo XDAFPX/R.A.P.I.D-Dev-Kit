@@ -194,7 +194,15 @@ namespace DAFP.TOOLS.ECS
 
         private void InitializeDebug()
         {
-            ((IOwner<IDebugDrawable>)this).Pets.UnionWith(SetupDebugDrawers());
+            
+            List<IDebugDrawer> drawers = SetupDebugDrawers().ToList();
+            foreach (var _entityComponent in Components)
+            {
+                drawers = drawers.Union(_entityComponent.Value.SetupDebugDrawers()).ToList();
+            }
+
+            
+            ((IOwner<IDebugDrawable>)this).Pets.UnionWith(drawers);
             foreach (var _ownable in ((IOwner<IDebugDrawable>)this).Pets)
             {
                 _ownable.ChangeOwner(this);
@@ -252,7 +260,7 @@ namespace DAFP.TOOLS.ECS
         {
             foreach (var comp in Components.Values)
             {
-                if(comp is IViewModel)
+                if (comp is IViewModel)
                     continue;
                 if (comp.EntityComponentTicker == EntityTicker)
                     comp.Tick();

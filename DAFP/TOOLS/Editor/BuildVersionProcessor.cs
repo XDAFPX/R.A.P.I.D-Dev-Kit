@@ -3,26 +3,34 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+
 public class BuildVersionProcessor : IPreprocessBuildWithReport
 {
     public int callbackOrder => 0;
     public string initverison = "0.0";
-    
+
     public void OnPreprocessBuild(BuildReport report)
     {
-        
         Debug.Log($"Current patch:[{Currentversion()}]");
         Updateverison(Currentversion());
     }
+
     private string Currentversion()
     {
-        string[] version = PlayerSettings.bundleVersion.Split("-");
-        return version[1];
+        try
+        {
+            string[] version = PlayerSettings.bundleVersion.Split("-");
+            return version[1];
+        }
+        catch ( Exception ex)
+        {
+            return "0.0";
+        }
     }
+
     private void Updateverison(string version)
     {
-        
-        if(float.TryParse(version,out float paresedversion))
+        if (float.TryParse(version, out float paresedversion))
         {
             Debug.Log($"Parsed Patch: {paresedversion}");
             float newversion = paresedversion + 0.01f;
@@ -36,6 +44,5 @@ public class BuildVersionProcessor : IPreprocessBuildWithReport
         {
             Debug.Log($"Could not parse version:{Currentversion()}");
         }
-  
     }
 }

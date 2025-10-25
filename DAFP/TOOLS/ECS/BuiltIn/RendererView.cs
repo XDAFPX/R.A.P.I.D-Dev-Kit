@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.ViewModel;
 using PixelRouge.CsharpExtensionMethods;
@@ -10,24 +11,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     public class RendererView : List<Renderer>, IViewModel
     {
         
-        private EntityPetImpl Impl = new EntityPetImpl();
-
-        public IEntity GetCurrentOwner()
-        {
-            return Impl.GetCurrentOwner();
-        }
-
-        public void ChangeOwner(IEntity newOwner)
-        {
-            Impl.ChangeOwner(newOwner);
-        }
-
-        public List<IEntity> Owners => Impl.Owners;
-
-        public IEntity GetExOwner()
-        {
-            return Impl.GetExOwner();
-        }
 
         public string Name { get; set; } = "Default";
 
@@ -49,10 +32,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             Clear();
             
-            Impl = new EntityPetImpl();
-            ChangeOwner(owner);
+            ((IEntityPet)this).ChangeOwner(owner);
             owner.GetWorldRepresentation().transform.GetComponentsInRoot<Renderer>().ForEachComponent((Add));
             return this;
         }
+
+        public List<IEntity> Owners { get; } = new();
     }
 }

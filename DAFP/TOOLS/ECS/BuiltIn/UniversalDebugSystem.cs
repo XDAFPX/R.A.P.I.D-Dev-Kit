@@ -16,6 +16,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public UniversalDebugSystem(TMessenger messenger, TGizmos gizmos, IList<DebugDrawLayer> layers)
         {
             Messenger = messenger;
+            if(Messenger is IOwnable<IDebugSys<IGlobalGizmos,IMessenger>> ownable)
+                ownable.ChangeOwner(((IDebugSys<IGlobalGizmos,IMessenger>)this));
             Gizmos = gizmos;
             Layers = layers;
         }
@@ -28,6 +30,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         private readonly HashSet<IOwnable<IDebugDrawable>> _pets = new();
 
-        public ISet<IOwnable<IDebugDrawable>> Pets => _pets; 
+        private ISet<IOwnable<IDebugSys<IGlobalGizmos, IMessenger>>> pets =
+            new HashSet<IOwnable<IDebugSys<IGlobalGizmos, IMessenger>>>();
+
+        public ISet<IOwnable<IDebugDrawable>> Pets => _pets;
+
+        ISet<IOwnable<IDebugSys<IGlobalGizmos, IMessenger>>> IOwner<IDebugSys<IGlobalGizmos, IMessenger>>.Pets => pets;
     }
 }

@@ -52,6 +52,7 @@ namespace DAFP.TOOLS.Common.TextSys
             );
         }
 
+        public static CompText Literal(string txt) => new CompText(txt);
         public string Print()
         {
             return Build();

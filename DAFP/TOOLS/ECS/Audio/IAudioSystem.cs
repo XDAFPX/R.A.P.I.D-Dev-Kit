@@ -2,8 +2,9 @@
 {
     public interface IAudioSystem
     {
-        public IAudioInstance Play(IAudioSettings settings, string audio, params object[] additionaldata);
+        public IAudioSettings GetDefault();
+        public IAudioInstance Play(IAudioSettings settings, string audio);
         public void DeleteInstance(IAudioInstance instance);
-        public void PlayOneShot(IAudioSettings settings, string audio, params object[] additionaldata);
+        public void PlayOneShot(IAudioSettings settings, string audio);
     }
 }

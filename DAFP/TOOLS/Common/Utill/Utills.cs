@@ -50,6 +50,25 @@ namespace DAFP.TOOLS.Common.Utill
             return v3 + v32;
         }
 
+        public static Transform FindDeepChild(this Transform parent, string childName)
+        {
+            // First, check direct children
+            Transform result = parent.Find(childName);
+            if (result != null)
+                return result;
+
+            // If not found, search recursively
+            foreach (Transform child in parent)
+            {
+                result = child.FindDeepChild(childName);
+                if (result != null)
+                    return result;
+            }
+
+            // Not found anywhere
+            return null;
+        }
+
         public static Vector3 ClampMinMagnitude(this Vector3 vector, float minLength)
         {
             float sqrMagnitude = vector.sqrMagnitude;
@@ -380,6 +399,7 @@ namespace DAFP.TOOLS.Common.Utill
             find.Enable();
         }
 
+
         public static INameable FindByName(this IEnumerable<INameable> nameables, string name)
         {
             return nameables.FirstOrDefault((nameable => nameable.Name == name));
@@ -442,6 +462,40 @@ namespace DAFP.TOOLS.Common.Utill
             }
 
             return combined;
+        }
+
+        public static T AddOrGetComponent<T>(this GameObject gameObject) where T : Component
+        {
+            if (gameObject == null)
+                throw new System.ArgumentNullException(nameof(gameObject));
+
+            var component = gameObject.GetComponent<T>();
+            if (component == null)
+                component = gameObject.AddComponent<T>();
+
+            return component;
+        }
+
+        public static T AddOrGetComponent<T>(this Transform transform) where T : Component
+        {
+            if (transform == null)
+                throw new System.ArgumentNullException(nameof(transform));
+
+            return transform.gameObject.AddOrGetComponent<T>();
+        }
+
+
+        public static bool IsInBounds<T>(this IReadOnlyList<T> collection, int index)
+        {
+            return collection != null && index >= 0 && index < collection.Count;
+        }
+
+        /// <summary>
+        /// Overload for arrays (for convenience).
+        /// </summary>
+        public static bool IsInBounds<T>(this T[] array, int index)
+        {
+            return array != null && index >= 0 && index < array.Length;
         }
     }
 }
