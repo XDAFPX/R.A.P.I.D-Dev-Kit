@@ -3,7 +3,7 @@ using DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
-    public interface IStat<T> : INameable, IStatBase, IRandomizeable
+    public interface IStat<T> : INameable, IStatBase, IRandomizeable 
 
     {
         public T Value { get; set; }
@@ -21,7 +21,7 @@ namespace DAFP.TOOLS.ECS.BigData
             }
             catch
             {
-                 Value = (T)Convert.ChangeType(value, typeof(T));
+                Value = (T)Convert.ChangeType(value, typeof(T));
             }
         }
 
@@ -33,7 +33,7 @@ namespace DAFP.TOOLS.ECS.BigData
             }
             catch
             {
-                 MaxValue = (T)Convert.ChangeType(value, typeof(T));
+                MaxValue = (T)Convert.ChangeType(value, typeof(T));
             }
         }
 
@@ -45,7 +45,7 @@ namespace DAFP.TOOLS.ECS.BigData
             }
             catch
             {
-                 MinValue = (T)Convert.ChangeType(value, typeof(T));
+                MinValue = (T)Convert.ChangeType(value, typeof(T));
             }
         }
 
@@ -57,7 +57,7 @@ namespace DAFP.TOOLS.ECS.BigData
             }
             catch
             {
-                 DefaultValue = (T)Convert.ChangeType(value, typeof(T));
+                DefaultValue = (T)Convert.ChangeType(value, typeof(T));
             }
         }
 
@@ -78,5 +78,6 @@ namespace DAFP.TOOLS.ECS.BigData
 
         void AddModifier(StatModifier<T> modifier);
         void RemoveModifier(StatModifier<T> modifier);
+
     }
 }

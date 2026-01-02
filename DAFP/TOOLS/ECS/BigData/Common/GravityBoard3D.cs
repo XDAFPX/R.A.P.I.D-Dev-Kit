@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData.Common
 {
-    [RequireComponent(typeof(GravityScale3D))]
     public class GravityBoard3D : WhiteBoard<float>
     {
         private GravityScale3D gs3D;
@@ -16,15 +15,18 @@ namespace DAFP.TOOLS.ECS.BigData.Common
 
         protected override void OnInitializeInternal()
         {
-            gs3D = GetComponent<GravityScale3D>();
+            gs3D = Host.GetWorldRepresentation().GetComponent<GravityScale3D>();
+            if(!gs3D)
+                return;
             DefaultValue = gs3D.gravityScale;
             Value = gs3D.gravityScale;
         }
 
-        protected override void OnStart() { }
 
-        protected override void OnTick()
+        public override void Tick()
         {
+            if(!gs3D)
+                return;
             gs3D.gravityScale = Value;
         }
 
@@ -53,7 +55,7 @@ namespace DAFP.TOOLS.ECS.BigData.Common
             Value = DefaultValue;
         }
 
-        public override void Randomize(float margin01)
+        public override void Randomize(NRandom.IRandom rng, float margin01)
         {
             Value = Value.Randomize(margin01);
         }

@@ -64,7 +64,7 @@ namespace PixelRouge.Inspector
 
         #region Unity events
 
-        private void OnEnable()
+        protected void OnEnable()
         {
             _serializedProperties = new List<SerializedProperty>();
             _serializedProperties = FindSerializedProperties(_serializedProperties);

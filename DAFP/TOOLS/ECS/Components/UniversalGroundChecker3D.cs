@@ -1,4 +1,5 @@
-﻿using DAFP.TOOLS.ECS.BigData.Common;
+﻿using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.BigData.Common;
 using PixelRouge.Colors;
 using PixelRouge.Inspector;
 using UnityEngine;
@@ -6,27 +7,26 @@ using UnityGetComponentCache;
 
 namespace DAFP.TOOLS.ECS.Components
 {
-    [RequireComponent(typeof(GroundedBoard))]
     public class UniversalGroundChecker3D : EntityComponent
     {
         [SerializeField] private LayerMask CheckMask;
         [SerializeField] private GroundCheckPosition3D[] Positions;
 
-        [GetComponentCache]private GroundedBoard groundedBoard;
+         [RequireStat][InjectStat("Grounded")] private IStat<bool> groundedBoard;
 
         protected override void OnTick()
         {
-            bool isGrounded = false;
+            var isGrounded = false;
 
             foreach (var check in Positions)
             {
-                Vector3 pos = check.Pos.position;
-                Vector3 box = check.BoundingBox;
+                var pos = check.Pos.position;
+                var box = check.BoundingBox;
 
                 // Raycast check when both horizontal extents are zero
                 if (Mathf.Approximately(box.x, 0f) && Mathf.Approximately(box.z, 0f))
                 {
-                    if (Physics.Raycast(pos, Vector3.down, out RaycastHit hit, box.y, CheckMask))
+                    if (Physics.Raycast(pos, Vector3.down, out var hit, box.y, CheckMask))
                     {
                         isGrounded = true;
                         break;
@@ -35,8 +35,8 @@ namespace DAFP.TOOLS.ECS.Components
                 else
                 {
                     // OverlapBox expects half‐extents
-                    Vector3 halfExt = new Vector3(box.x, box.y, box.z) * 0.5f;
-                    Collider[] hits = Physics.OverlapBox(pos, halfExt, Quaternion.identity, CheckMask);
+                    var halfExt = new Vector3(box.x, box.y, box.z) * 0.5f;
+                    var hits = Physics.OverlapBox(pos, halfExt, Quaternion.identity, CheckMask);
                     if (hits.Length > 0)
                     {
                         isGrounded = true;
@@ -48,8 +48,13 @@ namespace DAFP.TOOLS.ECS.Components
             groundedBoard.Value = isGrounded;
         }
 
-        protected override void OnInitialize() { }
-        protected override void OnStart() { }
+        protected override void OnInitialize()
+        {
+        }
+
+        protected override void OnStart()
+        {
+        }
 
 #if UNITY_EDITOR
         private void OnDrawGizmos()
@@ -61,12 +66,12 @@ namespace DAFP.TOOLS.ECS.Components
             {
                 if (check.Pos == null) continue;
 
-                Vector3 pos = check.Pos.position;
-                Vector3 box = check.BoundingBox;
+                var pos = check.Pos.position;
+                var box = check.BoundingBox;
 
                 if (Mathf.Approximately(box.x, 0f) && Mathf.Approximately(box.z, 0f))
                 {
-                    Vector3 end = pos + Vector3.down * box.y;
+                    var end = pos + Vector3.down * box.y;
                     Gizmos.DrawLine(pos, end);
                     Gizmos.DrawSphere(end, 0.05f);
                 }

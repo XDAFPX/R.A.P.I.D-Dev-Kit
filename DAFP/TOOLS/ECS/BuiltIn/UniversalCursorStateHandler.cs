@@ -12,7 +12,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     {
         [Inject]
         public UniversalCursorStateHandler([Inject(Id = "DefaultCursorState")] string defaultState
-            ,[Inject(Id = "GlobalStateBus")] IEventBus bus) : base(defaultState, bus)
+            , [Inject(Id = "GlobalStateBus")] IEventBus bus) : base(defaultState, bus)
         {
         }
 
@@ -23,12 +23,17 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public override Dictionary<string, object> Save()
         {
-            return new Dictionary<string, object>() { { "CurrentState", Current().StateName }, { "Visible", Cursor.visible } ,{"Locked" , Cursor.lockState}};
+            return new Dictionary<string, object>
+            {
+                { "CurrentState", Current().StateName }, { "Visible", Cursor.visible }, { "Locked", Cursor.lockState }
+            };
         }
 
         public override void Load(Dictionary<string, object> save)
         {
-            if (save.TryGetValue("CurrentState", out var _value) && save.TryGetValue("Visible",out var _visible) && save.TryGetValue("Locked",out var _locked)&&CursorLockMode.TryParse(_locked as string,out CursorLockMode Locked))
+            if (save.TryGetValue("CurrentState", out var _value) && save.TryGetValue("Visible", out var _visible) &&
+                save.TryGetValue("Locked", out var _locked) &&
+                CursorLockMode.TryParse(_locked as string, out CursorLockMode Locked))
             {
                 ResetToDefault();
                 PushState(new CursorStateChangeRequest(GetState(_value as string), 0, "SaveSys",

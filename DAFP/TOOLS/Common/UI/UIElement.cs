@@ -9,19 +9,19 @@ namespace DAFP.TOOLS.Common.UI
         public bool IsEnabled { get; private set; }
         public string Name;
         private string animatorName;
-    
+
         private void Start()
         {
-    
-    
+
+
             if (Name.StartsWith("GUIE_")) {
-    
+
                 animatorName = "GenericUIElement";
                 Name = Name.Replace("GUIE_", string.Empty);
             }
             else
                 animatorName = Name;
-    
+
             UIManager.Singleton.RegisterUie(this);
             Animator = GetComponent<Animator>();
         }
@@ -32,7 +32,7 @@ namespace DAFP.TOOLS.Common.UI
         public void Disable()
         {
             if (!IsEnabled) return;
-    
+
             if(Animator== null)
             {
                 Kill();
@@ -40,15 +40,15 @@ namespace DAFP.TOOLS.Common.UI
             }
             var _hash = Animator.StringToHash($"{animatorName}_UIE_Disable");
             if (!Animator.HasState(0, _hash)) { NoAnimFound($"{animatorName}_UIE_Disable"); return; }
-    
+
             Animator.Play(_hash);
-    
+
         }
         public void DoCustomAnimation(string anName)
         {
             var _hash = Animator.StringToHash($"{animatorName}_UIE_{anName}");
             if (!Animator.HasState(0, _hash)) { NoAnimFound($"{animatorName}_UIE_{anName}"); return; }
-    
+
             Animator.Play(_hash);
         }
         public void Enable()
@@ -60,18 +60,18 @@ namespace DAFP.TOOLS.Common.UI
                 return;
             }
             var _hash = Animator.StringToHash($"{animatorName}_UIE_Enable");
-    
+
             Restore();
             IsEnabled = true;
             if (!Animator.HasState(0, _hash)) { NoAnimFound($"{animatorName}_UIE_Enable"); return; }
             Animator.Play(_hash);
         }
-        
+
         public void Kill()
         {
-    
+
             if (!IsEnabled) return;
-    
+
             for (int _i = 0; _i < transform.childCount; _i++)
             {
                 transform.GetChild(_i).gameObject.SetActive(false);
@@ -102,7 +102,4 @@ namespace DAFP.TOOLS.Common.UI
             Animator.Play(_hash);
         }
         */
-       
-    }
-    
-    
+}

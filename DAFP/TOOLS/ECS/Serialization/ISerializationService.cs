@@ -23,7 +23,7 @@ namespace DAFP.TOOLS.ECS.Serialization
         }
 
         public string GetFullSavePath(string domainName, string stateName, string name);
-        public void DeleteSave( string domainName, string stateName, string name);
+        public void DeleteSave(string domainName, string stateName, string name);
         public bool SaveExist(string domainName, string stateName, string name);
         public void Save(Dictionary<string, object> data, string domainName, string stateName, string name);
         public Dictionary<string, object> Load(string domainName, string stateName, string name);

@@ -19,10 +19,10 @@ public class BuildVersionProcessor : IPreprocessBuildWithReport
     {
         try
         {
-            string[] version = PlayerSettings.bundleVersion.Split("-");
+            var version = PlayerSettings.bundleVersion.Split("-");
             return version[1];
         }
-        catch ( Exception ex)
+        catch (Exception ex)
         {
             return "0.0";
         }
@@ -30,10 +30,10 @@ public class BuildVersionProcessor : IPreprocessBuildWithReport
 
     private void Updateverison(string version)
     {
-        if (float.TryParse(version, out float paresedversion))
+        if (float.TryParse(version, out var paresedversion))
         {
             Debug.Log($"Parsed Patch: {paresedversion}");
-            float newversion = paresedversion + 0.01f;
+            var newversion = paresedversion + 0.01f;
             Debug.Log($"Increased Version To: {newversion}");
             PlayerSettings.bundleVersion = $"InDevPatch-{newversion}";
             //string name = PlayerSettings.productName;

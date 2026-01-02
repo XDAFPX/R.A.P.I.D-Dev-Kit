@@ -30,18 +30,12 @@ namespace DAFP.TOOLS.ECS.Serialization
             var filePath = Path.Combine(resourcesDir, path.FileName);
 
             // Delete the JSON file if it exists
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
+            if (File.Exists(filePath)) File.Delete(filePath);
 
             // In the Editor, also delete the .meta file and refresh
 #if UNITY_EDITOR
             var metaFile = filePath + ".meta";
-            if (File.Exists(metaFile))
-            {
-                File.Delete(metaFile);
-            }
+            if (File.Exists(metaFile)) File.Delete(metaFile);
 
             AssetDatabase.Refresh();
 #endif
@@ -73,10 +67,10 @@ namespace DAFP.TOOLS.ECS.Serialization
             var path = ISerializationService.ConstructSavePath(domainName, stateName, name);
             var asset =
                 Resources.Load<TextAsset>((path.FolderPath + @"\" + path.FileName).Replace(@"\", "/")
-                    .Replace(".json", String.Empty));
+                    .Replace(".json", string.Empty));
 
             return JsonConvert.DeserializeObject<Dictionary<string, object>>(asset.text,
-                new JsonSerializerSettings() { TypeNameHandling = TypeNameHandling.All });
+                new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
         }
     }
 }

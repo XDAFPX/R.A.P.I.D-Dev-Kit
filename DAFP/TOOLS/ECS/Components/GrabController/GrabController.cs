@@ -7,7 +7,7 @@ namespace DAFP.TOOLS.ECS.Components.GrabController
     /// <summary>
     /// Handles the logic for attaching, carrying, and detaching physics objects.
     /// </summary>
-    [System.Serializable]
+    [Serializable]
     public class GrabController : IGrabController
     {
         [field: SerializeField] public Rigidbody AttachedRigidbody { get; set; }
@@ -37,10 +37,10 @@ namespace DAFP.TOOLS.ECS.Components.GrabController
         public GrabController(Transform camera, float defaultHoldDistance = 2f, float massWhileCarring = 10f,
             float damping = 10f)
         {
-            this.Cam = camera;
-            this.DefaultHoldDistance = defaultHoldDistance;
-            this.MassWhileCarring = massWhileCarring;
-            this.Damping = damping;
+            Cam = camera;
+            DefaultHoldDistance = defaultHoldDistance;
+            MassWhileCarring = massWhileCarring;
+            Damping = damping;
         }
 
         public void Attach(GameObject target)
@@ -71,10 +71,7 @@ namespace DAFP.TOOLS.ECS.Components.GrabController
                                                                      carryDistanceOffset));
             localGrabRotation = Quaternion.Inverse(rb.transform.rotation) * Cam.rotation;
 
-            if (hasPreferredAngles)
-            {
-                preferredRotation = Quaternion.Euler(carrySettings.preferredCarryAngles);
-            }
+            if (hasPreferredAngles) preferredRotation = Quaternion.Euler(carrySettings.preferredCarryAngles);
 
             OnAttached?.Invoke(rb);
         }
@@ -118,35 +115,31 @@ namespace DAFP.TOOLS.ECS.Components.GrabController
             if (AttachedRigidbody == null) return;
 
             // Target position
-            Vector3 targetPos = Cam.position +
-                                Cam.forward * (DefaultHoldDistance + carryDistanceOffset);
+            var targetPos = Cam.position +
+                            Cam.forward * (DefaultHoldDistance + carryDistanceOffset);
 
             // Target rotation
             Quaternion targetRot;
             if (hasPreferredAngles)
-            {
                 targetRot = Cam.rotation * preferredRotation;
-            }
             else
-            {
                 targetRot = Cam.rotation * Quaternion.Inverse(localGrabRotation);
-            }
 
             // Position correction
-            Vector3 posError = targetPos - AttachedRigidbody.position;
-            Vector3 velTarget = posError * 20f;
-            Vector3 velChange = velTarget - AttachedRigidbody.linearVelocity;
+            var posError = targetPos - AttachedRigidbody.position;
+            var velTarget = posError * 20f;
+            var velChange = velTarget - AttachedRigidbody.linearVelocity;
             AttachedRigidbody.AddForce(velChange, ForceMode.VelocityChange);
 
             // Rotation correction
-            Quaternion rotError = targetRot * Quaternion.Inverse(AttachedRigidbody.rotation);
-            rotError.ToAngleAxis(out float angle, out Vector3 axis);
+            var rotError = targetRot * Quaternion.Inverse(AttachedRigidbody.rotation);
+            rotError.ToAngleAxis(out var angle, out var axis);
             if (angle > 180f) angle -= 360f;
 
             if (Mathf.Abs(angle) > 0.01f)
             {
-                Vector3 angularVelTarget = axis * angle * Mathf.Deg2Rad * 10f;
-                Vector3 angularVelChange = angularVelTarget - AttachedRigidbody.angularVelocity;
+                var angularVelTarget = axis * angle * Mathf.Deg2Rad * 10f;
+                var angularVelChange = angularVelTarget - AttachedRigidbody.angularVelocity;
                 AttachedRigidbody.AddTorque(angularVelChange, ForceMode.VelocityChange);
             }
         }

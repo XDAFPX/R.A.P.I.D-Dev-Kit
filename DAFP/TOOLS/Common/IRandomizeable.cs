@@ -1,8 +1,9 @@
-﻿namespace DAFP.TOOLS.Common
+﻿using NRandom;
+
+namespace DAFP.TOOLS.Common
 {
     public interface IRandomizeable
     {
-
-        public void Randomize(float margin01);
+        public void Randomize(IRandom rng, float margin01);
     }
 }

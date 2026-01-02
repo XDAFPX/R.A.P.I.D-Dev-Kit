@@ -28,7 +28,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             ICommandInterpriter interpriter)
         {
             ConsoleUnlocked = unlocked;
-            this.ConsoleFont = consoleFont;
+            ConsoleFont = consoleFont;
             this.fontSize = fontSize;
             TMPConsoleFont = TMP_FontAsset.CreateFontAsset(ConsoleFont);
             Interpriter = interpriter;
@@ -49,22 +49,20 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         protected TMP_InputField CurrentInput;
         protected Transform SampleSetInputLineContainer;
         protected Transform SampleOutputLineContainer;
-        protected readonly List<string> Inputs = new List<string>();
+        protected readonly List<string> Inputs = new();
         protected int CurrentInputIndex;
-        private List<IDebugSys<IGlobalGizmos, IMessenger>> owners = new List<IDebugSys<IGlobalGizmos, IMessenger>>();
+        private List<IDebugSys<IGlobalGizmos, IMessenger>> owners = new();
 
         public void Print(IMessage message)
         {
-            string val = message.Print();
-            List<string> results = new List<string>();
+            var val = message.Print();
+            var results = new List<string>();
             SplitMessageIntoLines(val, results);
 
             foreach (var _result in results)
-            {
                 SpawnOutputCommand(SampleOutputLineContainer, CommandLineContainer.GetComponent<RectTransform>(),
                     _result
                 );
-            }
 
             MoveInputToLast(SampleInputLineContainer);
 
@@ -106,9 +104,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         protected void UpdateTerminal()
         {
-            bool ctrl = UnityEngine.Input.GetKey(KeyCode.LeftControl) || UnityEngine.Input.GetKey(KeyCode.RightControl);
-            bool shift = UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
-            if (ctrl && shift && UnityEngine.Input.GetKeyDown(KeyCode.D))
+            var ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            var shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (ctrl && shift && Input.GetKeyDown(KeyCode.D))
             {
                 ConsoleUnlocked = !ConsoleUnlocked;
                 if (Enabled && !ConsoleUnlocked)
@@ -117,7 +115,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             if (!ConsoleUnlocked)
                 return;
-            if (UnityEngine.Input.GetKeyDown(KeyCode.BackQuote))
+            if (Input.GetKeyDown(KeyCode.BackQuote))
             {
                 Enabled = !Enabled;
                 UpdateEnableability();
@@ -128,19 +126,13 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             if (!Enabled)
                 return;
 
-            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.UpArrow))
-            {
-                PasteCommand(-1);
-            }
+            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.UpArrow)) PasteCommand(-1);
 
-            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.DownArrow))
-            {
-                PasteCommand(1);
-            }
+            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.DownArrow)) PasteCommand(1);
 
-            if (CurrentInput.isFocused && UnityEngine.Input.GetKeyDown(KeyCode.Return))
+            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.Return))
             {
-                string input = CurrentInput.text;
+                var input = CurrentInput.text;
                 RefreshInput(CurrentInput);
                 SpawnSetCMDLine(SampleSetInputLineContainer, CommandLineContainer.transform, input);
                 SaveInputForLater(input);
@@ -156,10 +148,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private void SaveInputForLater(string input)
         {
             var trimmed = Inputs.Clone();
-            for (int i = 0; i < trimmed.Count; i++)
-            {
-                trimmed[i] = trimmed[i].Trim(" `".ToCharArray());
-            }
+            for (var i = 0; i < trimmed.Count; i++) trimmed[i] = trimmed[i].Trim(" `".ToCharArray());
 
             if (!trimmed.Contains(input.Trim(" `".ToCharArray())))
             {
@@ -168,7 +157,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
             else
             {
-                int i = trimmed.FindIndex((s => s == input.Trim(" `".ToCharArray())));
+                var i = trimmed.FindIndex(s => s == input.Trim(" `".ToCharArray()));
                 CurrentInputIndex = i + 1;
             }
         }
@@ -208,9 +197,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             if (Enabled)
                 Enable();
             else
-            {
                 Disable();
-            }
         }
 
         protected void CheckIfCommandsDontFit(RectTransform Container, RectTransform root)
@@ -265,10 +252,15 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             input.Select();
         }
 
-        protected virtual ColorScheme GetColorScheme() => new ComplementaryScheme(ColorsForUnity.Honeydew);
+        protected virtual ColorScheme GetColorScheme()
+        {
+            return new ComplementaryScheme(ColorsForUnity.Honeydew);
+        }
 
-        protected virtual string GetDefaultPrefix() =>
-            @"C:\Users\Admin > ";
+        protected virtual string GetDefaultPrefix()
+        {
+            return @"C:\Users\Admin > ";
+        }
 
         protected (VerticalLayoutGroup, Canvas, Transform, Transform, Transform, ColorScheme)
             Setup()
@@ -422,8 +414,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             inputField.customCaretColor = true;
             inputField.caretColor = Color.white;
             inputField.caretBlinkRate = (float)(Math.PI * 0.3);
-            inputField.onValueChanged.AddListener((arg0 =>
-                LayoutRebuilder.ForceRebuildLayoutImmediate(group.GetComponent<RectTransform>())));
+            inputField.onValueChanged.AddListener(arg0 =>
+                LayoutRebuilder.ForceRebuildLayoutImmediate(group.GetComponent<RectTransform>()));
             inputField.transition = Selectable.Transition.None;
 
             // var cc = inputField.gameObject.AddComponent<ContentSizeFitter>();
@@ -571,10 +563,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             // Try to attach the correct input module:
             if (TryAddInputSystemUIModule(go) == false)
-            {
                 // fallback to old input system
                 go.AddComponent<StandaloneInputModule>();
-            }
 
             if (parentCanvas != null)
                 go.transform.SetParent(parentCanvas.transform, false);
@@ -588,7 +578,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private static bool TryAddInputSystemUIModule(GameObject go)
         {
             // new Input System present
-            var type = System.Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+            var type = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
             if (type != null)
             {
                 go.AddComponent(type);
@@ -610,10 +600,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             foreach (var line in lines)
             {
                 var trimmed = line.Trim();
-                if (!string.IsNullOrEmpty(trimmed))
-                {
-                    output.Add(trimmed);
-                }
+                if (!string.IsNullOrEmpty(trimmed)) output.Add(trimmed);
             }
         }
 
@@ -631,8 +618,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             Root.gameObject.SetActive(false);
         }
 
-        public ISet<IOwnable<ICommandInterpriter>> Pets => new HashSet<IOwnable<ICommandInterpriter>>() { Interpriter };
-        public List<ICommandInterpriter> Owners { get; } = new List<ICommandInterpriter>();
+        public ISet<IOwnable<ICommandInterpriter>> Pets => new HashSet<IOwnable<ICommandInterpriter>> { Interpriter };
+        public List<ICommandInterpriter> Owners { get; } = new();
 
         List<IDebugSys<IGlobalGizmos, IMessenger>> IPet<IDebugSys<IGlobalGizmos, IMessenger>>.Owners => owners;
     }

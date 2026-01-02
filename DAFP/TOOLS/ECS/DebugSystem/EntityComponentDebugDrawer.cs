@@ -12,7 +12,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
     public abstract class EntityComponentDebugDrawer<TEntComp>
         : IDebugDrawer where TEntComp : IEntityComponent
     {
-        public List<IDebugDrawable> Owners { get; } = new List<IDebugDrawable>();
+        public List<IDebugDrawable> Owners { get; } = new();
 
         public DebugDrawLayer Layer { get; set; }
 

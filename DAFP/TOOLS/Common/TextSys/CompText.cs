@@ -33,11 +33,8 @@ namespace DAFP.TOOLS.Common.TextSys
 
         public CompText Remove(string span)
         {
-            var f = _stack.FirstOrDefault((span1 => span1.Text == span));
-            if (f != default)
-            {
-                _stack.Remove(f);
-            }
+            var f = _stack.FirstOrDefault(span1 => span1.Text == span);
+            if (f != default) _stack.Remove(f);
 
             return this;
         }
@@ -52,7 +49,11 @@ namespace DAFP.TOOLS.Common.TextSys
             );
         }
 
-        public static CompText Literal(string txt) => new CompText(txt);
+        public static CompText Literal(string txt)
+        {
+            return new CompText(txt);
+        }
+
         public string Print()
         {
             return Build();

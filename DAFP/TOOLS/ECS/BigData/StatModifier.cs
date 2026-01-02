@@ -7,32 +7,34 @@ namespace DAFP.TOOLS.ECS.BigData
     /// <summary>
     /// Abstract modifier record for IStat, implementing IPet and IDisposable.
     /// </summary>
-    [Serializable]
-    public abstract class StatModifier<T> : IEntityOwnable,
-        IDisposable,
-        IComparable<StatModifier<T>>
+    public interface IStatModifier<T> : IComparable<IStatModifier<T>>, IEntityOwnable, IDisposable
+    {
+        T Apply(T value);
+        int Priority { get; }
+    }
+
+
+// Abstract base remains but implements the interface
+    public abstract class StatModifier<T> : IStatModifier<T>
     {
         protected StatModifier(IEntity owner)
         {
             Owner = owner;
         }
-        public abstract T Apply(T value);
 
+        public abstract T Apply(T value);
         public abstract int Priority { get; }
 
-        // IPet and IDisposable as before...
-
-        public int CompareTo(StatModifier<T> other)
+        public int CompareTo(IStatModifier<T> other)
         {
-            // Lower priority value means higher precedence
             return Priority.CompareTo(other.Priority);
         }
 
-        // IPet implementation
+        // IEntityOwnable implementation
         protected IEntity Owner;
+
         public virtual IEntity GetCurrentOwner()
         {
-
             return Owner;
         }
 
@@ -41,7 +43,6 @@ namespace DAFP.TOOLS.ECS.BigData
             Owner = newOwner;
         }
 
-        // IDisposable implementation
         public abstract void Dispose();
     }
 }

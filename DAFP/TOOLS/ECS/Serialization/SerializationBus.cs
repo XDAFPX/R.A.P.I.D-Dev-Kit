@@ -2,8 +2,7 @@
 
 namespace DAFP.TOOLS.ECS.Serialization
 {
-    public class SerializationBus :  EventBusImpl, IEventBus
+    public class SerializationBus : EventBusImpl, IEventBus
     {
-    
     }
 }

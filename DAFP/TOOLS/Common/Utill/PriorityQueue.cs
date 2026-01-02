@@ -27,10 +27,7 @@ namespace DAFP.TOOLS.Common.Utill
             get
             {
                 List<(TElement Element, TPriority Priority)> list = new(_queue.UnorderedItems);
-                if (_sort)
-                {
-                    list.Sort((i1, i2) => _queue.Comparer.Compare(i1.Priority, i2.Priority));
-                }
+                if (_sort) list.Sort((i1, i2) => _queue.Comparer.Compare(i1.Priority, i2.Priority));
 
                 return list.ToArray();
             }
@@ -44,8 +41,10 @@ namespace DAFP.TOOLS.Common.Utill
             _sort = true;
         }
 
-        public PriorityQueueDebugView(PriorityQueue<TElement, TPriority>.UnorderedItemsCollection collection) =>
-            _queue = collection?._queue ?? throw new System.ArgumentNullException(nameof(collection));
+        public PriorityQueueDebugView(PriorityQueue<TElement, TPriority>.UnorderedItemsCollection collection)
+        {
+            _queue = collection?._queue ?? throw new ArgumentNullException(nameof(collection));
+        }
     }
 
     [SuppressMessage("ReSharper", "InconsistentNaming")]
@@ -65,10 +64,7 @@ namespace DAFP.TOOLS.Common.Utill
     {
         public static void ThrowIfNull(object o)
         {
-            if (o == null)
-            {
-                throw new System.ArgumentNullException(); // hard to do it differently without C# 10's features
-            }
+            if (o == null) throw new ArgumentNullException(); // hard to do it differently without C# 10's features
         }
     }
 
@@ -93,7 +89,7 @@ namespace DAFP.TOOLS.Common.Utill
         {
             if (source is ICollection<T> ic)
             {
-                int count = ic.Count;
+                var count = ic.Count;
                 if (count != 0)
                 {
                     // Allocate an array of the desired size, then copy the elements into it. Note that this has the same
@@ -102,7 +98,7 @@ namespace DAFP.TOOLS.Common.Utill
                     // exception from overrunning the array (if the size went up) or we could end up not filling as many
                     // items as 'count' suggests (if the size went down).  This is only an issue for concurrent collections
                     // that implement ICollection<T>, which as of .NET 4.6 is just ConcurrentDictionary<TKey, TValue>.
-                    T[] arr = new T[count];
+                    var arr = new T[count];
                     ic.CopyTo(arr, 0);
                     length = count;
                     return arr;
@@ -110,14 +106,14 @@ namespace DAFP.TOOLS.Common.Utill
             }
             else
             {
-                using (IEnumerator<T> en = source.GetEnumerator())
+                using (var en = source.GetEnumerator())
                 {
                     if (en.MoveNext())
                     {
                         const int DefaultCapacity = 4;
-                        T[] arr = new T[DefaultCapacity];
+                        var arr = new T[DefaultCapacity];
                         arr[0] = en.Current;
-                        int count = 1;
+                        var count = 1;
 
                         while (en.MoveNext())
                         {
@@ -129,11 +125,9 @@ namespace DAFP.TOOLS.Common.Utill
                                 // 2^30, since doubling to 2^31 is 1 larger than Int32.MaxValue.  In that case, we instead
                                 // constrain the length to be Array.MaxLength (this overflow check works because of the
                                 // cast to uint).
-                                int newLength = count << 1;
+                                var newLength = count << 1;
                                 if ((uint)newLength > ArrayEx.MaxLength)
-                                {
                                     newLength = ArrayEx.MaxLength <= count ? count + 1 : ArrayEx.MaxLength;
-                                }
 
                                 Array.Resize(ref arr, newLength);
                             }
@@ -218,7 +212,7 @@ namespace DAFP.TOOLS.Common.Utill
         ///     The enumeration does not order items by priority, since that would require N * log(N) time and N space.
         ///     Items are instead enumerated following the internal array heap layout.
         /// </remarks>
-        public UnorderedItemsCollection UnorderedItems => _unorderedItems ??= new(this);
+        public UnorderedItemsCollection UnorderedItems => _unorderedItems ??= new UnorderedItemsCollection(this);
 
 #if DEBUG
         static PriorityQueue()
@@ -245,7 +239,7 @@ namespace DAFP.TOOLS.Common.Utill
         ///     The specified <paramref name="initialCapacity" /> was negative.
         /// </exception>
         public PriorityQueue(int initialCapacity)
-            : this(initialCapacity, comparer: null)
+            : this(initialCapacity, null)
         {
         }
 
@@ -278,10 +272,8 @@ namespace DAFP.TOOLS.Common.Utill
         public PriorityQueue(int initialCapacity, IComparer<TPriority>? comparer)
         {
             if (initialCapacity < 0)
-            {
                 throw new ArgumentOutOfRangeException(
                     nameof(initialCapacity), initialCapacity, SR.ArgumentOutOfRange_NeedNonNegNum);
-            }
 
             _nodes = new (TElement, TPriority)[initialCapacity];
             _comparer = InitializeComparer(comparer);
@@ -300,7 +292,7 @@ namespace DAFP.TOOLS.Common.Utill
         ///     which is generally faster than enqueuing individual elements sequentially.
         /// </remarks>
         public PriorityQueue(IEnumerable<(TElement Element, TPriority Priority)> items)
-            : this(items, comparer: null)
+            : this(items, null)
         {
         }
 
@@ -328,10 +320,7 @@ namespace DAFP.TOOLS.Common.Utill
             _nodes = EnumerableHelpers.ToArray(items, out _size);
             _comparer = InitializeComparer(comparer);
 
-            if (_size > 1)
-            {
-                Heapify();
-            }
+            if (_size > 1) Heapify();
         }
 
         /// <summary>
@@ -345,22 +334,15 @@ namespace DAFP.TOOLS.Common.Utill
             // Note that the node being enqueued does not need to be physically placed
             // there at this point, as such an assignment would be redundant.
 
-            int currentSize = _size++;
+            var currentSize = _size++;
             _version++;
 
-            if (_nodes.Length == currentSize)
-            {
-                Grow(currentSize + 1);
-            }
+            if (_nodes.Length == currentSize) Grow(currentSize + 1);
 
             if (_comparer == null)
-            {
                 MoveUpDefaultComparer((element, priority), currentSize);
-            }
             else
-            {
                 MoveUpCustomComparer((element, priority), currentSize);
-            }
         }
 
         /// <summary>
@@ -370,10 +352,7 @@ namespace DAFP.TOOLS.Common.Utill
         /// <returns>The minimal element of the <see cref="PriorityQueue{TElement, TPriority}" />.</returns>
         public TElement Peek()
         {
-            if (_size == 0)
-            {
-                throw new InvalidOperationException(SR.InvalidOperation_EmptyQueue);
-            }
+            if (_size == 0) throw new InvalidOperationException(SR.InvalidOperation_EmptyQueue);
 
             return _nodes[0].Element;
         }
@@ -385,12 +364,9 @@ namespace DAFP.TOOLS.Common.Utill
         /// <returns>The minimal element of the <see cref="PriorityQueue{TElement, TPriority}" />.</returns>
         public TElement Dequeue()
         {
-            if (_size == 0)
-            {
-                throw new InvalidOperationException(SR.InvalidOperation_EmptyQueue);
-            }
+            if (_size == 0) throw new InvalidOperationException(SR.InvalidOperation_EmptyQueue);
 
-            TElement element = _nodes[0].Element;
+            var element = _nodes[0].Element;
             RemoveRootNode();
             return element;
         }
@@ -464,7 +440,7 @@ namespace DAFP.TOOLS.Common.Utill
         {
             if (_size != 0)
             {
-                (TElement Element, TPriority Priority) root = _nodes[0];
+                var root = _nodes[0];
 
                 if (_comparer == null)
                 {
@@ -500,13 +476,10 @@ namespace DAFP.TOOLS.Common.Utill
         {
             ThrowIfNullArgument.ThrowIfNull(items);
 
-            int count = 0;
-            ICollection<(TElement Element, TPriority Priority)>? collection =
+            var count = 0;
+            var collection =
                 items as ICollection<(TElement Element, TPriority Priority)>;
-            if (collection is not null && (count = collection.Count) > _nodes.Length - _size)
-            {
-                Grow(_size + count);
-            }
+            if (collection is not null && (count = collection.Count) > _nodes.Length - _size) Grow(_size + count);
 
             if (_size == 0)
             {
@@ -519,9 +492,9 @@ namespace DAFP.TOOLS.Common.Utill
                 }
                 else
                 {
-                    int i = 0;
+                    var i = 0;
                     (TElement, TPriority)[] nodes = _nodes;
-                    foreach ((TElement element, TPriority priority) in items)
+                    foreach (var (element, priority) in items)
                     {
                         if (nodes.Length == i)
                         {
@@ -537,17 +510,11 @@ namespace DAFP.TOOLS.Common.Utill
 
                 _version++;
 
-                if (_size > 1)
-                {
-                    Heapify();
-                }
+                if (_size > 1) Heapify();
             }
             else
             {
-                foreach ((TElement element, TPriority priority) in items)
-                {
-                    Enqueue(element, priority);
-                }
+                foreach (var (element, priority) in items) Enqueue(element, priority);
             }
         }
 
@@ -567,17 +534,15 @@ namespace DAFP.TOOLS.Common.Utill
             int count;
             if (elements is ICollection<(TElement Element, TPriority Priority)> collection &&
                 (count = collection.Count) > _nodes.Length - _size)
-            {
                 Grow(_size + count);
-            }
 
             if (_size == 0)
             {
                 // build using Heapify() if the queue is empty.
 
-                int i = 0;
+                var i = 0;
                 (TElement, TPriority)[] nodes = _nodes;
-                foreach (TElement element in elements)
+                foreach (var element in elements)
                 {
                     if (nodes.Length == i)
                     {
@@ -591,17 +556,11 @@ namespace DAFP.TOOLS.Common.Utill
                 _size = i;
                 _version++;
 
-                if (i > 1)
-                {
-                    Heapify();
-                }
+                if (i > 1) Heapify();
             }
             else
             {
-                foreach (TElement element in elements)
-                {
-                    Enqueue(element, priority);
-                }
+                foreach (var element in elements) Enqueue(element, priority);
             }
         }
 
@@ -611,10 +570,8 @@ namespace DAFP.TOOLS.Common.Utill
         public void Clear()
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<(TElement, TPriority)>())
-            {
                 // Clear the elements so that the gc can reclaim the references
                 Array.Clear(_nodes, 0, _size);
-            }
 
             _size = 0;
             _version++;
@@ -632,9 +589,7 @@ namespace DAFP.TOOLS.Common.Utill
         public int EnsureCapacity(int capacity)
         {
             if (capacity < 0)
-            {
                 throw new ArgumentOutOfRangeException(nameof(capacity), capacity, SR.ArgumentOutOfRange_NeedNonNegNum);
-            }
 
             if (_nodes.Length < capacity)
             {
@@ -655,7 +610,7 @@ namespace DAFP.TOOLS.Common.Utill
         /// </remarks>
         public void TrimExcess()
         {
-            int threshold = (int)(_nodes.Length * 0.9);
+            var threshold = (int)(_nodes.Length * 0.9);
             if (_size < threshold)
             {
                 Array.Resize(ref _nodes, _size);
@@ -673,24 +628,18 @@ namespace DAFP.TOOLS.Common.Utill
             const int GrowFactor = 2;
             const int MinimumGrow = 4;
 
-            int newcapacity = GrowFactor * _nodes.Length;
+            var newcapacity = GrowFactor * _nodes.Length;
 
             // Allow the queue to grow to maximum possible capacity (~2G elements) before encountering overflow.
             // Note that this check works even when _nodes.Length overflowed thanks to the (uint) cast
-            if ((uint)newcapacity > ArrayEx.MaxLength)
-            {
-                newcapacity = ArrayEx.MaxLength;
-            }
+            if ((uint)newcapacity > ArrayEx.MaxLength) newcapacity = ArrayEx.MaxLength;
 
             // Ensure minimum growth is respected.
             newcapacity = Math.Max(newcapacity, _nodes.Length + MinimumGrow);
 
             // If the computed capacity is still less than specified, set to the original argument.
             // Capacities exceeding Array.MaxLength will be surfaced as OutOfMemoryException by Array.Resize.
-            if (newcapacity < minCapacity)
-            {
-                newcapacity = minCapacity;
-            }
+            if (newcapacity < minCapacity) newcapacity = minCapacity;
 
             Array.Resize(ref _nodes, newcapacity);
         }
@@ -700,37 +649,37 @@ namespace DAFP.TOOLS.Common.Utill
         /// </summary>
         private void RemoveRootNode()
         {
-            int lastNodeIndex = --_size;
+            var lastNodeIndex = --_size;
             _version++;
 
             if (lastNodeIndex > 0)
             {
-                (TElement Element, TPriority Priority) lastNode = _nodes[lastNodeIndex];
+                var lastNode = _nodes[lastNodeIndex];
                 if (_comparer == null)
-                {
                     MoveDownDefaultComparer(lastNode, 0);
-                }
                 else
-                {
                     MoveDownCustomComparer(lastNode, 0);
-                }
             }
 
             if (RuntimeHelpers.IsReferenceOrContainsReferences<(TElement, TPriority)>())
-            {
                 _nodes[lastNodeIndex] = default;
-            }
         }
 
         /// <summary>
         ///     Gets the index of an element's parent.
         /// </summary>
-        private static int GetParentIndex(int index) => (index - 1) >> Log2Arity;
+        private static int GetParentIndex(int index)
+        {
+            return (index - 1) >> Log2Arity;
+        }
 
         /// <summary>
         ///     Gets the index of the first child of an element.
         /// </summary>
-        private static int GetFirstChildIndex(int index) => (index << Log2Arity) + 1;
+        private static int GetFirstChildIndex(int index)
+        {
+            return (index << Log2Arity) + 1;
+        }
 
         /// <summary>
         ///     Converts an unordered list into a heap.
@@ -742,23 +691,15 @@ namespace DAFP.TOOLS.Common.Utill
             // only for higher nodes, starting from the first node that has children.
             // It is the parent of the very last element in the array.
 
-            (TElement Element, TPriority Priority)[] nodes = _nodes;
-            int lastParentWithChildren = GetParentIndex(_size - 1);
+            var nodes = _nodes;
+            var lastParentWithChildren = GetParentIndex(_size - 1);
 
             if (_comparer == null)
-            {
-                for (int index = lastParentWithChildren; index >= 0; --index)
-                {
+                for (var index = lastParentWithChildren; index >= 0; --index)
                     MoveDownDefaultComparer(nodes[index], index);
-                }
-            }
             else
-            {
-                for (int index = lastParentWithChildren; index >= 0; --index)
-                {
+                for (var index = lastParentWithChildren; index >= 0; --index)
                     MoveDownCustomComparer(nodes[index], index);
-                }
-            }
         }
 
         /// <summary>
@@ -772,12 +713,12 @@ namespace DAFP.TOOLS.Common.Utill
             Debug.Assert(_comparer is null);
             Debug.Assert(0 <= nodeIndex && nodeIndex < _size);
 
-            (TElement Element, TPriority Priority)[] nodes = _nodes;
+            var nodes = _nodes;
 
             while (nodeIndex > 0)
             {
-                int parentIndex = GetParentIndex(nodeIndex);
-                (TElement Element, TPriority Priority) parent = nodes[parentIndex];
+                var parentIndex = GetParentIndex(nodeIndex);
+                var parent = nodes[parentIndex];
 
                 if (Comparer<TPriority>.Default.Compare(node.Priority, parent.Priority) < 0)
                 {
@@ -804,13 +745,13 @@ namespace DAFP.TOOLS.Common.Utill
             Debug.Assert(_comparer is not null);
             Debug.Assert(0 <= nodeIndex && nodeIndex < _size);
 
-            IComparer<TPriority> comparer = _comparer;
-            (TElement Element, TPriority Priority)[] nodes = _nodes;
+            var comparer = _comparer;
+            var nodes = _nodes;
 
             while (nodeIndex > 0)
             {
-                int parentIndex = GetParentIndex(nodeIndex);
-                (TElement Element, TPriority Priority) parent = nodes[parentIndex];
+                var parentIndex = GetParentIndex(nodeIndex);
+                var parent = nodes[parentIndex];
 
                 if (comparer.Compare(node.Priority, parent.Priority) < 0)
                 {
@@ -838,20 +779,20 @@ namespace DAFP.TOOLS.Common.Utill
             Debug.Assert(_comparer is null);
             Debug.Assert(0 <= nodeIndex && nodeIndex < _size);
 
-            (TElement Element, TPriority Priority)[] nodes = _nodes;
-            int size = _size;
+            var nodes = _nodes;
+            var size = _size;
 
             int i;
             while ((i = GetFirstChildIndex(nodeIndex)) < size)
             {
                 // Find the child node with the minimal priority
-                (TElement Element, TPriority Priority) minChild = nodes[i];
-                int minChildIndex = i;
+                var minChild = nodes[i];
+                var minChildIndex = i;
 
-                int childIndexUpperBound = Math.Min(i + Arity, size);
+                var childIndexUpperBound = Math.Min(i + Arity, size);
                 while (++i < childIndexUpperBound)
                 {
-                    (TElement Element, TPriority Priority) nextChild = nodes[i];
+                    var nextChild = nodes[i];
                     if (Comparer<TPriority>.Default.Compare(nextChild.Priority, minChild.Priority) < 0)
                     {
                         minChild = nextChild;
@@ -860,10 +801,7 @@ namespace DAFP.TOOLS.Common.Utill
                 }
 
                 // Heap property is satisfied; insert node in this location.
-                if (Comparer<TPriority>.Default.Compare(node.Priority, minChild.Priority) <= 0)
-                {
-                    break;
-                }
+                if (Comparer<TPriority>.Default.Compare(node.Priority, minChild.Priority) <= 0) break;
 
                 // Move the minimal child up by one node and
                 // continue recursively from its location.
@@ -886,21 +824,21 @@ namespace DAFP.TOOLS.Common.Utill
             Debug.Assert(_comparer is not null);
             Debug.Assert(0 <= nodeIndex && nodeIndex < _size);
 
-            IComparer<TPriority> comparer = _comparer;
-            (TElement Element, TPriority Priority)[] nodes = _nodes;
-            int size = _size;
+            var comparer = _comparer;
+            var nodes = _nodes;
+            var size = _size;
 
             int i;
             while ((i = GetFirstChildIndex(nodeIndex)) < size)
             {
                 // Find the child node with the minimal priority
-                (TElement Element, TPriority Priority) minChild = nodes[i];
-                int minChildIndex = i;
+                var minChild = nodes[i];
+                var minChildIndex = i;
 
-                int childIndexUpperBound = Math.Min(i + Arity, size);
+                var childIndexUpperBound = Math.Min(i + Arity, size);
                 while (++i < childIndexUpperBound)
                 {
-                    (TElement Element, TPriority Priority) nextChild = nodes[i];
+                    var nextChild = nodes[i];
                     if (comparer.Compare(nextChild.Priority, minChild.Priority) < 0)
                     {
                         minChild = nextChild;
@@ -909,10 +847,7 @@ namespace DAFP.TOOLS.Common.Utill
                 }
 
                 // Heap property is satisfied; insert node in this location.
-                if (comparer.Compare(node.Priority, minChild.Priority) <= 0)
-                {
-                    break;
-                }
+                if (comparer.Compare(node.Priority, minChild.Priority) <= 0) break;
 
                 // Move the minimal child up by one node and continue recursively from its location.
                 nodes[nodeIndex] = minChild;
@@ -930,11 +865,9 @@ namespace DAFP.TOOLS.Common.Utill
             if (typeof(TPriority).IsValueType)
             {
                 if (comparer == Comparer<TPriority>.Default)
-                {
                     // if the user manually specifies the default comparer,
                     // revert to using the optimized path.
                     return null;
-                }
 
                 return comparer;
             }
@@ -957,13 +890,19 @@ namespace DAFP.TOOLS.Common.Utill
         {
             internal readonly PriorityQueue<TElement, TPriority> _queue;
 
-            internal UnorderedItemsCollection(PriorityQueue<TElement, TPriority> queue) => _queue = queue;
+            internal UnorderedItemsCollection(PriorityQueue<TElement, TPriority> queue)
+            {
+                _queue = queue;
+            }
 
             /// <summary>
             ///     Returns an enumerator that iterates through the <see cref="UnorderedItems" />.
             /// </summary>
             /// <returns>An <see cref="Enumerator" /> for the <see cref="UnorderedItems" />.</returns>
-            public Enumerator GetEnumerator() => new(_queue);
+            public Enumerator GetEnumerator()
+            {
+                return new Enumerator(_queue);
+            }
 
             object ICollection.SyncRoot => this;
             bool ICollection.IsSynchronized => false;
@@ -972,26 +911,15 @@ namespace DAFP.TOOLS.Common.Utill
             {
                 ThrowIfNullArgument.ThrowIfNull(array);
 
-                if (array.Rank != 1)
-                {
-                    throw new ArgumentException(SR.Arg_RankMultiDimNotSupported, nameof(array));
-                }
+                if (array.Rank != 1) throw new ArgumentException(SR.Arg_RankMultiDimNotSupported, nameof(array));
 
-                if (array.GetLowerBound(0) != 0)
-                {
-                    throw new ArgumentException(SR.Arg_NonZeroLowerBound, nameof(array));
-                }
+                if (array.GetLowerBound(0) != 0) throw new ArgumentException(SR.Arg_NonZeroLowerBound, nameof(array));
 
                 if (index < 0 || index > array.Length)
-                {
                     throw new ArgumentOutOfRangeException(nameof(index), index,
                         SR.ArgumentOutOfRange_IndexMustBeLessOrEqual);
-                }
 
-                if (array.Length - index < _queue._size)
-                {
-                    throw new ArgumentException(SR.Argument_InvalidOffLen);
-                }
+                if (array.Length - index < _queue._size) throw new ArgumentException(SR.Argument_InvalidOffLen);
 
                 try
                 {
@@ -1006,9 +934,15 @@ namespace DAFP.TOOLS.Common.Utill
             public int Count => _queue._size;
 
             IEnumerator<(TElement Element, TPriority Priority)> IEnumerable<(TElement Element, TPriority Priority)>.
-                GetEnumerator() => GetEnumerator();
+                GetEnumerator()
+            {
+                return GetEnumerator();
+            }
 
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
 
             /// <summary>
             ///     Enumerates the element and priority pairs of a <see cref="PriorityQueue{TElement, TPriority}" />,
@@ -1044,9 +978,9 @@ namespace DAFP.TOOLS.Common.Utill
                 /// </returns>
                 public bool MoveNext()
                 {
-                    PriorityQueue<TElement, TPriority> localQueue = _queue;
+                    var localQueue = _queue;
 
-                    if (_version == localQueue._version && ((uint)_index < (uint)localQueue._size))
+                    if (_version == localQueue._version && (uint)_index < (uint)localQueue._size)
                     {
                         Current = localQueue._nodes[_index];
                         _index++;
@@ -1059,9 +993,7 @@ namespace DAFP.TOOLS.Common.Utill
                 private bool MoveNextRare()
                 {
                     if (_version != _queue._version)
-                    {
                         throw new InvalidOperationException(SR.InvalidOperation_EnumFailedVersion);
-                    }
 
                     _index = _queue._size + 1;
                     Current = default;
@@ -1078,9 +1010,7 @@ namespace DAFP.TOOLS.Common.Utill
                 void IEnumerator.Reset()
                 {
                     if (_version != _queue._version)
-                    {
                         throw new InvalidOperationException(SR.InvalidOperation_EnumFailedVersion);
-                    }
 
                     _index = 0;
                     Current = default;

@@ -65,16 +65,16 @@ namespace DAFP.TOOLS.ECS.GlobalState
 
         public T GetState(string name)
         {
-            return States.FirstOrDefault((state => state.StateName == name));
+            return States.FirstOrDefault(state => state.StateName == name);
         }
 
         protected abstract T[] GetPreBuildStates();
 
-        protected GlobalStateHandler(string defaultState,IEventBus bus)
+        protected GlobalStateHandler(string defaultState, IEventBus bus)
         {
             this.bus = bus;
             States = GetPreBuildStates();
-            Default = States.FirstOrDefault((state => state.StateName == defaultState));
+            Default = States.FirstOrDefault(state => state.StateName == defaultState);
             if (Default == null)
                 throw new Exception(
                     $"YOUR DEFAULT STATE ({defaultState}) IS NOT FOUND IN PREBUILD STATES AAAAAAAAAAAAAAA");
@@ -99,7 +99,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
 
         protected virtual void ApplyTopState()
         {
-            T old = Current();
+            var old = Current();
             if (Queue.Count > 0)
             {
                 var top = Queue.OrderByDescending(r => r.Priority).First();
@@ -111,12 +111,10 @@ namespace DAFP.TOOLS.ECS.GlobalState
                 StateMachine.TransitionToInitialState(true);
             }
 
-            T current = Current();
+            var current = Current();
 
             if (bus != null && current != old)
-            {
                 bus.Send(new GlobalStateChangedEvent<T>(current, old, this) as IGlobalStateChanged);
-            }
         }
 
         public T Current()

@@ -10,8 +10,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     {
         [Inject]
         public UniversalGameStateHandler([Inject(Id = "DefaultGameState")] string defaultState,
-            IGlobalCursorStateHandler cursorStateHandler, [Inject(Id = "GlobalStateBus")] IEventBus vus) : base(defaultState,
-            cursorStateHandler,vus)
+            IGlobalCursorStateHandler cursorStateHandler, [Inject(Id = "GlobalStateBus")] IEventBus vus) : base(
+            defaultState,
+            cursorStateHandler, vus)
         {
         }
 
@@ -21,23 +22,23 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             IGlobalGameState DefaultGamePlayState =
                 new BasicGlobalGameState("PlayState",
-                    (() =>
+                    () =>
                     {
                         cursorStateHandler.PopState(lastCursorRequest);
                         lastCursorRequest = cursorStateHandler.PushState(new CursorStateChangeRequest(
                             cursorStateHandler.GetState("Default"), 1, nameof(UniversalGameStateHandler),
                             CursorLockMode.Locked, false));
-                    }), null, (() => { }));
+                    }, null, () => { });
 
             IGlobalGameState DefaultUIState =
                 new BasicGlobalGameState("UIState",
-                    (() =>
+                    () =>
                     {
                         cursorStateHandler.PopState(lastCursorRequest);
                         lastCursorRequest = cursorStateHandler.PushState(new CursorStateChangeRequest(
                             cursorStateHandler.GetState("Default"), 1, nameof(UniversalGameStateHandler),
                             CursorLockMode.None, true));
-                    }), null, (() => { }));
+                    }, null, () => { });
             return new[]
             {
                 DefaultGamePlayState, DefaultUIState
@@ -46,7 +47,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public override Dictionary<string, object> Save()
         {
-            return new Dictionary<string, object>() { { "CurrentState", Current().StateName } };
+            return new Dictionary<string, object> { { "CurrentState", Current().StateName } };
         }
 
         public override void Load(Dictionary<string, object> save)

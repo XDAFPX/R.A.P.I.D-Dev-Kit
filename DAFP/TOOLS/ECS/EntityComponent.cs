@@ -27,20 +27,13 @@ namespace DAFP.TOOLS.ECS
             Host = GetComponent<IEntity>();
         }
 
-        void ITickable.OnStart()
-        {
-            OnStartInternal();
-        }
 
         public void Tick()
-        {
+        {if(enabled)
             OnTick();
         }
 
-        public virtual ITickerBase EntityComponentTicker
-        {
-            get => Host.EntityTicker;
-        }
+        public virtual ITickerBase EntityComponentTicker => Host.EntityTicker;
 
         public void Register(IEntity entity)
         {

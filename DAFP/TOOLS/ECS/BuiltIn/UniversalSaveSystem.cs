@@ -30,17 +30,18 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             this.boards = boards;
         }
 
-        public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer, IMetaSerializer metaSerializer,
+        public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer,
+            IMetaSerializer metaSerializer,
             int slot)
         {
-            Dictionary<string, object> _allData =
+            var _allData =
                 saveService.Load(GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3);
-            Dictionary<string, object> _worldData = new Dictionary<string, object>();
-            Dictionary<string, object> _worldsData = new Dictionary<string, object>();
-            Dictionary<string, object> _gameStateData = new Dictionary<string, object>();
-            Dictionary<string, object> _globalBoardsData = new Dictionary<string, object>();
-            Dictionary<string, object> _presistantEnts = new Dictionary<string, object>();
-            Dictionary<string, object> _metaData =
+            var _worldData = new Dictionary<string, object>();
+            var _worldsData = new Dictionary<string, object>();
+            var _gameStateData = new Dictionary<string, object>();
+            var _globalBoardsData = new Dictionary<string, object>();
+            var _presistantEnts = new Dictionary<string, object>();
+            var _metaData =
                 metaSerializer.SaveMetaData(_allData.GetValueOrDefault("Meta") as Dictionary<string, object>);
 
             foreach (var _entity in world.ENTITIES)
@@ -72,7 +73,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 _metaData.Add("PresistantEnts", _presistantEnts);
             }
 
-            List<ISavable> _savableStates = states
+            var _savableStates = states
                 .OfType<ISavable>()
                 .Where(sv => sv is not IGlobalSettingsSavable) // exclude global‐settings savables
                 .ToList();
@@ -137,14 +138,17 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             serializationService.Save(data, GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3);
         }
 
-        private (string, string, string) GetPath(int slot) => ("DefaultSaves", $"Slot{slot}", "GameSave.Save");
+        private (string, string, string) GetPath(int slot)
+        {
+            return ("DefaultSaves", $"Slot{slot}", "GameSave.Save");
+        }
 
         public async Task LoadAll(ISerializationService saveService, ISerializer<IEntity> serializer,
             IMetaSerializer metaSerializer, Action OnEnd, int slot)
         {
             if (slot != -1)
                 DeleteSave(saveService, -1);
-            Dictionary<string, object> _allData = new Dictionary<string, object>();
+            var _allData = new Dictionary<string, object>();
             _allData = saveService.Load(GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3);
             _allData.ApplyConcreteDeserialization();
             if (_allData.TryGetValue("Meta", out var _o1))
@@ -153,7 +157,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 await metaSerializer.LoadMetaData(metadata);
             }
 
-            List<ISavable> _savableStates = states
+            var _savableStates = states
                 .OfType<ISavable>()
                 .Where(sv => sv is not IGlobalSettingsSavable) // exclude global‐settings savables
                 .ToList();
@@ -165,13 +169,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 {
                     var _fullName = _globalStateHandlerBase.GetType().FullName;
                     if (_fullName != null)
-                    {
                         if (_statedata.TryGetValue(_fullName, out var _value))
                         {
                             _globalStateHandlerBase.Load(_value as Dictionary<string, object>);
                             _statedata.Remove(_fullName);
                         }
-                    }
                 }
             }
 
@@ -189,13 +191,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 {
                     var _fullName = _board.GetType().FullName;
                     if (_fullName != null)
-                    {
                         if (_boardData.TryGetValue(_fullName, out var _value))
                         {
                             _board.Load(_value as Dictionary<string, object>);
                             _boardData.Remove(_fullName);
                         }
-                    }
                 }
             }
 
@@ -205,16 +205,16 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             if (_allData.TryGetValue("Worlds", out var _value1))
             {
                 var _worldsdata = _value1 as Dictionary<string, object>;
-                if (_worldsdata.TryGetValue(SceneManager.GetActiveScene().buildIndex.ToString(), out object _value))
+                if (_worldsdata.TryGetValue(SceneManager.GetActiveScene().buildIndex.ToString(), out var _value))
                 {
                     var _worlddata = _value as Dictionary<string, object>;
 
 
-                    List<string> _matchedKeys = new List<string>();
+                    var _matchedKeys = new List<string>();
 
                     foreach (var _entity in world.ENTITIES)
                     {
-                        var _key = _worlddata.Keys.ToList().Find((s => s == _entity.ID));
+                        var _key = _worlddata.Keys.ToList().Find(s => s == _entity.ID);
 
                         if (_entity.GetWorldRepresentation().GetComponent<NotSaveableEnt>() != null)
                         {
@@ -240,12 +240,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                         }
                     }
 
-                    List<string> _unMatched = _worlddata.Keys.ToList().Except(_matchedKeys).ToList();
+                    var _unMatched = _worlddata.Keys.ToList().Except(_matchedKeys).ToList();
                     foreach (var _unmatchedKey in _unMatched)
-                    {
                         serializer.Load(_worlddata.GetValueOrDefault(_unmatchedKey) as Dictionary<string, object>,
                             null);
-                    }
                 }
             }
 
@@ -259,16 +257,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     var PresistantEnts = value as Dictionary<string, object>;
 
                     foreach (var _entity in world.ENTITIES)
-                    {
                         if (_entity.GetWorldRepresentation().GetComponent<PresistantEnt>())
-                        {
                             if (PresistantEnts.TryGetValue(_entity.ID, out var _value2))
                             {
                                 var savedata = _value2 as Dictionary<string, object>;
                                 serializer.Load(savedata, _entity);
                             }
-                        }
-                    }
                 }
             }
 

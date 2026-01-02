@@ -22,7 +22,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             World world,
             IRandom randomSys)
         {
-            int sceneIndex = GetSceneIndexByName(sceneName);
+            var sceneIndex = GetSceneIndexByName(sceneName);
             Transition(sceneIndex, saveSystem, world, randomSys);
         }
 
@@ -43,22 +43,22 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public void Transition(string scenename)
         {
-            Transition(scenename,SaveSystem,World,RandomSys);
+            Transition(scenename, SaveSystem, World, RandomSys);
         }
 
         public void Transition(int SceneIndex)
         {
-            Transition(SceneIndex,SaveSystem,World,RandomSys);
+            Transition(SceneIndex, SaveSystem, World, RandomSys);
         }
 
         public static int GetSceneIndexByName(string sceneName)
         {
-            int count = SceneManager.sceneCountInBuildSettings;
+            var count = SceneManager.sceneCountInBuildSettings;
 
-            for (int i = 0; i < count; i++)
+            for (var i = 0; i < count; i++)
             {
-                string path = SceneUtility.GetScenePathByBuildIndex(i);
-                string name = System.IO.Path.GetFileNameWithoutExtension(path);
+                var path = SceneUtility.GetScenePathByBuildIndex(i);
+                var name = System.IO.Path.GetFileNameWithoutExtension(path);
                 if (name.Equals(sceneName, System.StringComparison.OrdinalIgnoreCase))
                     return i;
             }

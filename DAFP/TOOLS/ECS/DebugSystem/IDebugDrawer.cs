@@ -5,7 +5,7 @@ using UGizmo.Internal;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
-    public interface IDebugDrawer : IPet<IDebugDrawable>, IDrawable 
+    public interface IDebugDrawer : IPet<IDebugDrawable>, IDrawable
     {
         public DebugDrawLayer Layer { get; set; }
 

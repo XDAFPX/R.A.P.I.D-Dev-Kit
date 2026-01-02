@@ -8,13 +8,12 @@ namespace DAFP.TOOLS.Common
     [System.Serializable]
     public class Cooldown : SafeFiniteTimer, IStat<float>, ISerializationCallbackReceiver
     {
-        [SerializeField]private float maxValue;
+        [SerializeField] private float maxValue;
 
         // ensure Unity serializes the list so it never stays null
-        [SerializeField] 
-        private List<StatModifier<float>> modifiers;
+        [SerializeField] private List<StatModifier<float>> modifiers;
 
-        [SerializeField]private float timer;
+        [SerializeField] private float timer;
 
         public Cooldown(string name, float maxValue)
         {
@@ -25,8 +24,13 @@ namespace DAFP.TOOLS.Common
 
         [field: SerializeField] public string Name { get; set; }
 
-        public void ResetToDefault() => Reset();
+        public void ResetToDefault()
+        {
+            Reset();
+        }
+
         public bool SyncToBlackBoard => false;
+
         public object GetAbsoluteValue()
         {
             return Value;
@@ -34,12 +38,19 @@ namespace DAFP.TOOLS.Common
 
         public event IStatBase.UpdateValueCallBack OnUpdateValue;
 
-        public void Randomize(float margin01) => throw new System.NotImplementedException();
+        public void Randomize(NRandom.IRandom rng, float margin01)
+        {
+            throw new System.NotImplementedException();
+        }
 
         public override float Timer
         {
             get => timer;
-            set { timer = value; OnUpdateValue?.Invoke(this); }
+            set
+            {
+                timer = value;
+                OnUpdateValue?.Invoke(this);
+            }
         }
 
         public float Value
@@ -56,7 +67,7 @@ namespace DAFP.TOOLS.Common
                 if (modifiers == null)
                     modifiers = new List<StatModifier<float>>();
 
-                float temp = maxValue;
+                var temp = maxValue;
                 modifiers.Sort();
                 foreach (var modifier in modifiers)
                     temp = modifier.Apply(temp);
@@ -65,11 +76,27 @@ namespace DAFP.TOOLS.Common
             set => maxValue = value;
         }
 
-        public float MinValue { get => DefaultValue; set { } }
-        public float DefaultValue { get => 0; set { } }
+        public float MinValue
+        {
+            get => DefaultValue;
+            set { }
+        }
 
-        public void SetToMax() => complete();
-        public void SetToMin() => Reset();
+        public float DefaultValue
+        {
+            get => 0;
+            set { }
+        }
+
+        public void SetToMax()
+        {
+            complete();
+        }
+
+        public void SetToMin()
+        {
+            Reset();
+        }
 
         public void AddModifier(StatModifier<float> modifier)
         {
@@ -84,9 +111,13 @@ namespace DAFP.TOOLS.Common
         }
 
         public float TrueCoolDownTime => ReverseRatio * MaxValue;
+        public bool IsOnCooldown => !isComplete;
 
         // ISerializationCallbackReceiver
-        void ISerializationCallbackReceiver.OnBeforeSerialize() { /* nothing */ }
+        void ISerializationCallbackReceiver.OnBeforeSerialize()
+        {
+            /* nothing */
+        }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
@@ -97,7 +128,10 @@ namespace DAFP.TOOLS.Common
 
         public override string ToString()
         {
-            return $"[{Name}] left : {MaxValue-Timer}s";
+            return $"[{Name}] left : {MaxValue - Timer}s";
         }
+
+        public List<IStatBase> Owners { get; } = new List<IStatBase>();
+        public ISet<IOwnable<IStatBase>> Pets { get; } = new HashSet<IOwnable<IStatBase>>();
     }
 }

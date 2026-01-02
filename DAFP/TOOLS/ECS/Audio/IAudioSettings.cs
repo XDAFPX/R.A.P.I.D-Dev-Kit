@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Audio
 {
-    public  interface IAudioSettings
+    public interface IAudioSettings
     {
         public float Volume { get; }
         public float Pitch { get; }

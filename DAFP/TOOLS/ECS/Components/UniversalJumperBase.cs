@@ -3,6 +3,7 @@ using Archon.SwissArmyLib.Utils.Editor;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using DAFP.TOOLS.Common;
+using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
@@ -15,7 +16,7 @@ namespace DAFP.TOOLS.ECS.Components
     /// </summary>
     public abstract class UniversalJumperBase<TVec> : EntityComponent
     {
-        [GetComponentCache] private JumpStrengthBoard jumpStrengthBoard;
+        [RequireStat] [InjectStat("JumpStrength")]private IStat<float> jumpStrengthBoard;
         [GetComponentCache] private UniversalCooldownController cooldownController;
 
         [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]

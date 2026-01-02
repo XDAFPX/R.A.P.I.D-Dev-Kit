@@ -25,7 +25,7 @@ namespace DAFP.TOOLS.ECS.UIToolKit
 
         public bool IsVisible
         {
-            get { return Document.enabled; }
+            get => Document.enabled;
             set
             {
                 if (value == IsVisible)
@@ -100,7 +100,7 @@ namespace DAFP.TOOLS.ECS.UIToolKit
             ((IEventBus)Bus).Send(new VisibilityOnUIElementChanged(element, obj));
         }
 
-        public UISystemEventBus Bus { get; } = new UISystemEventBus();
+        public UISystemEventBus Bus { get; } = new();
 
         HashSet<TElement> IUISystem<TElement>.GetElements()
         {

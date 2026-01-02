@@ -25,12 +25,8 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         void IDrawable.Draw()
         {
             foreach (var _ownable in ((IOwner<IDebugDrawable>)this).Pets)
-            {
                 if (_ownable is IDrawable drawable)
-                {
                     drawable.Draw();
-                }
-            }
         }
 
         void IOwner<IDebugDrawable>.AddPet(IOwnable<IDebugDrawable> pet)

@@ -14,17 +14,17 @@ namespace DAFP.TOOLS.Common
 
         public static float globalGravity = -9.81f;
 
-        Rigidbody m_rb;
+        private Rigidbody m_rb;
 
-        void OnEnable()
+        private void OnEnable()
         {
             m_rb = GetComponent<Rigidbody>();
             m_rb.useGravity = false;
         }
 
-        void FixedUpdate()
+        private void FixedUpdate()
         {
-            Vector3 gravity = globalGravity * gravityScale * Vector3.up;
+            var gravity = globalGravity * gravityScale * Vector3.up;
             m_rb.AddForce(gravity, ForceMode.Acceleration);
         }
     }

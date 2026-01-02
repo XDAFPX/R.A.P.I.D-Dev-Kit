@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using DAFP.GAME.Assets;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS.BuiltIn;
@@ -15,18 +16,22 @@ namespace DAFP.TOOLS.ECS.Services
     public abstract class World : MonoBehaviour, IService
 
     {
-        public static readonly Ticker<IEntity> EMPTY_TICKER = new Ticker<IEntity>(0, new HashSet<IGlobalGameState>()); 
+        public static readonly Ticker<IEntity> EMPTY_TICKER = new(0, new HashSet<IGlobalGameState>());
         public readonly List<IEntity> ENTITIES = new();
         protected readonly List<ITickerBase> TICKERS = new();
 
-        public readonly HashSet<IBindedEntity> BINDED_ENTITIES = new();
-
+        public IEntity SpawnEmptyEntity(Vector3 pos)
+        {
+            var obj = new GameObject("EntEmpty");
+            obj.transform.position = pos;
+            return obj.AddEmptyEntity(AssetFactory);
+        }
 
         public void RegisterTicker([NotNull] ITickerBase ticker)
         {
-            if(TICKERS.Contains(ticker))
+            if (TICKERS.Contains(ticker))
                 return;
-            
+
             TICKERS.Add(ticker);
             TICKERS.Sort();
         }
@@ -34,20 +39,14 @@ namespace DAFP.TOOLS.ECS.Services
         public void SubscribeToOnTickEntities<T>(IEntity.TickCallBack callBack) where T : IEntity
         {
             foreach (var _entity in ENTITIES)
-            {
                 if (_entity is T breed)
-                {
                     breed.OnTick += callBack;
-                }
-            }
         }
 
         public void RegisterEntity(IEntity ent, ITicker<IEntity> ticker)
         {
             if (ent == null || ticker == null)
                 return;
-            if (ent is IBindedEntity pl)
-                BINDED_ENTITIES.Add(pl);
             if (ENTITIES.Contains(ent))
                 return;
             RegisterTicker(ticker);
@@ -62,19 +61,13 @@ namespace DAFP.TOOLS.ECS.Services
 
         public void RemoveEntity([NotNull] IEntity ent)
         {
-            if (ent is IBindedEntity pl)
-                BINDED_ENTITIES.Remove(pl);
             try
             {
                 ENTITIES.Remove(ent);
                 ent.EntityTicker.Subscribed.Remove(ent);
                 foreach (var _entityComponent in ent.Components)
-                {
                     if (_entityComponent.Value.EntityComponentTicker != ent.EntityTicker)
-                    {
                         _entityComponent.Value.EntityComponentTicker.Remove(_entityComponent.Value);
-                    }
-                }
 
                 if (ent is IEntityOwnable _ownable)
                     RemovePet(_ownable);
@@ -113,33 +106,21 @@ namespace DAFP.TOOLS.ECS.Services
         }
 
 
-
         public void Initialize()
         {
             id = Guid.NewGuid().ToString();
             ENTITIES.Clear();
-            foreach (var _tickerBase in TICKERS)
-            {
-                _tickerBase.ResetToDefault();
-            }
+            foreach (var _tickerBase in TICKERS) _tickerBase.ResetToDefault();
 
             TICKERS.Clear();
-            BINDED_ENTITIES.Clear();
             HasInitialized = true;
         }
 
         public void FixedTick()
         {
-            
-            foreach (var _ticker in TICKERS.OfType<FixedUpdateTicker<IEntity>>())
-            {
-                SafeTick(_ticker);
-            }
+            foreach (var _ticker in TICKERS.OfType<FixedUpdateTicker<IEntity>>()) SafeTick(_ticker);
 
-            foreach (var _ticker in TICKERS.OfType<FixedUpdateTicker<IEntityComponent>>())
-            {
-                SafeTick(_ticker);
-            }
+            foreach (var _ticker in TICKERS.OfType<FixedUpdateTicker<IEntityComponent>>()) SafeTick(_ticker);
         }
 
         public void SafeTick(ITickerBase ticker)
@@ -151,19 +132,13 @@ namespace DAFP.TOOLS.ECS.Services
 
         public void Tick()
         {
-            foreach (var _ticker in TICKERS.OfType<UpdateTicker<IEntity>>())
-            {
-                SafeTick(_ticker);
-            }
+            foreach (var _ticker in TICKERS.OfType<UpdateTicker<IEntity>>()) SafeTick(_ticker);
 
-            foreach (var _ticker in TICKERS.OfType<UpdateTicker<IEntityComponent>>())
-            {
-                SafeTick(_ticker);
-            }
+            foreach (var _ticker in TICKERS.OfType<UpdateTicker<IEntityComponent>>()) SafeTick(_ticker);
 
             foreach (var _tickerBase in TICKERS.OfType<Ticker<ITickable>>())
             {
-                if(_tickerBase.UpdatesPerSecond==0)
+                if (_tickerBase.UpdatesPerSecond == 0)
                     continue;
                 _tickerBase.Elapsed += Time.deltaTime;
                 if (_tickerBase.Elapsed >= _tickerBase.DeltaTime)
@@ -178,7 +153,7 @@ namespace DAFP.TOOLS.ECS.Services
         public bool HasInitialized { get; set; }
 
 
-        protected HashSet<IEntityOwnable> Pets = new HashSet<IEntityOwnable>();
+        protected HashSet<IEntityOwnable> Pets = new();
         private string id;
 
 
@@ -196,5 +171,6 @@ namespace DAFP.TOOLS.ECS.Services
 
         [Inject] public IGlobalGameStateHandler GameState { get; set; }
         [Inject] public IGlobalCursorStateHandler CursorState { get; set; }
+        [Inject] public IAssetFactory.DefaultAssetFactory AssetFactory { get; set; }
     }
 }

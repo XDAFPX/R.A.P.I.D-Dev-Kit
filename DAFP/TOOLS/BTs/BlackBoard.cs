@@ -14,7 +14,7 @@ namespace DAFP.TOOLS.BTs
 
     public class BlackBoard : IBlackBoard
     {
-        private readonly Dictionary<string, object> data = new Dictionary<string, object>();
+        private readonly Dictionary<string, object> data = new();
 
 
         public BlackBoard(IEntity target, IEntity self)
@@ -38,16 +38,18 @@ namespace DAFP.TOOLS.BTs
 
         public T Get<T>(string key)
         {
-            if (data.TryGetValue(key, out var _value) && _value is T _castValue)
-            {
-                return _castValue;
-            }
+            if (key == default)
+                return default;
+            if (!Has(key)) return default;
+            if (data.TryGetValue(key, out var _value) && _value is T _castValue) return _castValue;
 
             return default;
         }
 
         public bool Has(string key)
         {
+            if (key == default)
+                return default;
             return data.ContainsKey(key);
         }
 

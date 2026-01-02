@@ -85,30 +85,42 @@ namespace DAFP.TOOLS.Common
         /// <summary>
         /// Enable the underlying action.
         /// </summary>
-        public void Enable() => _action.Enable();
+        public void Enable()
+        {
+            _action.Enable();
+        }
 
         /// <summary>
         /// Disable the underlying action.
         /// </summary>
-        public void Disable() => _action.Disable();
+        public void Disable()
+        {
+            _action.Disable();
+        }
 
         /// <summary>
         /// Manually invoke Started with a custom CallbackContext.
         /// </summary>
         public void TriggerStarted(CallbackContext context)
-            => _startedHandlers?.Invoke(context);
+        {
+            _startedHandlers?.Invoke(context);
+        }
 
         /// <summary>
         /// Manually invoke Performed with a custom CallbackContext.
         /// </summary>
         public void TriggerPerformed(CallbackContext context)
-            => _performedHandlers?.Invoke(context);
+        {
+            _performedHandlers?.Invoke(context);
+        }
 
         /// <summary>
         /// Manually invoke Canceled with a custom CallbackContext.
         /// </summary>
         public void TriggerCanceled(CallbackContext context)
-            => _canceledHandlers?.Invoke(context);
+        {
+            _canceledHandlers?.Invoke(context);
+        }
 
         /// <summary>
         /// Dispose unsubscribes all Unity callbacks and clears handlers.
@@ -128,9 +140,20 @@ namespace DAFP.TOOLS.Common
             _disposed = true;
         }
 
-        public static InputBind From(InputAction action) => new InputBind(action);
-        public static implicit operator InputAction(InputBind bind) => bind._action;
-        public static implicit operator InputBind(InputAction action) => new InputBind(action);
+        public static InputBind From(InputAction action)
+        {
+            return new InputBind(action);
+        }
+
+        public static implicit operator InputAction(InputBind bind)
+        {
+            return bind._action;
+        }
+
+        public static implicit operator InputBind(InputAction action)
+        {
+            return new InputBind(action);
+        }
 
         // --------------------------------------------------------------------
         // Nested CallbackContext mirror with multi-object UserData
@@ -201,11 +224,9 @@ namespace DAFP.TOOLS.Common
             public T ReadValue<T>() where T : struct
             {
                 if (UserData != null)
-                {
                     foreach (var item in UserData)
                         if (item is T match)
                             return match;
-                }
 
                 return _unityContext.ReadValue<T>();
             }
@@ -214,7 +235,9 @@ namespace DAFP.TOOLS.Common
             /// Convert our mirror back to Unity's CallbackContext.
             /// </summary>
             public static implicit operator InputAction.CallbackContext(CallbackContext ctx)
-                => ctx._unityContext;
+            {
+                return ctx._unityContext;
+            }
         }
     }
 }

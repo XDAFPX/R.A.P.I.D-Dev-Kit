@@ -11,15 +11,16 @@ namespace DAFP.TOOLS.Common
         public ref FiniteTimer Timer { get; }
         public bool DoDestroyOnExpire { get; }
         public event Action EOnExpire;
+
         public void Expire(Object self)
         {
-            if(DoDestroyOnExpire)
+            if (DoDestroyOnExpire)
                 Object.Destroy(self);
         }
 
-        public void UpdateTimer(float delta,Object self)
+        public void UpdateTimer(float delta, Object self)
         {
-            if(Timer.tryCompleteTimer(delta))
+            if (Timer.tryCompleteTimer(delta))
                 Expire(self);
         }
     }

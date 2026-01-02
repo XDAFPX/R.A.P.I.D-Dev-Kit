@@ -17,19 +17,14 @@ namespace DAFP.TOOLS.ECS.Serialization
 
         public override void OnDesirializeAdditionalStats(IStatBase stat, Dictionary<string, object> data)
         {
-            if (data.TryGetValue(ISerializer<IEntity>.STAT_VAL, out var _value))
-            {
-                stat.SetAbsoluteValue(_value);
-            }
+            if (data.TryGetValue(ISerializer<IEntity>.STAT_VAL, out var _value)) stat.SetAbsoluteValue(_value);
         }
 
         public override void Load(Dictionary<string, object> save, IEntity ent)
         {
             if (ent == null)
-            {
                 //TODO Handle dynamicly spawned Assets
                 return;
-            }
 
             if (save == null)
             {
@@ -38,28 +33,23 @@ namespace DAFP.TOOLS.ECS.Serialization
             }
 
             save.ApplyConcreteDeserialization();
-            if (save.TryGetValue(ent.GetType().FullName + "." + ISerializer<IEntity>.ENT_BASIC_DATA_NAME, out var _value))
+            if (save.TryGetValue(ent.GetType().FullName + "." + ISerializer<IEntity>.ENT_BASIC_DATA_NAME,
+                    out var _value))
             {
                 var transform_save = _value as Dictionary<string, object>;
 
 
                 if (transform_save.TryGetValue("Position", out var _o))
-                {
                     if (_o is Vector3 vv)
                         ent.GetWorldRepresentation().transform.localPosition = vv;
-                }
 
                 if (transform_save.TryGetValue("Scale", out var _s))
-                {
                     if (_s is Vector3 vv)
                         ent.GetWorldRepresentation().transform.localScale = vv;
-                }
 
                 if (transform_save.TryGetValue("Rotation", out var _q))
-                {
                     if (_q is Quaternion vv)
                         ent.GetWorldRepresentation().transform.rotation = vv;
-                }
             }
 
             base.Load(save, ent);

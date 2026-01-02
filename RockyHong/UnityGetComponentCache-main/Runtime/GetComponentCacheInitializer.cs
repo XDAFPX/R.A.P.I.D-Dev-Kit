@@ -13,6 +13,38 @@ namespace UnityGetComponentCache
         /// </summary>
         public static bool DEBUG_MODE = false;
 
+        public static void InitializeCaches(object target,GameObject obj)
+        {
+            if (DEBUG_MODE)
+                Debug.Log($"[UnityComponentCache] Getting the Cache for : {target.GetType()}");
+
+            // Step 1: Collect all fields (public, non-public, instance) from this type and its base types
+            var fields = GetAllFields(target.GetType());
+
+            foreach (var field in fields)
+            {
+                bool hasComponentCache = Attribute.IsDefined(field, typeof(GetComponentCacheAttribute));
+                if (!hasComponentCache)
+                    continue;
+
+                // Step 2: Try to get and assign the component
+                var component = obj.GetComponent(field.FieldType);
+                if (component != null)
+                {
+                    field.SetValue(target, component);
+                    if (DEBUG_MODE)
+                        Debug.Log(
+                            $"[UnityComponentCache] Set {field.FieldType} to {field.Name} in {target.GetType().Name}");
+                }
+                else
+                {
+                    if (DEBUG_MODE)
+                        Debug.LogError(
+                            $"[UnityComponentCache] Component of type {field.FieldType} not found for {field.Name} in {target.GetType().Name}");
+                }
+            }
+        }
+
         public static void InitializeCaches(MonoBehaviour monoBehaviour)
         {
             if (DEBUG_MODE)

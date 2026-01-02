@@ -62,6 +62,7 @@ namespace DAFP.TOOLS.Common
                 v = _vector;
                 return true;
             }
+
             v = default;
             return false;
         }
@@ -74,11 +75,19 @@ namespace DAFP.TOOLS.Common
                 t = _transform;
                 return true;
             }
+
             t = null;
             return false;
         }
 
-        public static PositionTarget FromVector3(Vector3 v) => new PositionTarget(v);
-        public static PositionTarget FromTransform(Transform t) => new PositionTarget(t);
+        public static PositionTarget FromVector3(Vector3 v)
+        {
+            return new PositionTarget(v);
+        }
+
+        public static PositionTarget FromTransform(Transform t)
+        {
+            return new PositionTarget(t);
+        }
     }
 }

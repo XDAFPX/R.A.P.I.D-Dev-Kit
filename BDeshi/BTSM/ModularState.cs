@@ -7,6 +7,7 @@ namespace BDeshi.BTSM
         private System.Action onEnter;
         private System.Action onTick;
         private System.Action onExit;
+        private BtStatus lastStatus = BtStatus.NotRunYet;
         public override string FullStateName => StateName;
 
         public ModularState(string stateName, System.Action onEnter = null, System.Action onTick = null, System.Action onExit = null,HashSet<IState._stateTags> tags = null)
@@ -22,6 +23,8 @@ namespace BDeshi.BTSM
 
         public override string StateName { get; }
 
+        public override BtStatus LastStatus => lastStatus;
+
         public override void EnterState()
         {
             onEnter?.Invoke();
@@ -29,7 +32,7 @@ namespace BDeshi.BTSM
 
         public override void Tick()
         {
-            onTick?.Invoke();
+             onTick?.Invoke();
         }
 
         public override void ExitState()

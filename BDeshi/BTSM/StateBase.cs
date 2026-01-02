@@ -14,6 +14,7 @@ namespace BDeshi.BTSM
         public HashSet<IState._stateTags> StateTags => StateTagsInternal;
         protected HashSet<IState._stateTags> StateTagsInternal;
         public IState Parent { get; set; }
+        public abstract BtStatus LastStatus { get; }  
 
         public string Name => this.GetType().Name;
 

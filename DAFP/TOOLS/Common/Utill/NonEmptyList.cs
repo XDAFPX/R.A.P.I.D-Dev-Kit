@@ -85,10 +85,29 @@ namespace DAFP.TOOLS.Common.Utill
             throw new InvalidOperationException("Cannot clear all elements; at least one must remain."); // Step 5
         }
 
-        public bool Contains(T item) => _items.Contains(item);
-        public int IndexOf(T item) => _items.IndexOf(item);
-        public void CopyTo(T[] array, int arrayIndex) => _items.CopyTo(array, arrayIndex);
-        public IEnumerator<T> GetEnumerator() => _items.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public bool Contains(T item)
+        {
+            return _items.Contains(item);
+        }
+
+        public int IndexOf(T item)
+        {
+            return _items.IndexOf(item);
+        }
+
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            _items.CopyTo(array, arrayIndex);
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return _items.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 }

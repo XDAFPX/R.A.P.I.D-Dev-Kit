@@ -13,27 +13,27 @@ namespace DAFP.TOOLS.ECS.UIToolKit
 
         protected override Dictionary<string, (Func<object>, Action<object>)> GetInitialAttributes()
         {
-            return new Dictionary<string, (Func<object>, Action<object>)>()
+            return new Dictionary<string, (Func<object>, Action<object>)>
             {
                 {
                     "Value",
                     (
-                        (() => Element.value),
-                        (o => Element.value = Convert.ToSingle(o))
+                        () => Element.value,
+                        o => Element.value = Convert.ToSingle(o)
                     )
                 },
                 {
                     "MaxValue",
                     (
-                        (() => Element.highValue),
-                        (o => Element.highValue = Convert.ToSingle(o))
+                        () => Element.highValue,
+                        o => Element.highValue = Convert.ToSingle(o)
                     )
                 },
                 {
                     "Text",
                     (
-                        (() => Element.title),
-                        (o => Element.title = (string)o)
+                        () => Element.title,
+                        o => Element.title = (string)o
                     )
                 }
             };

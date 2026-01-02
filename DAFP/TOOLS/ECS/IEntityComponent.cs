@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.DebugSystem;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {

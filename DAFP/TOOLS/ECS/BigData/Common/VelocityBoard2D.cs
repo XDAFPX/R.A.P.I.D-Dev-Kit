@@ -1,25 +1,19 @@
 ﻿using System.Collections.Generic;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.DebugSystem;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace DAFP.TOOLS.ECS.BigData.Common
 {
-    [RequireComponent(typeof(Rigidbody2D))]
     public class VelocityBoard2D : Vector3Board
     {
         private Rigidbody2D Rb;
 
         [Range(0, 100)] [SerializeField] private int FrameBufferSize = 10;
-        public readonly Queue<Vector2> VelocityHistory = new Queue<Vector2>();
+        public readonly Queue<Vector2> VelocityHistory = new();
 
-        protected override void OnStart()
-        {
-            Rb = GetComponent<Rigidbody2D>();
-            InternalValue = Rb.linearVelocity;
-            DefaultValue = Rb.linearVelocity;
-        }
 
         public override void SetAbsoluteValue(object value)
         {
@@ -29,6 +23,11 @@ namespace DAFP.TOOLS.ECS.BigData.Common
 
         protected override void OnInitializeInternal()
         {
+            if (Rb != null)
+                return;
+            Rb = Host.GetWorldRepresentation().GetComponent<Rigidbody2D>();
+            InternalValue = Rb.linearVelocity;
+            DefaultValue = Rb.linearVelocity;
         }
 
 
@@ -46,10 +45,12 @@ namespace DAFP.TOOLS.ECS.BigData.Common
 
         public override Vector3 MaxValue => Vector3.one * TopVelocity;
 
-        protected override void OnTick()
+        public override void Tick()
         {
-            EnsureMaxVelocity();
-            EnsureMinVelocity();
+            if (Rb != null)
+                return;
+            ensure_max_velocity();
+            ensure_min_velocity();
             Value = Rb.linearVelocity;
 
             if (VelocityHistory.Count >= FrameBufferSize)
@@ -58,17 +59,25 @@ namespace DAFP.TOOLS.ECS.BigData.Common
             VelocityHistory.Enqueue(Rb.linearVelocity);
         }
 
-        void EnsureMaxVelocity()
+        private void ensure_max_velocity()
         {
             Rb.linearVelocity = Vector2.ClampMagnitude(Rb.linearVelocity, MaxValue.magnitude);
         }
 
-        void EnsureMinVelocity()
+        // public override IEnumerable<IDebugDrawer> SetupDebugDrawers()
+        // {
+        //     return new[]
+        //     {
+        //         new ActionDebugDrawer("Velocities",
+        //             (gizmos => gizmos.DrawArrow(transform.position, transform.position + Value, Color.green, 0.5F,
+        //                 0.08F)))
+        //     };
+        // }
+
+        private void ensure_min_velocity()
         {
             if (Rb.linearVelocity.magnitude < MinValue.magnitude)
-            {
                 Rb.linearVelocity = Rb.linearVelocity.normalized * MinValue.magnitude;
-            }
         }
     }
 }

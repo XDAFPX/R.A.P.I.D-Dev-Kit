@@ -16,6 +16,7 @@ namespace UGizmo
     [BurstCompile]
     public partial class UGizmos : IGlobalGizmos, IGlobalGizmoPrimitive, IGlobalGizmoPrimitive2D, IGlobalGizmoUtility, IGlobalGizmoArrow, IGlobalGizmoPhysics, IGlobalGizmoPhysics2D
     {
+        public static UGizmos FALL_BACK = new UGizmos();
         private  readonly Color trueColor = new Color(0.12f, 0.75f, 1f, 1f);
         private  readonly Color trueDarkColor = new Color(0.09f, 0.32f, 0.72f);
         private  readonly Color falseColor = new Color(1f, 0.09f, 0.12f, 1f);

@@ -17,7 +17,8 @@ namespace BDeshi.BTSM
         public string FullStateName => Prefix +"_"+ GetParentChainName();
         public HashSet<IState._stateTags> StateTags { get; }
         public IState Parent { get; set; }
-               
+        public BtStatus LastStatus { get; } = BtStatus.NotRunYet;
+
         public string Name => GetType().Name;
 
         public IState AsChildOf(IState p)

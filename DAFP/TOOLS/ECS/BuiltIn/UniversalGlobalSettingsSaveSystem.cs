@@ -21,21 +21,19 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             this.theblacks = theblacks;
         }
 
-        public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer, IMetaSerializer metaSerializer,
+        public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer,
+            IMetaSerializer metaSerializer,
             int slot)
         {
             Dictionary<string, object> Data = new();
 
-            Dictionary<string, object> _metaData = metaSerializer.SaveMetaData(Data);
-            List<IGlobalSettingsSavable> savableStates = states
+            var _metaData = metaSerializer.SaveMetaData(Data);
+            var savableStates = states
                 .OfType<IGlobalSettingsSavable>()
                 .ToList();
             savableStates.Sort(new GenericComparerICompareable<IGlobalSettingsSavable>());
 
-            foreach (var _base in savableStates)
-            {
-                Data.Add(_base.GetType().FullName, _base.Save());
-            }
+            foreach (var _base in savableStates) Data.Add(_base.GetType().FullName, _base.Save());
 
             var _blackBoards = theblacks
                 .OfType<IGlobalSettingsSavable>()
@@ -67,7 +65,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public async Task LoadAll(ISerializationService saveService, ISerializer<IEntity> serializer,
             IMetaSerializer metaSerializer, Action OnEnd, int slot)
         {
-            Dictionary<string, object> Data =
+            var Data =
                 saveService.Load("Settings", $"Default{slot}", "SettingsSave.Save");
 
 
@@ -77,17 +75,13 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 await metaSerializer.LoadMetaData(metadata);
             }
 
-            List<IGlobalSettingsSavable> savableStates = states
+            var savableStates = states
                 .OfType<IGlobalSettingsSavable>()
                 .ToList();
             savableStates.Sort(new GenericComparerICompareable<IGlobalSettingsSavable>());
             foreach (var _globalStateHandlerBase in savableStates)
-            {
                 if (Data.TryGetValue(_globalStateHandlerBase.GetType().FullName, out var oo))
-                {
                     _globalStateHandlerBase.Load(oo as Dictionary<string, object>);
-                }
-            }
 
 
             var _blackBoards = theblacks
@@ -97,10 +91,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             foreach (var _board in _blackBoards)
             {
                 var _fullName = _board.GetType().FullName;
-                if (Data.TryGetValue(_fullName, out var oo))
-                {
-                    _board.Load(oo as Dictionary<string, object>);
-                }
+                if (Data.TryGetValue(_fullName, out var oo)) _board.Load(oo as Dictionary<string, object>);
             }
 
 

@@ -6,10 +6,10 @@ using UnityEditor.PackageManager.Requests;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class EmptyView :  IViewModel
+    public class EmptyView : IViewModel
     {
-
         public string Name { get; set; } = "Empty";
+
         public void Enable()
         {
         }
@@ -19,7 +19,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
         public bool Enabled { get; } = false;
-        public IViewModel Construct(IEntity owner)
+
+        public IViewModel InitOwner(IEntity owner)
         {
             ((IEntityPet)this).ChangeOwner(owner);
             return this;

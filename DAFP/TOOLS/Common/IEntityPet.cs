@@ -4,8 +4,7 @@ using DAFP.TOOLS.ECS.BigData;
 
 namespace DAFP.TOOLS.Common
 {
-    public interface IEntityPet :IEntityOwnable ,IPet<IEntity>
+    public interface IEntityPet : IEntityOwnable, IPet<IEntity>
     {
-
     }
 }

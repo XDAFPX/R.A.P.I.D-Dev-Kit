@@ -1,12 +1,10 @@
 ﻿using System.Linq;
+using UnityEngine;
+using System;
+using System.Collections.Generic;
 
-    using UnityEngine;
-    using System;
-    using System.Collections.Generic;
 namespace DAFP.TOOLS.Common.Colors
 {
-
-
     /// <summary>
     /// Abstract base class for any color scheme.
     /// Defines the structure for how color schemes should behave.
@@ -16,7 +14,7 @@ namespace DAFP.TOOLS.Common.Colors
         /// <summary>
         /// List of colors that belong to this scheme.
         /// </summary>
-        protected List<Color> colors = new List<Color>();
+        protected List<Color> colors = new();
 
         public ColorScheme(Color based)
         {
@@ -41,7 +39,10 @@ namespace DAFP.TOOLS.Common.Colors
         /// <summary>
         /// Returns all colors in the scheme.
         /// </summary>
-        public virtual IReadOnlyList<Color> GetAllColors() => colors.AsReadOnly();
+        public virtual IReadOnlyList<Color> GetAllColors()
+        {
+            return colors.AsReadOnly();
+        }
 
         /// <summary>
         /// Regenerates the colors (for example, if the base color changes).
@@ -81,8 +82,8 @@ namespace DAFP.TOOLS.Common.Colors
         {
             colors.Clear();
             colors.Add(baseColor);
-            Color.RGBToHSV(baseColor, out float h, out float s, out float v);
-            float oppositeHue = (h + 0.5f) % 1f;
+            Color.RGBToHSV(baseColor, out var h, out var s, out var v);
+            var oppositeHue = (h + 0.5f) % 1f;
             colors.Add(Color.HSVToRGB(oppositeHue, s, v));
         }
 
@@ -98,12 +99,13 @@ namespace DAFP.TOOLS.Common.Colors
     public class AnalogousScheme : ColorScheme
     {
         public override int ColorCount => 3;
+
         public override void Generate(Color baseColor)
         {
             colors.Clear();
-            Color.RGBToHSV(baseColor, out float h, out float s, out float v);
+            Color.RGBToHSV(baseColor, out var h, out var s, out var v);
 
-            float step = 1f / 12f; // 30 degrees on hue wheel
+            var step = 1f / 12f; // 30 degrees on hue wheel
             colors.Add(Color.HSVToRGB((h - step + 1f) % 1f, s, v));
             colors.Add(baseColor);
             colors.Add(Color.HSVToRGB((h + step) % 1f, s, v));
@@ -120,11 +122,12 @@ namespace DAFP.TOOLS.Common.Colors
 
         public SimpleScheme(IEnumerable<Color> mainColors) : base(Color.black)
         {
-            this.schemecolors = mainColors;
+            schemecolors = mainColors;
             colors = schemecolors.ToList();
         }
 
         public override int ColorCount => schemecolors.Count();
+
         public override void Generate(Color baseColor)
         {
             colors = schemecolors.ToList();

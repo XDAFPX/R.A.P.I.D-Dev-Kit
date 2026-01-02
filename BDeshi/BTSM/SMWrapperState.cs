@@ -8,6 +8,7 @@ namespace BDeshi.BTSM
     {
         public override string FullStateName => $"{StateName}.{machine?.CurState?.FullStateName}";
         public override string StateName { get; }
+        public override BtStatus LastStatus { get; } = BtStatus.NotRunYet;
 
         private IRunnableStateMachine machine; 
         

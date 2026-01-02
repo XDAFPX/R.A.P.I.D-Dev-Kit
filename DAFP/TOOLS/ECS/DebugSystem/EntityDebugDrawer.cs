@@ -11,13 +11,14 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 {
     public abstract class EntityDebugDrawer : IDebugDrawer
     {
-        public List<IDebugDrawable> Owners { get; } = new List<IDebugDrawable>();
+        public List<IDebugDrawable> Owners { get; } = new();
 
         public DebugDrawLayer Layer { get; set; }
 
         protected IDebugSys<IGlobalGizmos, IMessenger> Sys;
         protected IEntity Host => ((IOwnable<IDebugDrawable>)this).GetCurrentOwner() as IEntity;
         protected abstract string GetLayerName();
+
         public void Initilize(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
         {
             Sys = debugSys;

@@ -4,6 +4,5 @@ namespace DAFP.TOOLS.ECS.UIToolKit
 {
     public class ToolKitUISystem : ToolkitUISys<IUIElement>
     {
-        
     }
 }

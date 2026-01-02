@@ -25,7 +25,7 @@
                 Directory.CreateDirectory(folderPath);
 
             // Write the file (adds .txt extension)
-            var fullPath = Path.Combine(folderPath, fileName );
+            var fullPath = Path.Combine(folderPath, fileName);
             File.WriteAllText(fullPath, content);
 
             // Refresh Unity's AssetDatabase so it shows up immediately

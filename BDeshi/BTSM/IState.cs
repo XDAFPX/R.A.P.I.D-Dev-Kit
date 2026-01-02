@@ -20,6 +20,8 @@ namespace BDeshi.BTSM
         string Name { get; }
         HashSet<_stateTags> StateTags { get; }
         [CanBeNull] IState Parent { get; set; }
+        BtStatus LastStatus { get; }
+        public bool HasFinished() => LastStatus is BtStatus.Success or BtStatus.Failure;
     }
 
     public interface IMultiState : IState

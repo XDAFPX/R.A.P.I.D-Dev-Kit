@@ -14,22 +14,26 @@ namespace DAFP.TOOLS.ECS.UIToolKit
         where TToolKitElement : VisualElement
     {
         [field: SerializeField] public string Name { get; set; }
-        [field : ReadOnly] [field: SerializeField] public bool IsVisible { get; set; }
+
+        [field: ReadOnly]
+        [field: SerializeField]
+        public bool IsVisible { get; set; }
+
         public event Action<bool, IUIElement> VisibilityChanged;
-        protected Dictionary<string,  (Func<object>,Action<object>)> Attributes;
+        protected Dictionary<string, (Func<object>, Action<object>)> Attributes;
         private UIDocument document;
         protected TToolKitElement Element;
-        protected abstract Dictionary<string,  (Func<object>,Action<object>)> GetInitialAttributes();
+        protected abstract Dictionary<string, (Func<object>, Action<object>)> GetInitialAttributes();
+
         private void Awake()
         {
-            if (TryGetComponent(out IUISystem<IUIElement> sys))
-            {
-                sys.Register(this);
-            }
+            if (TryGetComponent(out IUISystem<IUIElement> sys)) sys.Register(this);
             document = GetComponent<UIDocument>();
             var a = document.rootVisualElement.Q<TToolKitElement>(Name);
             if (a != null)
+            {
                 Element = a;
+            }
             else
             {
                 throw new Exception($"An Element with Name: ({Name}) was not found (UI)");
@@ -44,6 +48,7 @@ namespace DAFP.TOOLS.ECS.UIToolKit
         {
             return Element.visible;
         }
+
         public virtual void Show()
         {
             Element.visible = true;

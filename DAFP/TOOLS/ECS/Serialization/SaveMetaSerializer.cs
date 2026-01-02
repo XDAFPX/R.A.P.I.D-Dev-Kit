@@ -32,10 +32,7 @@ namespace DAFP.TOOLS.ECS.Serialization
                 await SceneManager.LoadSceneAsync((int)_scene);
             }
 
-            if (save.TryGetValue("Seed", out var seed))
-            {
-                rng.InitState((uint)Convert.ToInt32(seed));
-            }
+            if (save.TryGetValue("Seed", out var seed)) rng.InitState((uint)Convert.ToInt32(seed));
         }
 
         public void TryChangeCurrentScene(Dictionary<string, object> save, int scene)
@@ -46,17 +43,14 @@ namespace DAFP.TOOLS.ECS.Serialization
 
         public Dictionary<string, object> SaveMetaData(Dictionary<string, object> save)
         {
-            var _index = UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex;
+            var _index = SceneManager.GetActiveScene().buildIndex;
 
             var seed = (int)RandomEx.Shared.NextUInt();
-            if (save != null && save.TryGetValue("Seed", out var _value))
-            {
-                seed = Convert.ToInt32(_value);
-            }
+            if (save != null && save.TryGetValue("Seed", out var _value)) seed = Convert.ToInt32(_value);
 
-            return new Dictionary<string, object>()
+            return new Dictionary<string, object>
             {
-                { "CurrentScene", _index }, { "Seed",(uint) seed }
+                { "CurrentScene", _index }, { "Seed", (uint)seed }
             };
         }
     }

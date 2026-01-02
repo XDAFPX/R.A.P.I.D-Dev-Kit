@@ -11,7 +11,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         [Inject]
         public UniversalDifficultyConfigStateHandler([Inject(Id = "DefaultDifficulty")] string defaultState,
             [Inject(Id = "DefaultDifficultyDomain")]
-            string domain, [Inject(Id = "GlobalStateBus")] IEventBus bus) : base(defaultState,bus)
+            string domain, [Inject(Id = "GlobalStateBus")] IEventBus bus) : base(defaultState, bus)
         {
             this.domain = domain;
         }
@@ -25,7 +25,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public override Dictionary<string, object> Save()
         {
-            return new Dictionary<string, object>() { { "CurrentState", Current().StateName } };
+            return new Dictionary<string, object> { { "CurrentState", Current().StateName } };
         }
 
         public override void Load(Dictionary<string, object> save)

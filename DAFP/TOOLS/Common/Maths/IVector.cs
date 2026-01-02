@@ -10,40 +10,62 @@ namespace DAFP.TOOLS.Common.Maths
         void SetValueAtDimension(int dimension, float? value);
         int Dimensions { get; }
         float Magnitude { get; }
-    }
+        IVectorBase Normalized { get; }
+        IVectorBase Normalize();
 
-    public interface IVector<TSelf> : IVectorBase where TSelf : struct, IVector<TSelf>
-    {
-        TSelf Normalized { get; }
+        IVectorBase Scale(float scalar);
 
-        TSelf Add(TSelf other);
-        TSelf Subtract(TSelf other);
-        TSelf Scale(float scalar);
-        float Dot(TSelf other);
+        IVectorBase Reverse()
+        {
+            return Scale(-1);
+        }
 
         V2 TryGetVector2()
         {
-            float x = GetValueAtDimension(1) ?? 0f;
-            float y = GetValueAtDimension(2) ?? 0f;
+            var x = GetValueAtDimension(1) ?? 0f;
+            var y = GetValueAtDimension(2) ?? 0f;
             return new V2(x, y);
         }
 
         V3 TryGetVector3()
         {
-            float x = GetValueAtDimension(1) ?? 0f;
-            float y = GetValueAtDimension(2) ?? 0f;
-            float z = GetValueAtDimension(3) ?? 0f;
+            var x = GetValueAtDimension(1) ?? 0f;
+            var y = GetValueAtDimension(2) ?? 0f;
+            var z = GetValueAtDimension(3) ?? 0f;
             return new V3(x, y, z);
         }
 
         V4 TryGetVector4()
         {
-            float x = GetValueAtDimension(1) ?? 0f;
-            float y = GetValueAtDimension(2) ?? 0f;
-            float z = GetValueAtDimension(3) ?? 0f;
-            float w = GetValueAtDimension(4) ?? 0f;
+            var x = GetValueAtDimension(1) ?? 0f;
+            var y = GetValueAtDimension(2) ?? 0f;
+            var z = GetValueAtDimension(3) ?? 0f;
+            var w = GetValueAtDimension(4) ?? 0f;
             return new V4(x, y, z, w);
         }
+    }
+
+    public interface IVector<TSelf> : IVectorBase where TSelf : struct, IVector<TSelf>
+    {
+        IVectorBase IVectorBase.Normalize()
+        {
+            return Normalized;
+        }
+
+        IVectorBase IVectorBase.Normalized => Normalized;
+
+        TSelf Normalized { get; }
+
+        TSelf Add(TSelf other);
+        TSelf Subtract(TSelf other);
+        TSelf Scale(float scalar);
+
+        IVectorBase IVectorBase.Scale(float scalar)
+        {
+            return Scale(scalar);
+        }
+
+        float Dot(TSelf other);
 
         IVector<TSelf> TrySetVector2(V2 vec)
         {
@@ -106,10 +128,25 @@ namespace DAFP.TOOLS.Common.Maths
             this.y = y;
         }
 
-        public static implicit operator Vector2(V2 v) => new Vector2(v.x, v.y);
-        public static implicit operator V2(Vector2 v) => new V2(v.x, v.y);
-        public static implicit operator Vector3(V2 v) => new Vector3(v.x, v.y, 0f);
-        public static implicit operator V2(Vector3 v) => new V2(v.x, v.y);
+        public static implicit operator Vector2(V2 v)
+        {
+            return new Vector2(v.x, v.y);
+        }
+
+        public static implicit operator V2(Vector2 v)
+        {
+            return new V2(v.x, v.y);
+        }
+
+        public static implicit operator Vector3(V2 v)
+        {
+            return new Vector3(v.x, v.y, 0f);
+        }
+
+        public static implicit operator V2(Vector3 v)
+        {
+            return new V2(v.x, v.y);
+        }
 
         public void SetValueAtDimension(int dimension, float? value)
         {
@@ -121,27 +158,60 @@ namespace DAFP.TOOLS.Common.Maths
             }
         }
 
-        public float? GetValueAtDimension(int dimension) =>
-            dimension switch
+        public float? GetValueAtDimension(int dimension)
+        {
+            return dimension switch
             {
                 1 => x,
                 2 => y,
                 _ => null
             };
+        }
 
         public int Dimensions => 2;
         public float Magnitude => Mathf.Sqrt(x * x + y * y);
         public V2 Normalized => Magnitude < Mathf.Epsilon ? new V2(0, 0) : new V2(x / Magnitude, y / Magnitude);
 
-        public V2 Add(V2 other) => new V2(x + other.x, y + other.y);
-        public V2 Subtract(V2 other) => new V2(x - other.x, y - other.y);
-        public V2 Scale(float scalar) => new V2(x * scalar, y * scalar);
-        public float Dot(V2 other) => x * other.x + y * other.y;
+        public V2 Add(V2 other)
+        {
+            return new V2(x + other.x, y + other.y);
+        }
 
-        public static V2 operator +(V2 a, V2 b) => a.Add(b);
-        public static V2 operator -(V2 a, V2 b) => a.Subtract(b);
-        public static V2 operator *(V2 a, float s) => a.Scale(s);
-        public static V2 operator *(float s, V2 a) => a.Scale(s);
+        public V2 Subtract(V2 other)
+        {
+            return new V2(x - other.x, y - other.y);
+        }
+
+        public V2 Scale(float scalar)
+        {
+            return new V2(x * scalar, y * scalar);
+        }
+
+
+        public float Dot(V2 other)
+        {
+            return x * other.x + y * other.y;
+        }
+
+        public static V2 operator +(V2 a, V2 b)
+        {
+            return a.Add(b);
+        }
+
+        public static V2 operator -(V2 a, V2 b)
+        {
+            return a.Subtract(b);
+        }
+
+        public static V2 operator *(V2 a, float s)
+        {
+            return a.Scale(s);
+        }
+
+        public static V2 operator *(float s, V2 a)
+        {
+            return a.Scale(s);
+        }
 
         public override string ToString()
         {
@@ -166,8 +236,15 @@ namespace DAFP.TOOLS.Common.Maths
             this.z = z;
         }
 
-        public static implicit operator Vector3(V3 v) => new Vector3(v.x, v.y, v.z);
-        public static implicit operator V3(Vector3 v) => new V3(v.x, v.y, v.z);
+        public static implicit operator Vector3(V3 v)
+        {
+            return new Vector3(v.x, v.y, v.z);
+        }
+
+        public static implicit operator V3(Vector3 v)
+        {
+            return new V3(v.x, v.y, v.z);
+        }
 
         public void SetValueAtDimension(int dimension, float? value)
         {
@@ -180,14 +257,16 @@ namespace DAFP.TOOLS.Common.Maths
             }
         }
 
-        public float? GetValueAtDimension(int dimension) =>
-            dimension switch
+        public float? GetValueAtDimension(int dimension)
+        {
+            return dimension switch
             {
                 1 => x,
                 2 => y,
                 3 => z,
                 _ => null
             };
+        }
 
         public int Dimensions => 3;
         public float Magnitude => Mathf.Sqrt(x * x + y * y + z * z);
@@ -196,15 +275,45 @@ namespace DAFP.TOOLS.Common.Maths
             ? new V3(0, 0, 0)
             : new V3(x / Magnitude, y / Magnitude, z / Magnitude);
 
-        public V3 Add(V3 other) => new V3(x + other.x, y + other.y, z + other.z);
-        public V3 Subtract(V3 other) => new V3(x - other.x, y - other.y, z - other.z);
-        public V3 Scale(float scalar) => new V3(x * scalar, y * scalar, z * scalar);
-        public float Dot(V3 other) => x * other.x + y * other.y + z * other.z;
+        public V3 Add(V3 other)
+        {
+            return new V3(x + other.x, y + other.y, z + other.z);
+        }
 
-        public static V3 operator +(V3 a, V3 b) => a.Add(b);
-        public static V3 operator -(V3 a, V3 b) => a.Subtract(b);
-        public static V3 operator *(V3 a, float s) => a.Scale(s);
-        public static V3 operator *(float s, V3 a) => a.Scale(s);
+        public V3 Subtract(V3 other)
+        {
+            return new V3(x - other.x, y - other.y, z - other.z);
+        }
+
+        public V3 Scale(float scalar)
+        {
+            return new V3(x * scalar, y * scalar, z * scalar);
+        }
+
+        public float Dot(V3 other)
+        {
+            return x * other.x + y * other.y + z * other.z;
+        }
+
+        public static V3 operator +(V3 a, V3 b)
+        {
+            return a.Add(b);
+        }
+
+        public static V3 operator -(V3 a, V3 b)
+        {
+            return a.Subtract(b);
+        }
+
+        public static V3 operator *(V3 a, float s)
+        {
+            return a.Scale(s);
+        }
+
+        public static V3 operator *(float s, V3 a)
+        {
+            return a.Scale(s);
+        }
 
         public override string ToString()
         {
@@ -231,8 +340,15 @@ namespace DAFP.TOOLS.Common.Maths
             this.w = w;
         }
 
-        public static implicit operator Vector4(V4 v) => new Vector4(v.x, v.y, v.z, v.w);
-        public static implicit operator V4(Vector4 v) => new V4(v.x, v.y, v.z, v.w);
+        public static implicit operator Vector4(V4 v)
+        {
+            return new Vector4(v.x, v.y, v.z, v.w);
+        }
+
+        public static implicit operator V4(Vector4 v)
+        {
+            return new V4(v.x, v.y, v.z, v.w);
+        }
 
         public void SetValueAtDimension(int dimension, float? value)
         {
@@ -246,8 +362,9 @@ namespace DAFP.TOOLS.Common.Maths
             }
         }
 
-        public float? GetValueAtDimension(int dimension) =>
-            dimension switch
+        public float? GetValueAtDimension(int dimension)
+        {
+            return dimension switch
             {
                 1 => x,
                 2 => y,
@@ -255,6 +372,7 @@ namespace DAFP.TOOLS.Common.Maths
                 4 => w,
                 _ => null
             };
+        }
 
         public int Dimensions => 4;
         public float Magnitude => Mathf.Sqrt(x * x + y * y + z * z + w * w);
@@ -263,15 +381,45 @@ namespace DAFP.TOOLS.Common.Maths
             ? new V4(0, 0, 0, 0)
             : new V4(x / Magnitude, y / Magnitude, z / Magnitude, w / Magnitude);
 
-        public V4 Add(V4 other) => new V4(x + other.x, y + other.y, z + other.z, w + other.w);
-        public V4 Subtract(V4 other) => new V4(x - other.x, y - other.y, z - other.z, w - other.w);
-        public V4 Scale(float scalar) => new V4(x * scalar, y * scalar, z * scalar, w * scalar);
-        public float Dot(V4 other) => x * other.x + y * other.y + z * other.z + w * other.w;
+        public V4 Add(V4 other)
+        {
+            return new V4(x + other.x, y + other.y, z + other.z, w + other.w);
+        }
 
-        public static V4 operator +(V4 a, V4 b) => a.Add(b);
-        public static V4 operator -(V4 a, V4 b) => a.Subtract(b);
-        public static V4 operator *(V4 a, float s) => a.Scale(s);
-        public static V4 operator *(float s, V4 a) => a.Scale(s);
+        public V4 Subtract(V4 other)
+        {
+            return new V4(x - other.x, y - other.y, z - other.z, w - other.w);
+        }
+
+        public V4 Scale(float scalar)
+        {
+            return new V4(x * scalar, y * scalar, z * scalar, w * scalar);
+        }
+
+        public float Dot(V4 other)
+        {
+            return x * other.x + y * other.y + z * other.z + w * other.w;
+        }
+
+        public static V4 operator +(V4 a, V4 b)
+        {
+            return a.Add(b);
+        }
+
+        public static V4 operator -(V4 a, V4 b)
+        {
+            return a.Subtract(b);
+        }
+
+        public static V4 operator *(V4 a, float s)
+        {
+            return a.Scale(s);
+        }
+
+        public static V4 operator *(float s, V4 a)
+        {
+            return a.Scale(s);
+        }
 
         public override string ToString()
         {

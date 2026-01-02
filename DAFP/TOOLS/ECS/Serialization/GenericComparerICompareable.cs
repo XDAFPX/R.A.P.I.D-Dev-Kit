@@ -23,31 +23,47 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             // Step 3: x implements IComparable<T>
             if (x is IComparable<T> genX)
-            {
-                try { return genX.CompareTo(y); }
-                catch { return 0; }
-            }
+                try
+                {
+                    return genX.CompareTo(y);
+                }
+                catch
+                {
+                    return 0;
+                }
 
             // x implements non-generic IComparable
             if (x is IComparable cmpX)
-            {
-                try { return cmpX.CompareTo(y); }
-                catch { return 0; }
-            }
+                try
+                {
+                    return cmpX.CompareTo(y);
+                }
+                catch
+                {
+                    return 0;
+                }
 
             // Step 4: y implements IComparable<T> (invert result)
             if (y is IComparable<T> genY)
-            {
-                try { return -genY.CompareTo(x); }
-                catch { return 0; }
-            }
+                try
+                {
+                    return -genY.CompareTo(x);
+                }
+                catch
+                {
+                    return 0;
+                }
 
             // y implements non-generic IComparable (invert result)
             if (y is IComparable cmpY)
-            {
-                try { return -cmpY.CompareTo(x); }
-                catch { return 0; }
-            }
+                try
+                {
+                    return -cmpY.CompareTo(x);
+                }
+                catch
+                {
+                    return 0;
+                }
 
             // Step 5: neither side comparable => equal
             return 0;

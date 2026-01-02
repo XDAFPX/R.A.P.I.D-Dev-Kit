@@ -4,14 +4,14 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
-    public class UtillGlobalBoard : GlobalBlackBoard,Zenject.ITickable
+    public class UtillGlobalBoard : GlobalBlackBoard, Zenject.ITickable
     {
-        public UtillGlobalBoard() : base(new Dictionary<string, object>()
+        public UtillGlobalBoard() : base(new Dictionary<string, object>
         {
             { "FUN1", Mathf.RoundToInt(Random.value * 777) },
             { "FUN2", RandomEx.Shared.NextUInt() },
             { "FUN3", RandomEx.Shared.NextInt() },
-            { "GameTime", 0f },
+            { "GameTime", 0f }
         })
         {
         }

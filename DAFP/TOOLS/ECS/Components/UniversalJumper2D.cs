@@ -6,10 +6,9 @@ using UnityGetComponentCache;
 
 namespace DAFP.TOOLS.ECS.Components
 {
-    [RequireComponent(typeof(JumpStrengthBoard))]
     [RequireComponent(typeof(UniversalMover2D))]
     [RequireComponent(typeof(UniversalCooldownController))]
-    public class UniversalJumper2D 
+    public class UniversalJumper2D
         : UniversalJumperBase<Vector2>
     {
         [GetComponentCache] private UniversalMover2D universalMover;

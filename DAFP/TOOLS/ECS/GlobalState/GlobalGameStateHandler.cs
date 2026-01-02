@@ -10,9 +10,10 @@ namespace DAFP.TOOLS.ECS.GlobalState
     {
         protected IGlobalCursorStateHandler cursorStateHandler;
 
-        protected GlobalGameStateHandler(string defaultState, IGlobalCursorStateHandler cursorStateHandler,IEventBus bus
-            ) : base(
-            defaultState,bus)
+        protected GlobalGameStateHandler(string defaultState, IGlobalCursorStateHandler cursorStateHandler,
+            IEventBus bus
+        ) : base(
+            defaultState, bus)
         {
             this.cursorStateHandler = cursorStateHandler;
         }
@@ -23,7 +24,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
     {
     }
 
-    public interface IGlobalGameStateHandler : Zenject.ITickable, Zenject.IInitializable,
+    public interface IGlobalGameStateHandler : Zenject.ITickable, IInitializable,
         IGlobalStateHandler<IGlobalGameState>
     {
     }

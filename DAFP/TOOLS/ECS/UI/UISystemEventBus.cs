@@ -2,8 +2,7 @@
 
 namespace DAFP.TOOLS.ECS.UI
 {
-    public class UISystemEventBus : EventBusImpl,IEventBus
+    public class UISystemEventBus : EventBusImpl, IEventBus
     {
-        
     }
 }

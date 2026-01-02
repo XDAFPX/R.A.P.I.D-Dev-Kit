@@ -75,7 +75,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, "b", "b");
                 Owner.Text = t;
                 return t;
@@ -90,7 +90,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, "i", "i");
                 Owner.Text = t;
                 return t;
@@ -105,7 +105,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, "u", "u");
                 Owner.Text = t;
                 return t;
@@ -120,7 +120,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, "s", "s");
                 Owner.Text = t;
                 return t;
@@ -138,7 +138,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, $"color=#{Hex}", "color");
                 Owner.Text = t;
                 return t;
@@ -150,9 +150,7 @@ namespace DAFP.TOOLS.Common.TextSys
                 if (hex[0] == '#') hex = hex.Substring(1);
                 hex = hex.ToUpperInvariant();
                 if (hex.Length == 3) // short rgb -> rrggbb
-                {
                     hex = new string(new[] { hex[0], hex[0], hex[1], hex[1], hex[2], hex[2] });
-                }
 
                 if (hex.Length is 6 or 8) return hex;
                 // best-effort fallback
@@ -171,7 +169,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 // Unity rich text: <size=VALUE>
                 Wrap(ref t, $"size={Value.ToString(CultureInfo.InvariantCulture)}", "size");
                 Owner.Text = t;
@@ -191,7 +189,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, $"link={EscapeAttr(Target)}", "link");
                 Owner.Text = t;
                 return t;
@@ -210,7 +208,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, $"font={EscapeAttr(Name)}", "font");
                 Owner.Text = t;
                 return t;
@@ -226,7 +224,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, "smallcaps", "smallcaps");
                 Owner.Text = t;
                 return t;
@@ -241,7 +239,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, "sub", "sub");
                 Owner.Text = t;
                 return t;
@@ -256,7 +254,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, "sup", "sup");
                 Owner.Text = t;
                 return t;
@@ -275,7 +273,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
             public override string Apply()
             {
-                string t = Owner.Text;
+                var t = Owner.Text;
                 Wrap(ref t, $"mark=#{Hex}", "mark");
                 Owner.Text = t;
                 return t;
@@ -356,17 +354,64 @@ namespace DAFP.TOOLS.Common.TextSys
             return this;
         }
 
-        public Span B_RT() => AddPass(new CompStyle.RichTextBold());
-        public Span I_RT() => AddPass(new CompStyle.RichTextItalic());
-        public Span U_RT() => AddPass(new CompStyle.RichTextUnderline());
-        public Span S_RT() => AddPass(new CompStyle.RichTextStrikethrough());
-        public Span Color_RT(string hex) => AddPass(new CompStyle.RichTextColorHex(hex));
-        public Span Sz_RT(float v) => AddPass(new CompStyle.RichTextSize(v));
-        public Span Lnk_RT(string target) => AddPass(new CompStyle.RichTextLink(target));
-        public Span Fnt_RT(string name) => AddPass(new CompStyle.RichTextFont(name));
-        public Span Sc_RT() => AddPass(new CompStyle.RichTextSmallCaps());
-        public Span Sub_RT() => AddPass(new CompStyle.RichTextSubscript());
-        public Span Sup_RT() => AddPass(new CompStyle.RichTextSuperscript());
-        public Span Mk_RT(string hex) => AddPass(new CompStyle.RichTextMark(hex));
+        public Span B_RT()
+        {
+            return AddPass(new CompStyle.RichTextBold());
+        }
+
+        public Span I_RT()
+        {
+            return AddPass(new CompStyle.RichTextItalic());
+        }
+
+        public Span U_RT()
+        {
+            return AddPass(new CompStyle.RichTextUnderline());
+        }
+
+        public Span S_RT()
+        {
+            return AddPass(new CompStyle.RichTextStrikethrough());
+        }
+
+        public Span Color_RT(string hex)
+        {
+            return AddPass(new CompStyle.RichTextColorHex(hex));
+        }
+
+        public Span Sz_RT(float v)
+        {
+            return AddPass(new CompStyle.RichTextSize(v));
+        }
+
+        public Span Lnk_RT(string target)
+        {
+            return AddPass(new CompStyle.RichTextLink(target));
+        }
+
+        public Span Fnt_RT(string name)
+        {
+            return AddPass(new CompStyle.RichTextFont(name));
+        }
+
+        public Span Sc_RT()
+        {
+            return AddPass(new CompStyle.RichTextSmallCaps());
+        }
+
+        public Span Sub_RT()
+        {
+            return AddPass(new CompStyle.RichTextSubscript());
+        }
+
+        public Span Sup_RT()
+        {
+            return AddPass(new CompStyle.RichTextSuperscript());
+        }
+
+        public Span Mk_RT(string hex)
+        {
+            return AddPass(new CompStyle.RichTextMark(hex));
+        }
     }
 }

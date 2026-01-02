@@ -26,10 +26,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             Fsm.InitializeData(Memory);
             SetInitialData();
-            var _sm = new StateMachine<IState>(GetInitialState(), "root");
+            var _sm = new StateMachine<IState>(GetInitialState(), "RootObj");
             StateMachine = _sm;
 
-            AddInitialStates(ref _sm);
+            RegisterInitialStates(ref _sm);
             Fsm.Initialize(_sm);
             Fsm.ShouldTickAutomatically = false;
             StateDrivenEntityInitialize();
@@ -38,25 +38,33 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         protected abstract void SetInitialData();
 
 
-        protected abstract void AddInitialStates(ref StateMachine<IState> sm);
+        protected abstract void RegisterInitialStates(ref StateMachine<IState> sm);
         protected abstract IState GetInitialState();
         protected abstract void StateDrivenEntityInitialize();
         private List<IState> btStateCache = new();
         private List<IRunnableStateMachine> smCache = new();
 
-        protected BtWrapperState GetOrCreateState(Func<BtNodeBase> root, string state_name) =>
-            BehaviourTreeUtil.GetOrCreateState(root, state_name, btStateCache);
+        protected BtWrapperState GetOrCreateState(Func<BtNodeBase> root, string state_name)
+        {
+            return BehaviourTreeUtil.GetOrCreateState(root, state_name, btStateCache);
+        }
 
         protected ModularState GetOrCreateState(
             Action Enter, Action Exit, Action Tick,
             string stateMachineName,
-            HashSet<IState._stateTags> tags = null) => BehaviourTreeUtil.GetOrCreateState(Enter,Exit,Tick,stateMachineName,btStateCache,tags);
+            HashSet<IState._stateTags> tags = null)
+        {
+            return BehaviourTreeUtil.GetOrCreateState(Enter, Exit, Tick, stateMachineName, btStateCache, tags);
+        }
 
-        protected SmWrapperState GetOrCreateState(Func<IRunnableStateMachine> root, string state_name) =>
-            BehaviourTreeUtil.GetOrCreateState(root, state_name, btStateCache);
+        protected SmWrapperState GetOrCreateState(Func<IRunnableStateMachine> root, string state_name)
+        {
+            return BehaviourTreeUtil.GetOrCreateState(root, state_name, btStateCache);
+        }
 
-        protected IRunnableStateMachine GetOrCreateStateMachine(Func<IState> root, string state_name) =>
-            BehaviourTreeUtil.GetOrCreateStateMachine(root, state_name, smCache);
-
+        protected IRunnableStateMachine GetOrCreateStateMachine(Func<IState> root, string state_name)
+        {
+            return BehaviourTreeUtil.GetOrCreateStateMachine(root, state_name, smCache);
+        }
     }
 }

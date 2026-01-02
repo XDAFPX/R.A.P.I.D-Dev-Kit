@@ -4,6 +4,5 @@ namespace DAFP.TOOLS.ECS.EventBus
 {
     public interface IAuthor : IGameObjectProvider
     {
-        
     }
 }

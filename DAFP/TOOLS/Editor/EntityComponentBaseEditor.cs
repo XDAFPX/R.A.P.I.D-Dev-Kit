@@ -12,15 +12,9 @@ namespace DAFP.TOOLS.Editor
         public override void OnInspectorGUI()
         {
             var _entityComponent = (EntityComponent)target;
-            if (_entityComponent is IPercentageProvider provider)
-            {
-                DrawProgressBar(provider);
-            }
+            if (_entityComponent is IPercentageProvider provider) DrawProgressBar(provider);
 
             DisableEverything = false;
-            if (_entityComponent.Host != null)
-                if (_entityComponent.Host is Entity ent)
-                    DisableEverything = ent.IsReadOnly;
 
             base.OnInspectorGUI();
         }

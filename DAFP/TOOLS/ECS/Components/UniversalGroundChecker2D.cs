@@ -1,4 +1,5 @@
-﻿using DAFP.TOOLS.ECS.BigData.Common;
+﻿using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.BigData.Common;
 using PixelRouge.Colors;
 using PixelRouge.Inspector;
 using UnityEngine;
@@ -6,14 +7,15 @@ using UnityGetComponentCache;
 
 namespace DAFP.TOOLS.ECS.Components
 {
-    [RequireComponent(typeof(GroundedBoard))]
     public class UniversalGroundChecker2D : EntityComponent
 
     {
         [SerializeField] private LayerMask CheckMask;
         [SerializeField] private GroundCheckPosition[] Positions;
 
-        [GetComponentCache]private GroundedBoard groundedBoard;
+        [RequireStat] [InjectStat("Grounded", false)]
+        private IStat<bool> groundedBoard;
+
         protected override void OnTick()
         {
             var _isGrounded = false;
@@ -26,7 +28,7 @@ namespace DAFP.TOOLS.ECS.Components
                 // Step 4a: if width == 0, perform a downward raycast
                 if (Mathf.Approximately(box.x, 0f))
                 {
-                    RaycastHit2D hit = Physics2D.Raycast(
+                    var hit = Physics2D.Raycast(
                         pos,
                         Vector2.down,
                         box.y,
@@ -42,7 +44,7 @@ namespace DAFP.TOOLS.ECS.Components
                 // Step 4b: otherwise use an OverlapBox at the position
                 else
                 {
-                    Collider2D hit = Physics2D.OverlapBox(
+                    var hit = Physics2D.OverlapBox(
                         pos,
                         new Vector2(box.x, box.y),
                         0f,
@@ -81,13 +83,13 @@ namespace DAFP.TOOLS.ECS.Components
                 if (check.Pos == null)
                     continue;
 
-                Vector3 pos = check.Pos.position;
-                Vector3 box = check.BoundingBox;
+                var pos = check.Pos.position;
+                var box = check.BoundingBox;
 
                 if (Mathf.Approximately(box.x, 0f))
                 {
                     // draw downward ray
-                    Vector3 end = pos + Vector3.down * box.y;
+                    var end = pos + Vector3.down * box.y;
                     Gizmos.DrawLine(pos, end);
                     Gizmos.DrawSphere(end, 0.05f);
                 }

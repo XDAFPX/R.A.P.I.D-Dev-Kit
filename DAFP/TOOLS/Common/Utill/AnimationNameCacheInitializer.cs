@@ -14,6 +14,33 @@ namespace DAFP.TOOLS.Common.Utill
         /// </summary>
         public static bool DEBUG_MODE = false;
 
+        public static void InitializeCaches(object target)
+        {
+            if (DEBUG_MODE)
+                Debug.Log($"[AnimationNameCacheInitializer] Getting the Cache for : {target.GetType()}");
+
+            // Step 1: Collect all fields (public, non-public, instance) from this type and its base types
+            var fields = FieldGetter.GetAllFields(target.GetType());
+
+            foreach (var field in fields)
+            {
+                var has_animation_hash = Attribute.IsDefined(field, typeof(AnimationNameAttribute));
+                if (!has_animation_hash)
+                    continue;
+
+                var attr = field.GetCustomAttribute<AnimationNameAttribute>();
+                if (attr != null)
+                {
+                    var animationName = attr.Name;
+                    var hash = Animator.StringToHash(animationName);
+                    field.SetValue(target, hash);
+                    if (DEBUG_MODE)
+                        Debug.Log(
+                            $"[AnimationNameCacheInitializer] Cached hash for “{animationName}” into {field.Name}");
+                }
+            }
+        }
+
         public static void InitializeCaches(MonoBehaviour monoBehaviour)
         {
             if (DEBUG_MODE)
@@ -24,15 +51,15 @@ namespace DAFP.TOOLS.Common.Utill
 
             foreach (var field in fields)
             {
-                bool has_animation_hash = Attribute.IsDefined(field, typeof(AnimationNameAttribute));
+                var has_animation_hash = Attribute.IsDefined(field, typeof(AnimationNameAttribute));
                 if (!has_animation_hash)
                     continue;
 
                 var attr = field.GetCustomAttribute<AnimationNameAttribute>();
                 if (attr != null)
                 {
-                    string animationName = attr.Name;
-                    int hash = Animator.StringToHash(animationName);
+                    var animationName = attr.Name;
+                    var hash = Animator.StringToHash(animationName);
                     field.SetValue(monoBehaviour, hash);
                     if (DEBUG_MODE)
                         Debug.Log(

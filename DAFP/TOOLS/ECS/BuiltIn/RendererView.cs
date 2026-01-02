@@ -10,30 +10,29 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public class RendererView : List<Renderer>, IViewModel
     {
-        
-
         public string Name { get; set; } = "Default";
 
         public void Enable()
         {
-            this.ForEach((renderer => renderer.enabled = true));
+            ForEach(renderer => renderer.enabled = true);
             Enabled = true;
         }
 
         public void Disable()
         {
-            this.ForEach((renderer => renderer.enabled = false));
+            ForEach(renderer => renderer.enabled = false);
 
             Enabled = false;
         }
 
         public bool Enabled { private set; get; } = true;
-        public IViewModel Construct(IEntity owner)
+
+        public IViewModel InitOwner(IEntity owner)
         {
             Clear();
-            
+
             ((IEntityPet)this).ChangeOwner(owner);
-            owner.GetWorldRepresentation().transform.GetComponentsInRoot<Renderer>().ForEachComponent((Add));
+            owner.GetWorldRepresentation().transform.GetComponentsInRoot<Renderer>().ForEachComponent(Add);
             return this;
         }
 

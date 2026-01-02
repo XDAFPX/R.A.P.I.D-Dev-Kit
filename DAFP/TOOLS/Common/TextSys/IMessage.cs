@@ -4,6 +4,9 @@
     {
         public string Print();
 
-        public static IMessage Literal(string txt) => CompText.Literal(txt);
+        public static IMessage Literal(string txt)
+        {
+            return CompText.Literal(txt);
+        }
     }
 }

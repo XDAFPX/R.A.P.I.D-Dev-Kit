@@ -1,0 +1,20 @@
+{
+    "name": "AOP",
+    "rootNamespace": "",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Mono.Cecil.Rocks.dll",
+        "Mono.Cecil.dll",
+        "Mono.Cecil.Pdb.dll",
+        "Mono.Cecil.Mdb.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

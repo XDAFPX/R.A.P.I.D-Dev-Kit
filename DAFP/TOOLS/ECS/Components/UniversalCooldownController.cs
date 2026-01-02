@@ -15,17 +15,15 @@ namespace DAFP.TOOLS.ECS.Components
     {
         [ReadOnly] [SerializeField] private SerializableHashSet<Cooldown> Cooldowns = new();
 
-        public void RegisterCooldown(Cooldown down)
+        public Cooldown RegisterCooldown(Cooldown down)
         {
             Cooldowns.Add(down);
+            return down;
         }
 
         protected override void OnTick()
         {
-            foreach (var _cooldown in Cooldowns)
-            {
-                _cooldown.safeUpdateTimer(EntityComponentTicker.DeltaTime);
-            }
+            foreach (var _cooldown in Cooldowns) _cooldown.safeUpdateTimer(EntityComponentTicker.DeltaTime);
         }
 
         protected override void OnInitialize()
@@ -39,10 +37,7 @@ namespace DAFP.TOOLS.ECS.Components
         public Dictionary<string, object> Save()
         {
             var save = new Dictionary<string, object>();
-            foreach (var _cooldown in Cooldowns)
-            {
-                save.Add(_cooldown.Name, _cooldown.Save());
-            }
+            foreach (var _cooldown in Cooldowns) save.Add(_cooldown.Name, _cooldown.Save());
 
             return save;
         }
@@ -50,15 +45,9 @@ namespace DAFP.TOOLS.ECS.Components
         public void Load(Dictionary<string, object> save)
         {
             foreach (var _cooldown in Cooldowns)
-            {
                 if (save.TryGetValue(_cooldown.Name, out var _value))
-                {
                     _cooldown.Load(_value as Dictionary<string, object>);
-                }
-            }
-            
         }
-
     }
 
     // [System.Serializable]

@@ -6,7 +6,7 @@ namespace DAFP.TOOLS.ECS.UI
     public interface IUIElement : INameable
     {
         public bool IsVisible { get; set; }
-        public event Action<bool,IUIElement> VisibilityChanged;
+        public event Action<bool, IUIElement> VisibilityChanged;
         public void Show();
         public void Hide();
         public void Focus();

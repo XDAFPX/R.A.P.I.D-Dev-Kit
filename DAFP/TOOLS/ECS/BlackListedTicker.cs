@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.ECS.GlobalState;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {
     public abstract class BlackListedTicker<T> : ITicker<T> where T : ITickable
     {
-        public abstract void OnStart();
         protected HashSet<IGlobalGameState> BlackList;
 
         protected BlackListedTicker(HashSet<IGlobalGameState> blackList, int priority)
@@ -27,11 +27,8 @@ namespace DAFP.TOOLS.ECS
 
         public void Remove(ITickable tickable)
         {
-            var tt = Subscribed.FirstOrDefault((tickable1 => tickable1.Equals(tickable)));
-            if (tt != null)
-            {
-                Subscribed.Remove(tt);
-            }
+            var tt = Subscribed.FirstOrDefault(tickable1 => tickable1.Equals(tickable));
+            if (tt != null) Subscribed.Remove(tt);
         }
 
         public abstract HashSet<T> Subscribed { get; }

@@ -18,6 +18,5 @@ namespace DAFP.TOOLS.ECS.Serialization
         {
             return new Dictionary<string, object>();
         }
-
     }
 }

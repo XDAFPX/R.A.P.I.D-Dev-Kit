@@ -4,7 +4,7 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
-    public interface IGlobalStateHandler<TState> : Zenject.ITickable, IInitializable , IGlobalStateHandlerBase
+    public interface IGlobalStateHandler<TState> : Zenject.ITickable, IInitializable, IGlobalStateHandlerBase
         where TState : class, IState
     {
         TState Default { get; }
@@ -12,6 +12,10 @@ namespace DAFP.TOOLS.ECS.GlobalState
         void PopState(StateChangeRequest<TState> request);
         TState Current();
         TState GetState(string name);
-        Type GetStateType() => typeof(TState);
+
+        Type GetStateType()
+        {
+            return typeof(TState);
+        }
     }
 }

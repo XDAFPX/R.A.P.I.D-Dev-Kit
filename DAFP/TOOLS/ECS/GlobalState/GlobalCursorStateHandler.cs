@@ -9,7 +9,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
 {
     public abstract class GlobalCursorStateHandler : GlobalStateHandler<IGlobalCursorState>, IGlobalCursorStateHandler
     {
-        public GlobalCursorStateHandler(string defaultState,IEventBus sus) : base(defaultState,sus)
+        public GlobalCursorStateHandler(string defaultState, IEventBus sus) : base(defaultState, sus)
         {
         }
     }
@@ -24,6 +24,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
         }
 
         public override string StateName { get; }
+        public override BtStatus LastStatus { get; } = BtStatus.Success;
 
         public override void EnterState()
         {
@@ -34,9 +35,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
             if (Animation != null)
                 Animation.AnimateCursor();
             else
-            {
                 Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
-            }
         }
 
         public override void ExitState()
@@ -52,8 +51,9 @@ namespace DAFP.TOOLS.ECS.GlobalState
         private readonly CursorLockMode mode;
         private readonly bool visible;
 
-        public CursorStateChangeRequest(IGlobalCursorState state, int priority,string author, CursorLockMode mode, bool visible) :
-            base(state, priority,author)
+        public CursorStateChangeRequest(IGlobalCursorState state, int priority, string author, CursorLockMode mode,
+            bool visible) :
+            base(state, priority, author)
         {
             this.mode = mode;
             this.visible = visible;
@@ -67,7 +67,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
         }
     }
 
-    [CreateAssetMenu(fileName = "CursorAnim", menuName = "Cursor")]
+    [CreateAssetMenu(fileName = "CursorAnim", menuName = "R.A.P.I.D/Cursor")]
     public class CursorAnimation2D : ScriptableObject //Stolen from GameDevBox (github)
     {
         public string name; // Name for clarity (optional)
@@ -102,7 +102,8 @@ namespace DAFP.TOOLS.ECS.GlobalState
         public CursorAnimation2D Animation { get; }
     }
 
-    public interface IGlobalCursorStateHandler : Zenject.ITickable , Zenject.IInitializable, IGlobalStateHandler<IGlobalCursorState>
+    public interface IGlobalCursorStateHandler : Zenject.ITickable, Zenject.IInitializable,
+        IGlobalStateHandler<IGlobalCursorState>
     {
     }
 }

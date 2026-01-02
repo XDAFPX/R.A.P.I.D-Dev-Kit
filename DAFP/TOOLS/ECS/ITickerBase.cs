@@ -1,6 +1,7 @@
 ﻿using System;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.GlobalState;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {

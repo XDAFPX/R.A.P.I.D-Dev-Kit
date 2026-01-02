@@ -3,7 +3,7 @@
 namespace UGizmo
 {
     // Primary contract for global gizmo drawing. Initially minimal; can be expanded to cover all regions.
-    public interface IGlobalGizmos : IGlobalGizmoPrimitive,IGlobalGizmoPrimitive2D,IGlobalGizmoUtility
+    public interface IGlobalGizmos : IGlobalGizmoPrimitive,IGlobalGizmoPrimitive2D,IGlobalGizmoUtility,IGlobalGizmoPhysics2D
     {
         // Primitive examples
         void DrawSphere(Vector3 center, float radius, Color color, float duration = 0f);

@@ -9,7 +9,7 @@ namespace DAFP.TOOLS.ECS.BigData
     {
         public override bool SyncToBlackBoard { get; }
 
-        public override void Randomize(float margin01)
+        public override void Randomize(NRandom.IRandom rng, float margin01)
         {
             Value = Value.Randomize(margin01);
         }
@@ -18,7 +18,6 @@ namespace DAFP.TOOLS.ECS.BigData
         {
             return ProcessedValue;
         }
-
 
 
         public override Vector3 MaxValue { get; set; }
@@ -33,7 +32,6 @@ namespace DAFP.TOOLS.ECS.BigData
         public override void SetToMin()
         {
             Value = MaxValue;
-
         }
 
         protected override void ResetInternal()

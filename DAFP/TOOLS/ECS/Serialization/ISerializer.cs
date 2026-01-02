@@ -34,7 +34,7 @@ namespace DAFP.TOOLS.ECS.Serialization
             if (obj.TryGetValue("$type", out var typeToken) && typeToken.Type == JTokenType.String)
             {
                 var typeName = typeToken.ToString();
-                var type = Type.GetType(typeName, throwOnError: false);
+                var type = Type.GetType(typeName, false);
                 if (type != null)
                     return obj.ToObject(type);
             }
@@ -45,38 +45,32 @@ namespace DAFP.TOOLS.ECS.Serialization
                 obj.TryGetValue("z", out var qz) &&
                 obj.TryGetValue("w", out var qw) &&
                 (qx.Type == JTokenType.Float || qx.Type == JTokenType.Integer))
-            {
                 return new Quaternion(
                     qx.ToObject<float>(),
                     qy.ToObject<float>(),
                     qz.ToObject<float>(),
                     qw.ToObject<float>()
                 );
-            }
 
             // Step 2.3: Detect Vector3 shape (x, y, z)
             if (obj.TryGetValue("x", out var vx) &&
                 obj.TryGetValue("y", out var vy) &&
                 obj.TryGetValue("z", out var vz) &&
                 (vx.Type == JTokenType.Float || vx.Type == JTokenType.Integer))
-            {
                 return new Vector3(
                     vx.ToObject<float>(),
                     vy.ToObject<float>(),
                     vz.ToObject<float>()
                 );
-            }
 
             // Step 2.4: Detect Vector2 shape (x, y)
             if (obj.TryGetValue("x", out var sx) &&
                 obj.TryGetValue("y", out var sy) &&
                 (sx.Type == JTokenType.Float || sx.Type == JTokenType.Integer))
-            {
                 return new Vector2(
                     sx.ToObject<float>(),
                     sy.ToObject<float>()
                 );
-            }
 
             // Step 2.5: Detect Color shape (r, g, b, a)
             if (obj.TryGetValue("r", out var cr) &&
@@ -84,14 +78,12 @@ namespace DAFP.TOOLS.ECS.Serialization
                 obj.TryGetValue("b", out var cb) &&
                 obj.TryGetValue("a", out var ca) &&
                 (cr.Type == JTokenType.Float || cr.Type == JTokenType.Integer))
-            {
                 return new Color(
                     cr.ToObject<float>(),
                     cg.ToObject<float>(),
                     cb.ToObject<float>(),
                     ca.ToObject<float>()
                 );
-            }
 
             // Step 2.6: Fallback to a generic dictionary
             return obj;
@@ -102,19 +94,13 @@ namespace DAFP.TOOLS.ECS.Serialization
             if (data == null)
                 return;
 
-            if (sv is ISavable saveable)
-            {
-                saveable.Load(data as Dictionary<string, object>);
-            }
+            if (sv is ISavable saveable) saveable.Load(data as Dictionary<string, object>);
         }
 
         public static Dictionary<string, object> DefaultSave(object sv)
         {
             var data = new Dictionary<string, object>();
-            if (sv is ISavable saveable)
-            {
-                data.AddSave(saveable.Save());
-            }
+            if (sv is ISavable saveable) data.AddSave(saveable.Save());
 
             return data;
         }

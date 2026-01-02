@@ -16,6 +16,7 @@ namespace BDeshi.BTSM
 
         public string Name => this.GetType().Name;
         public IState Parent { get; set; }
+        public BtStatus LastStatus { get; } = BtStatus.NotRunYet;
         protected List<IState> Children;
 
         protected MultiStateBase(List<IState> children, HashSet<IState._stateTags> stateTagsInternal, string stateName)

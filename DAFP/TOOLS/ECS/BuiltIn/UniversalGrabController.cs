@@ -2,6 +2,7 @@
 using Archon.SwissArmyLib.Utils.Editor;
 using BDeshi.BTSM;
 using DAFP.TOOLS.BTs;
+using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Components.GrabController;
 using PixelRouge.Inspector;
 using UnityEngine;
@@ -10,12 +11,15 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    [RequireComponent(typeof(CarryWeightBoard))]
+    // [RequireComponent(typeof(CarryWeightBoard))]
     public class UniversalGrabController : EntityComponent, IGrabController
     {
-        [SerializeField] GrabController Controller;
+        [SerializeField] private GrabController Controller;
         [SerializeField] private float DetachDistance = 5;
-        [GetComponentCache] private CarryWeightBoard board;
+
+        [RequireStat] [InjectStat("CarryWeight")]
+        private IStat<float> board;
+
         public bool CheckForLoS;
 
         [SerializeField] [HideIf(nameof(CheckForLoS), false)]
@@ -60,11 +64,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public void Simulate()
         {
-            
             if (Controller.AttachedRigidbody == null)
                 return;
             if (Vector3.Distance(Controller.AttachedRigidbody.transform.position, transform.position) >
-                DetachDistance || board.Value < Controller.AttachedRigidbody.mass||HasIssueWithLoS())
+                DetachDistance || board.Value < Controller.AttachedRigidbody.mass || HasIssueWithLoS())
             {
                 Detach();
                 return;
@@ -78,12 +81,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             if (obj.TryGetComponent(out Rigidbody body))
             {
                 if (CheckForLoS)
-                {
                     if (body.TryGetComponent<IEntity>(out var _entity))
-                    {
-                        Los =  new Nodes.LoSCheckNode3D(new BlackBoard(_entity, Host), Mask);
-                    }
-                }
+                        Los = new EntBehNodes.LoSCheckNode3D(new BlackBoard(_entity, Host), Mask);
 
                 if (board.Value >= body.mass)
                     Controller.Attach(obj);
@@ -115,14 +114,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public float MaxExitVelocity
         {
-            get
-            {
-                return Controller.MaxExitVelocity;
-            }
-            set
-            {
-                Controller.MaxExitVelocity = value;
-            }
+            get => Controller.MaxExitVelocity;
+            set => Controller.MaxExitVelocity = value;
         }
 
         public Rigidbody AttachedBody => Controller.AttachedBody;

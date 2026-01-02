@@ -81,7 +81,7 @@ namespace DAFP.TOOLS.ECS.UI
 
         public IUISystem<IUIElement> GetElement(string name)
         {
-            return GetElements().FirstOrDefault((a => a.Name.Contains(name)));
+            return GetElements().FirstOrDefault(a => a.Name.Contains(name));
         }
 
         public void Register(IUISystem<IUIElement> element)

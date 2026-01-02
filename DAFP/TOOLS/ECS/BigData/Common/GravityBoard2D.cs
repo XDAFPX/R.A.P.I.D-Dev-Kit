@@ -4,24 +4,24 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData.Common
 {
-    [RequireComponent(typeof(Rigidbody2D))]
     public class GravityBoard2D : WhiteBoard<float>
     {
-        protected override void OnTick()
+        public override void Tick()
         {
+            if (!rb)
+                return;
             rb.gravityScale = Value;
         }
 
-        protected override void OnStart()
-        {
-        }
 
         public override bool SyncToBlackBoard => false;
         private Rigidbody2D rb;
 
         protected override void OnInitializeInternal()
         {
-            rb = GetComponent<Rigidbody2D>();
+            rb = Host.GetWorldRepresentation().GetComponent<Rigidbody2D>();
+            if (!rb)
+                return;
             DefaultValue = rb.gravityScale;
             Value = rb.gravityScale;
         }
@@ -55,7 +55,7 @@ namespace DAFP.TOOLS.ECS.BigData.Common
             Value = DefaultValue;
         }
 
-        public override void Randomize(float margin01)
+        public override void Randomize(NRandom.IRandom rng, float margin01)
         {
             Value = Value.Randomize(margin01);
         }

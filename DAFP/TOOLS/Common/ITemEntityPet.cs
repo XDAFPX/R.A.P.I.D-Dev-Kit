@@ -2,8 +2,7 @@
 
 namespace DAFP.GAME.Essential
 {
-    public interface ITemEntityPet : IEntityPet , IExpirable
+    public interface ITemEntityPet : IEntityPet, IExpirable
     {
-        
     }
 }

@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
-    public interface IStatBase : IResetable, INameable
+    public interface IStatBase : IResetable, INameable, IPet<IStatBase>,IOwner<IStatBase>
     {
         public bool SyncToBlackBoard { get; }
         public object GetAbsoluteValue();
@@ -19,6 +21,8 @@ namespace DAFP.TOOLS.ECS.BigData
         public void SetAbsoluteDefault(object value);
 
         public delegate void UpdateValueCallBack(IStatBase stat);
+
+
 
         public event UpdateValueCallBack OnUpdateValue;
     }

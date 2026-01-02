@@ -1,7 +1,7 @@
 ﻿namespace BDeshi.BTSM
 {
     public class BtCompleteTransition<TState> : ITransition<TState>
-    where TState:IState
+        where TState : IState
     {
         private IBtNode node;
         public IState SuccessState => SuccessTypedState;
@@ -14,19 +14,19 @@
         public BtCompleteTransition(IBtNode node, TState typedState)
         {
             this.node = node;
-            this.SuccessTypedState = typedState;
+            SuccessTypedState = typedState;
             // Debug.Log("??" + (successState == null?"nnnnnulll":successState.EditorName));
         }
 
         public bool Evaluate()
         {
-            if(node.LastStatus==BtStatus.NotRunYet)
+            if (node.LastStatus == BtStatus.NotRunYet)
                 node.Enter();
             var status = node.Tick() == BtStatus.Success;
-            if(node.LastStatus!=BtStatus.Running)
+            if (node.LastStatus != BtStatus.Running)
                 node.Enter();
             node.Exit();
-            return status ;
+            return status;
         }
 
         public override string ToString()

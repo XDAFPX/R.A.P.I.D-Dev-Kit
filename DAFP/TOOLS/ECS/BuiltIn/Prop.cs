@@ -9,13 +9,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     {
         public override NonEmptyList<IViewModel> SetupView()
         {
-            var Render = new RendererView();
-            Render.Construct(this);
-            return new NonEmptyList<IViewModel>(Render);
+            return GetDefaultView();
         }
 
         [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
         public override ITicker<IEntity> EntityTicker { get; }
+
         protected override void TickInternal()
         {
         }

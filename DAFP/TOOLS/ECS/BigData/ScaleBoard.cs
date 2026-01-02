@@ -6,7 +6,7 @@ namespace DAFP.TOOLS.ECS.BigData
     {
         protected override void OnInitializeInternal()
         {
-            DefaultValue = transform.localScale;
+            DefaultValue = Host.GetWorldRepresentation().transform.localScale;
             ResetToDefault();
         }
 
@@ -17,16 +17,11 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public override Vector3 MaxValue => Vector3.one * 10000;
         public override Vector3 MinValue => Vector3.zero;
-        
 
-        protected override void OnStart()
+
+        public override void Tick()
         {
+            Value = Host.GetWorldRepresentation().transform.localScale;
         }
-
-        protected override void OnTick()
-        {
-            Value = transform.localScale;
-        }
-
     }
 }

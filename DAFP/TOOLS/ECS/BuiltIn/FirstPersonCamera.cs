@@ -14,74 +14,72 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
     // modded script. Original by XeinTDM. Check him out he is cool asf.
-    [RequireComponent(typeof(MouseSensitivityBoard))]
-    [RequireComponent(typeof(FOVBoard))]
     [RequireComponent(typeof(FsmRunner))]
     public class FirstPersonCamera : StateDrivenEntity
     {
-        [GetComponentCache] protected FOVBoard Fov;
+        [InjectStat("FOV", 90)] protected IStat<float> Fov;
 
-        [GetComponentCache] protected MouseSensitivityBoard mouseSensitivity;
+        [RequireStat][InjectStat("MouseSensitivity")] protected IStat<float> MouseSensitivity;
 
         [Tooltip("Reference to the player's body transform for rotation.")]
-        public Transform playerBody;
+        public Transform PlayerBody;
 
         [Tooltip("The camera component attached to this object.")]
-        public Camera playerCamera;
+        public Camera PlayerCamera;
 
         // Internal variable to track the camera's x-axis rotation.
         private float xRotation = 0f;
 
         [Header("Head Bobbing Settings")] [Tooltip("Speed of head bobbing.")]
-        public float bobbingSpeed = 0.18f;
+        public float BobbingSpeed = 0.18f;
 
-        [Tooltip("Amount of head bobbing.")] public float bobbingAmount = 0.2f;
+        [Tooltip("Amount of head bobbing.")] public float BobbingAmount = 0.2f;
 
         [Tooltip("Midpoint of head bobbing on the y-axis.")]
-        public float midpoint = 2f;
+        public float Midpoint = 2f;
 
 
         [Tooltip("Field of view multiplier when sprinting.")] [ReadOnly(OnlyWhilePlaying = true)]
-        public float sprintFOVMultiplier = 70f;
+        public float SprintFOVMultiplier = 70f;
 
-        protected MultiplyFloatModifier sprintMod;
+        protected MultiplyFloatModifier SprintMod;
 
-        [Tooltip("Speed of FOV change.")] public float fovChangeSpeed = 5f;
+        [Tooltip("Speed of FOV change.")] public float FOVChangeSpeed = 5f;
 
 
         [Header("Camera Sway Settings")] [Tooltip("Amount of camera sway.")]
-        public float swayAmount = 0.05f;
+        public float SwayAmount = 0.05f;
 
-        [Tooltip("Speed of camera sway.")] public float swaySpeed = 4f;
+        [Tooltip("Speed of camera sway.")] public float SwaySpeed = 4f;
 
-        protected IState Normal => GetOrCreateState((Enter), null, (TickNormal), "NormalMode");
-        protected IState Sprint => GetOrCreateState(((EnterSprint)), (ExitSprint ), ((TickSprint)), "SprintMode");
+        protected IState Normal => GetOrCreateState(Enter, null, tick_normal, "NormalMode");
+        protected IState Sprint => GetOrCreateState(enter_sprint, exit_sprint, tick_sprint, "SprintMode");
 
-        private void ExitSprint()
+        private void exit_sprint()
         {
-            Fov.RemoveModifier(sprintMod);
+            Fov.RemoveModifier(SprintMod);
         }
 
-        private void EnterSprint()
+        private void enter_sprint()
         {
-            Fov.AddModifier(sprintMod);
+            Fov.AddModifier(SprintMod);
         }
 
-        private void TickSprint()
+        private void tick_sprint()
         {
-            TickNormal();
+            tick_normal();
         }
 
         protected virtual void Enter()
         {
         }
 
-        private void TickNormal()
+        private void tick_normal()
         {
-            HandleMouseLook();
-            HandleHeadBobbing();
-            HandleFieldOfViewNormal();
-            HandleCameraSway();
+            handle_mouse_look();
+            handle_head_bobbing();
+            handle_field_of_view_normal();
+            handle_camera_sway();
         }
 
         // Timer for head bobbing calculations.
@@ -93,90 +91,88 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         /// <summary>
         /// Handles the mouse look functionality.
         /// </summary>
-        void HandleMouseLook()
+        private void handle_mouse_look()
         {
-            float mouseX = LastInput.x * mouseSensitivity.Value * EntityTicker.DeltaTime;
-            float mouseY = LastInput.y * mouseSensitivity.Value * EntityTicker.DeltaTime;
+            var _mouseX = LastInput.x * MouseSensitivity.Value * EntityTicker.DeltaTime;
+            var _mouseY = LastInput.y * MouseSensitivity.Value * EntityTicker.DeltaTime;
 
-            xRotation -= mouseY;
+            xRotation -= _mouseY;
             xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
             transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
-            playerBody.Rotate(Vector3.up * mouseX);
+            PlayerBody.Rotate(Vector3.up * _mouseX);
         }
 
         /// <summary>
         /// Handles the head bobbing effect.
         /// </summary>
-        void HandleHeadBobbing()
+        private void handle_head_bobbing()
         {
-            float waveslice = 0.0f;
-            float horizontal = LastMovementInput.x;
-            float vertical = LastMovementInput.y;
+            var _waveslice = 0.0f;
+            var _horizontal = LastMovementInput.x;
+            var _vertical = LastMovementInput.y;
 
-            if (Mathf.Abs(horizontal) == 0 && Mathf.Abs(vertical) == 0)
+            if (Mathf.Abs(_horizontal) == 0 && Mathf.Abs(_vertical) == 0)
             {
                 timer = 0.0f;
             }
             else
             {
-                waveslice = Mathf.Sin(timer);
-                timer = timer + bobbingSpeed;
-                if (timer > Mathf.PI * 2)
-                {
-                    timer = timer - (Mathf.PI * 2);
-                }
+                _waveslice = Mathf.Sin(timer);
+                timer = timer + BobbingSpeed;
+                if (timer > Mathf.PI * 2) timer = timer - Mathf.PI * 2;
             }
 
-            Vector3 localPos = transform.localPosition;
-            if (waveslice != 0)
+            var _localPos = transform.localPosition;
+            if (_waveslice != 0)
             {
-                float translateChange = waveslice * bobbingAmount;
-                float totalAxes = Mathf.Abs(horizontal) + Mathf.Abs(vertical);
-                totalAxes = Mathf.Clamp(totalAxes, 0.0f, 1.0f);
-                translateChange = totalAxes * translateChange;
-                localPos.y = midpoint + translateChange;
+                var _translateChange = _waveslice * BobbingAmount;
+                var _totalAxes = Mathf.Abs(_horizontal) + Mathf.Abs(_vertical);
+                _totalAxes = Mathf.Clamp(_totalAxes, 0.0f, 1.0f);
+                _translateChange = _totalAxes * _translateChange;
+                _localPos.y = Midpoint + _translateChange;
             }
             else
             {
-                localPos.y = midpoint;
+                _localPos.y = Midpoint;
             }
 
-            transform.localPosition = localPos;
+            transform.localPosition = _localPos;
         }
 
         /// <summary>
         /// Handles the dynamic field of view.
         /// </summary>
-        void HandleFieldOfViewNormal()
+        private void handle_field_of_view_normal()
         {
-            playerCamera.fieldOfView =
-                Mathf.Lerp(playerCamera.fieldOfView, Fov.Value, fovChangeSpeed * Time.deltaTime);
+            PlayerCamera.fieldOfView =
+                Mathf.Lerp(PlayerCamera.fieldOfView, Fov.Value, FOVChangeSpeed * Time.deltaTime);
         }
 
 
         /// <summary>
         /// Handles the camera sway effect.
         /// </summary>
-        void HandleCameraSway()
+        private void handle_camera_sway()
         {
-            float movementX = Mathf.Clamp(LastInput.x * swayAmount, -swayAmount, swayAmount);
-            float movementY = Mathf.Clamp(LastInput.y * swayAmount, -swayAmount, swayAmount);
-            Vector3 finalPosition = new Vector3(movementX, movementY, 0);
-            transform.localPosition = Vector3.Lerp(transform.localPosition, transform.localPosition + finalPosition,
-                swaySpeed * Time.deltaTime);
+            var _movementX = Mathf.Clamp(LastInput.x * SwayAmount, -SwayAmount, SwayAmount);
+            var _movementY = Mathf.Clamp(LastInput.y * SwayAmount, -SwayAmount, SwayAmount);
+            var _finalPosition = new Vector3(_movementX, _movementY, 0);
+            transform.localPosition = Vector3.Lerp(transform.localPosition, transform.localPosition + _finalPosition,
+                SwaySpeed * Time.deltaTime);
         }
 
         public override NonEmptyList<IViewModel> SetupView()
         {
-            return new NonEmptyList<IViewModel>() { new EmptyView() };
+            return new NonEmptyList<IViewModel> { new EmptyView() };
         }
 
-        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]public override ITicker<IEntity> EntityTicker { get; }
+        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
+        public override ITicker<IEntity> EntityTicker { get; }
 
         protected override void SetInitialData()
         {
-            sprintMod = new MultiplyFloatModifier(new QuikStat<float>(sprintFOVMultiplier),this);
+            SprintMod = new MultiplyFloatModifier(new QuikStat<float>(SprintFOVMultiplier), this);
         }
 
         public void TransitionToNormalMode()
@@ -191,7 +187,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         private ITransition<IState> transitionToSprint;
 
-        protected override void AddInitialStates(ref StateMachine<IState> sm)
+        protected override void RegisterInitialStates(ref StateMachine<IState> sm)
         {
             transitionToSprint = sm.AddManualTransitionTo(Sprint);
         }

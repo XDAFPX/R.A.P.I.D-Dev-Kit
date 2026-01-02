@@ -5,6 +5,5 @@ namespace DAFP.TOOLS.ECS.GlobalState
 {
     public interface IGlobalStateHandlerBase : IResetable, ISavable
     {
-        
     }
 }

@@ -4,8 +4,7 @@ using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
-    public interface IConsoleCommand : ICommandInterpriter,INameable,IDescriptionContainer
+    public interface IConsoleCommand : ICommandInterpriter, INameable, IDescriptionContainer
     {
-        
     }
 }

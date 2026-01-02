@@ -14,10 +14,7 @@
             action();
 
             var sw = Stopwatch.StartNew();
-            for (int i = 0; i < iterations; i++)
-            {
-                action();
-            }
+            for (var i = 0; i < iterations; i++) action();
 
             sw.Stop();
             return sw.Elapsed;

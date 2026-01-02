@@ -12,7 +12,7 @@ namespace BDeshi.BTSM
     {
         public IBtNode BtRoot { get; private set; }
         private BtStatus lastStatus;
-        public BtStatus LastStatus => lastStatus;
+        public override BtStatus LastStatus => lastStatus;
 
         /// <summary>
         /// Creates a transition to a state when the root BT node is complete.

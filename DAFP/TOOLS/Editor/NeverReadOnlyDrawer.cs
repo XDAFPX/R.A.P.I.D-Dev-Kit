@@ -15,7 +15,7 @@ namespace Archon.SwissArmyLib.Editor.Utils
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             GUI.enabled = true;
-                EditorGUI.PropertyField(position, property, label, true);
+            EditorGUI.PropertyField(position, property, label, true);
         }
 
         /// <inheritdoc />
