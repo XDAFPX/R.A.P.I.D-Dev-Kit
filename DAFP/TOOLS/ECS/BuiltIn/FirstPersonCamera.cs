@@ -17,9 +17,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     [RequireComponent(typeof(FsmRunner))]
     public class FirstPersonCamera : StateDrivenEntity
     {
-        [InjectStat("FOV", 90)] protected IStat<float> Fov;
+        [DeclareStat("FOV", 90)] protected IStat<float> Fov;
 
-        [RequireStat][InjectStat("MouseSensitivity")] protected IStat<float> MouseSensitivity;
+        [DeclareStat("MouseSensitivity",100)] protected IStat<float> MouseSensitivity;
 
         [Tooltip("Reference to the player's body transform for rotation.")]
         public Transform PlayerBody;

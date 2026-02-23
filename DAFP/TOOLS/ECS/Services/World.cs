@@ -17,6 +17,11 @@ namespace DAFP.TOOLS.ECS.Services
 
     {
         public static readonly Ticker<IEntity> EMPTY_TICKER = new(0, new HashSet<IGlobalGameState>());
+        public readonly Ticker<IEntity> EmptyTicker = EMPTY_TICKER;
+
+        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
+        public ITicker<IEntity> DefaultGameplayTicker { get; }
+
         public readonly List<IEntity> ENTITIES = new();
         protected readonly List<ITickerBase> TICKERS = new();
 
@@ -52,7 +57,7 @@ namespace DAFP.TOOLS.ECS.Services
             RegisterTicker(ticker);
             ticker.Subscribed.Add(ent);
             ENTITIES.Add(ent);
-            if (ent is IEntityOwnable _ownable)
+            if (ent is IEntityOwnedBy _ownable)
                 AddPet(_ownable);
 
             Debug.Log(
@@ -69,7 +74,7 @@ namespace DAFP.TOOLS.ECS.Services
                     if (_entityComponent.Value.EntityComponentTicker != ent.EntityTicker)
                         _entityComponent.Value.EntityComponentTicker.Remove(_entityComponent.Value);
 
-                if (ent is IEntityOwnable _ownable)
+                if (ent is IEntityOwnedBy _ownable)
                     RemovePet(_ownable);
             }
             catch (Exception e)
@@ -153,18 +158,18 @@ namespace DAFP.TOOLS.ECS.Services
         public bool HasInitialized { get; set; }
 
 
-        protected HashSet<IEntityOwnable> Pets = new();
+        protected HashSet<IEntityOwnedBy> Pets = new();
         private string id;
 
 
-        public virtual void AddPet(IEntityOwnable pet)
+        public virtual void AddPet(IEntityOwnedBy pet)
         {
             Pets.Add(pet);
         }
 
         public string ID => id;
 
-        public virtual void RemovePet(IEntityOwnable pet)
+        public virtual void RemovePet(IEntityOwnedBy pet)
         {
             Pets.Remove(pet);
         }

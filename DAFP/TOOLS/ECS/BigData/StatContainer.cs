@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using TNRD;
@@ -43,8 +44,12 @@ namespace DAFP.TOOLS.ECS.BigData
         {
             foreach (var _statBase in get_nodes())
             {
-                if (_statBase is IOwnable<IEntity> _pet)
+                if (_statBase is IOwnedBy<IEntity> _pet)
                     _pet.ChangeOwner(parent);
+            }
+
+            foreach (var _statBase in Stats.ToValues())
+            {
                 if (_statBase is IInitializable _tickable)
                 {
                     _tickable.Initialize();
@@ -75,15 +80,48 @@ namespace DAFP.TOOLS.ECS.BigData
                 $"The stat you had searched for is either an incorrect type ({typeof(T).Name}) or null ");
         }
 
-        public bool Has(string name, out IStatBase stat)
+        public bool Has(string statName, out IStatBase stat)
         {
-            stat = (IStatBase)get_nodes().FindByName(name);
+            stat = (IStatBase)get_nodes().FindByName(statName);
             return stat != null;
         }
 
-        public bool Has(string name)
+
+        public bool Has(StatInjector.PathBuilder pathBuilder)
         {
-            var _stat = get_nodes().FindByName(name);
+            return Has(pathBuilder, out var _base);
+        }
+
+        public bool Has(StatInjector.PathBuilder pathBuilder, out IStatBase statBase)
+        {
+            statBase = null;
+            if (pathBuilder == null)
+                return false;
+
+            IStatBase _current = Stats.ToValues().FindByName(pathBuilder.GetRoot());
+            if (_current == null)
+                return false;
+
+            // If only root exists, we found it
+            statBase = _current;
+            if (pathBuilder.GetTotalDepth() == 0)
+                return true;
+
+            // Traverse down the tree, skipping the root (already found)
+            foreach (var _segment in pathBuilder.IterateRootToLeaf().Skip(1))
+            {
+                _current = _current.Pets.Cast<IStatBase>().FindByName(_segment);
+                if (_current == null)
+                    return false;
+            }
+
+            statBase = _current;
+            return true;
+        }
+
+        public bool Has(string statName)
+        {
+            var _stat = get_nodes().FindByName(statName);
             return _stat != null;
         }
 
@@ -94,12 +132,49 @@ namespace DAFP.TOOLS.ECS.BigData
             return this;
         }
 
+        public bool Add(StatInjector.PathBuilder pathBuilder, IStatBase statToAdd)
+        {
+            if (pathBuilder == null || statToAdd == null)
+                return false;
+            if (pathBuilder.GetTotalDepth() == 0) //failsafe if passed a normal stat
+            {
+                Add(statToAdd);
+                return true;
+            }
+
+            IStatBase _current = Stats.ToValues().FindByName(pathBuilder.GetRoot());
+            if (_current == null)
+                return false;
+            if (pathBuilder.GetTotalDepth() == 1)
+            {
+                ((IOwnerOf<IStatBase>)_current).AddPet(statToAdd);
+                InvalidateCache();
+                return true;
+            }
+
+            // Traverse down the tree to find the parent, skipping the root (already found)
+            var data = pathBuilder.IterateRootToLeaf().ToArray();
+            // We already have the root in _current; start from the first child (index 1)
+            // and stop at the parent of the leaf (last index - 1)
+            for (int i = 1; i < data.Length - 1; i++)
+            {
+                _current = _current.Pets.Cast<IStatBase>().FindByName(data[i]);
+                if (_current == null)
+                    return false;
+            }
+
+            // Add the stat to the found parent's children
+            ((IOwnerOf<IStatBase>)_current).AddPet(statToAdd);
+            InvalidateCache();
+            return true;
+        }
+
         public void Tick()
         {
-            foreach (var _statBase in get_nodes())
+            var nodes = get_nodes().OfType<ITickable>();
+            foreach (var _statBase in nodes)
             {
-                if (_statBase is ITickable _tickable)
-                    _tickable.Tick();
+                _statBase.Tick();
             }
         }
     }

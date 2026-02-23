@@ -33,7 +33,11 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
             return value * (multiplier?.Value ?? 1) * (multiplierTick?.Value?.DeltaTime ?? 1);
         }
 
-        public override int Priority => 10;
+        public override int Priority
+        {
+            get => 10;
+            set {}
+        }
 
         public override void Dispose()
         {

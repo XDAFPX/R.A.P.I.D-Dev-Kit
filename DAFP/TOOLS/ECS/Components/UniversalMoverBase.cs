@@ -63,18 +63,15 @@ namespace DAFP.TOOLS.ECS.Components
         [Inject(Id = "DefaultPhysicsComponentGameplayTicker")]
         public override ITickerBase EntityComponentTicker { get; }
 
-        [RequireStat] [InjectStat("Acceleration")]
-        private IStat<float> accelerationBoard;
+        [DeclareStat("Acceleration", 70)] private IStat<float> accelerationBoard;
 
-        [InjectStat("Deceleration")] [RequireStat]
-        private IStat<float> decelerationBoard;
+        [DeclareStat("Deceleration", 90)] private IStat<float> decelerationBoard;
 
-        [InjectStat("MovementSpeed")] [RequireStat]
-        private IStat<float> movementSpeedBoard;
+        [DeclareStat("MovementSpeed", 100)] private IStat<float> movementSpeedBoard;
 
-        [InjectStat("Stunned")] [RequireStat] private IStat<bool> isStunnedBoard;
+        [DeclareStat("Stunned", false)] private IStat<bool> isStunnedBoard;
 
-        [InjectStat("CanMove")] [RequireStat] private IStat<bool> canMoveBoard;
+        [DeclareStat("CanMove", true)] private IStat<bool> canMoveBoard;
 
         protected override void OnInitialize()
         {
@@ -209,7 +206,6 @@ namespace DAFP.TOOLS.ECS.Components
         {
             if (!canMoveBoard.Value) return;
             if (isStunnedBoard.Value) return;
-
 
             var _accel = accelerationBoard.Value;
             var _decel = decelerationBoard.Value;

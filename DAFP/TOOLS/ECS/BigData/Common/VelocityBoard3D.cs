@@ -15,7 +15,7 @@ namespace DAFP.TOOLS.ECS.BigData.Common
 
         public readonly Queue<Vector3> VelocityHistory = new();
 
-        [Min(0)] [SerializeField] private float TopVelocity;
+        [Min(0)] [SerializeField] private float TopVelocity = 1000f;
 
         [Min(0)] [SerializeField] private float MinVelocity;
 

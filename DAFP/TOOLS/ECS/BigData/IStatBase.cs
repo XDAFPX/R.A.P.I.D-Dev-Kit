@@ -2,10 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using DAFP.TOOLS.Common;
+using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
-    public interface IStatBase : IResetable, INameable, IPet<IStatBase>,IOwner<IStatBase>
+    public interface IStatBase : IResetable, INameable, IPetOwnerTreeOf<IStatBase>
     {
         public bool SyncToBlackBoard { get; }
         public object GetAbsoluteValue();

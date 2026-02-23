@@ -32,6 +32,17 @@ namespace DAFP.GAME.Assets
             });
         }
 
+        void Spawn<T>(T tamplate, Vector3 position, Action<T> onComplete)
+            where T : MonoBehaviour, IGamePoolableBase
+        {
+            Spawn<T>(tamplate.Prefix, tamplate.UName, (obj) =>
+            {
+                var t = obj.transform;
+                t.position = position;
+                onComplete(obj);
+            });
+        }
+
 // Spawn raw GameObject by address + position
         void Spawn(string address, Vector3 position, Action<GameObject> onComplete)
         {

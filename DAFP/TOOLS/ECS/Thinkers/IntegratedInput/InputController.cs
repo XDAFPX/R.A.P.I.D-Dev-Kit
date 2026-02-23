@@ -63,13 +63,29 @@ namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput
             if (Enabled == enabled) return;
             Enabled = enabled;
 
-            foreach (var _pair in callbacks)
+            if (enabled)
             {
-                var _action = actions.FindAction(_pair.Key, false);
-                if (_action == null) continue;
+                // Ensure the underlying InputActionAsset (and its maps) are enabled
+                actions?.Enable();
 
-                if (enabled) subscribe(_action, _pair.Value);
-                else unsubscribe(_action, _pair.Value);
+                foreach (var _pair in callbacks)
+                {
+                    var _action = actions.FindAction(_pair.Key, false);
+                    if (_action == null) continue;
+                    subscribe(_action, _pair.Value);
+                }
+            }
+            else
+            {
+                foreach (var _pair in callbacks)
+                {
+                    var _action = actions.FindAction(_pair.Key, false);
+                    if (_action == null) continue;
+                    unsubscribe(_action, _pair.Value);
+                }
+
+                // Disable the asset to stop input processing
+                actions?.Disable();
             }
         }
     }

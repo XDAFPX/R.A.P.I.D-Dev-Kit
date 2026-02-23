@@ -13,6 +13,7 @@ using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.ViewModel;
 using NUnit.Framework;
+using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
 using UnityEventBus;
 using Zenject;
@@ -20,7 +21,7 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {
-    public interface IEntity : ITickable, IGameObjectProvider, IAuthor, INameable, IOwner<IEntity>, ISavable,
+    public interface IEntity : ITickable, IGameObjectProvider, IAuthor, INameable, IPetOwnerTreeOf<IEntity>, ISavable,
         IDebugDrawable, ISwitchable, IHaveGameplayTag
     {
         public IThinker Brains { get; }

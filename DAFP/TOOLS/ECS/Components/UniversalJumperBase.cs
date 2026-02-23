@@ -16,7 +16,7 @@ namespace DAFP.TOOLS.ECS.Components
     /// </summary>
     public abstract class UniversalJumperBase<TVec> : EntityComponent
     {
-        [RequireStat] [InjectStat("JumpStrength")]private IStat<float> jumpStrengthBoard;
+         [DeclareStat("JumpStrength",100)]private IStat<float> jumpStrengthBoard;
         [GetComponentCache] private UniversalCooldownController cooldownController;
 
         [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]

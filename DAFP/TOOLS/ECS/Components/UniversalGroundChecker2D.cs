@@ -13,7 +13,7 @@ namespace DAFP.TOOLS.ECS.Components
         [SerializeField] private LayerMask CheckMask;
         [SerializeField] private GroundCheckPosition[] Positions;
 
-        [RequireStat] [InjectStat("Grounded", false)]
+         [DeclareStat("Grounded", false)]
         private IStat<bool> groundedBoard;
 
         protected override void OnTick()

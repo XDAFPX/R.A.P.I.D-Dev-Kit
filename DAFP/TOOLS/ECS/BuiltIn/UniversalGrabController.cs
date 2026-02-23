@@ -17,7 +17,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         [SerializeField] private GrabController Controller;
         [SerializeField] private float DetachDistance = 5;
 
-        [RequireStat] [InjectStat("CarryWeight")]
+         [DeclareStat("CarryWeight",1000)]
         private IStat<float> board;
 
         public bool CheckForLoS;

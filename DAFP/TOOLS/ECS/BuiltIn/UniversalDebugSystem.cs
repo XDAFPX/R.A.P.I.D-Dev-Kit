@@ -16,7 +16,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public UniversalDebugSystem(TMessenger messenger, TGizmos gizmos, IList<DebugDrawLayer> layers)
         {
             Messenger = messenger;
-            if (Messenger is IOwnable<IDebugSys<IGlobalGizmos, IMessenger>> ownable)
+            if (Messenger is IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>> ownable)
                 ownable.ChangeOwner((IDebugSys<IGlobalGizmos, IMessenger>)this);
             Gizmos = gizmos;
             Layers = layers;
@@ -28,14 +28,34 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public DebugDrawLayer GetSharedLayer { get; }
 
 
-        private readonly HashSet<IOwnable<IDebugDrawable>> _pets = new();
+        private readonly HashSet<IOwnedBy<IDebugDrawable>> _pets = new();
 
-        private ISet<IOwnable<IDebugSys<IGlobalGizmos, IMessenger>>> pets =
-            new HashSet<IOwnable<IDebugSys<IGlobalGizmos, IMessenger>>>();
+        private ISet<IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>>> pets =
+            new HashSet<IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>>>();
 
-        public ISet<IOwnable<IDebugDrawable>> Pets => _pets;
+        IEnumerable<IOwnedBy<IDebugDrawable>> IOwnerOf<IDebugDrawable>.Pets => _pets;
+        void IOwnerOf<IDebugDrawable>.AddPet(IOwnedBy<IDebugDrawable> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return;
+            _pets.Add(pet);
+        }
+        bool IOwnerOf<IDebugDrawable>.RemovePet(IOwnedBy<IDebugDrawable> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return false;
+            return _pets.Remove(pet);
+        }
 
-        ISet<IOwnable<IDebugSys<IGlobalGizmos, IMessenger>>> IOwner<IDebugSys<IGlobalGizmos, IMessenger>>.Pets => pets;
+        IEnumerable<IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>>> IOwnerOf<IDebugSys<IGlobalGizmos, IMessenger>>.Pets => pets;
+        void IOwnerOf<IDebugSys<IGlobalGizmos, IMessenger>>.AddPet(IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return;
+            pets.Add(pet);
+        }
+        bool IOwnerOf<IDebugSys<IGlobalGizmos, IMessenger>>.RemovePet(IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return false;
+            return pets.Remove(pet);
+        }
 
     }
 }

@@ -24,12 +24,13 @@ using UnityEventBus;
 using UnityGetComponentCache;
 using Zenject;
 using NRandom;
+using RapidLib.DAFP.TOOLS.Common;
 using TNRD;
 
 namespace DAFP.TOOLS.ECS
 {
-    public abstract class Entity : MonoBehaviour, IEntity, IDisposable, IEntityPet, IRandomizeable, ISavable,
-        IListener<IGlobalStateChanged>, IListener<OnSaveMadeOrLoaded>, IPet<IDebugDrawable>
+    public abstract class Entity : MonoBehaviour, IEntity, IDisposable, IRandomizeable, ISavable,
+        IListener<IGlobalStateChanged>, IListener<OnSaveMadeOrLoaded>, IOwnedBy<IDebugDrawable>
     {
         // Serialized Fields
         [ReadOnly] [SerializeField] private string id;
@@ -64,10 +65,34 @@ namespace DAFP.TOOLS.ECS
         public BlackBoard Memory { get; set; }
 
         // Pets & Ownership
-        protected readonly ISet<IOwnable<IEntity>> Pets = new HashSet<IOwnable<IEntity>>();
-        ISet<IOwnable<IEntity>> IOwner<IEntity>.Pets => Pets;
-        ISet<IOwnable<IDebugDrawable>> IOwner<IDebugDrawable>.Pets { get; } = new HashSet<IOwnable<IDebugDrawable>>();
+        private readonly ISet<IDebugDrawable> debugDrawablePets = new HashSet<IDebugDrawable>();
+        public List<IEntity> Children { get; } = new();
+        IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawablePets;
         public List<IEntity> Owners { get; } = new();
+        
+        private IDebugDrawable owner;
+        public IDebugDrawable GetCurrentOwner()
+        {
+            return owner;
+
+        }
+
+        public void ChangeOwner(IDebugDrawable newOwner)
+        {
+            owner = newOwner;
+        }
+
+        void IOwnerOf<IDebugDrawable>.AddPet(IDebugDrawable pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return;
+            debugDrawablePets.Add(pet);
+        }
+
+        bool IOwnerOf<IDebugDrawable>.RemovePet(IDebugDrawable pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return false;
+            return debugDrawablePets.Remove(pet);
+        }
 
         // Public Properties & Events
         public string ID => id;
@@ -133,13 +158,15 @@ namespace DAFP.TOOLS.ECS
             id = Guid.NewGuid().ToString();
         }
 
-        [Button("Fix stats", EButtonMode.EditorOnly)]
+        [Button("Regenerate All Stats", EButtonMode.EditorOnly)]
         public void SetupStats()
         {
-            StatInjector.InjectAndValidateStats(this);
+            if (Stats == null)
+                return;
+            // Stats = ScriptableObject.Instantiate<StatContainer>(Stats);
+            assemble_list_additional_of_code_sources(out var _ads);
+            StatInjector.FixStats(this, _ads);
         }
-
-
 
 
         // Initialization & Lifecycle
@@ -159,7 +186,7 @@ namespace DAFP.TOOLS.ECS
 
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this);
-            SetupStats();
+            setup_entity_stats();
 
             SaveSystem.Bus.Subscribe(this);
             GlobalStateBus.Subscribe(this);
@@ -176,6 +203,26 @@ namespace DAFP.TOOLS.ECS
             HasInitialized = true;
         }
 
+        private void setup_entity_stats()
+        {
+            if (Stats == null)
+                return;
+            Stats = ScriptableObject.Instantiate(Stats);
+            assemble_list_additional_of_code_sources(out var _additions);
+            StatInjector.InjectStats(this, _additions);
+            Stats.Construct(this);
+        }
+
+        private void assemble_list_additional_of_code_sources(out object[] additions)
+        {
+            gather_components();
+            var comps = Components.Select((pair => pair.Value)).Cast<object>();
+            var brains = _brains.Value;
+            if (brains != null)
+                comps = comps.Concat(new[] { brains });
+            additions = comps.ToArray();
+        }
+
 
         public void OnStart()
         {
@@ -188,6 +235,7 @@ namespace DAFP.TOOLS.ECS
 
         public void Tick()
         {
+            tick_stats();
             tick_components();
 
             TickInternal();
@@ -197,6 +245,11 @@ namespace DAFP.TOOLS.ECS
             tick_bounds();
 
             OnTick?.Invoke(this);
+        }
+
+        private void tick_stats()
+        {
+            Stats?.Tick();
         }
 
         private void tick_brains(IThinker brains)
@@ -287,7 +340,7 @@ namespace DAFP.TOOLS.ECS
             if (thinker.DIInjected)
             {
                 Injector.Inject(Brains);
-                foreach (var _ownable in ((IOwner<IThinker>)Brains).EnumeratePetsDeep())
+                foreach (var _ownable in ((IThinker)Brains).EnumeratePetsDeep())
                 {
                     if (_ownable is IThinker _brain)
                     {
@@ -338,8 +391,12 @@ namespace DAFP.TOOLS.ECS
                 _drawers = _drawers.Union(_entityComponent.Value.SetupDebugDrawers()).ToList();
 
 
-            ((IOwner<IDebugDrawable>)this).Pets.UnionWith(_drawers);
-            foreach (var _ownable in ((IOwner<IDebugDrawable>)this).Pets)
+            foreach (var _drawer in _drawers)
+            {
+                ((IOwnerOf<IDebugDrawable>)this).AddPet(_drawer);
+            }
+
+            foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
             {
                 _ownable.ChangeOwner(this);
                 if (_ownable is IDebugDrawer _drawer) _drawer.Initilize(DebugSystem);
@@ -448,7 +505,6 @@ namespace DAFP.TOOLS.ECS
             gameObject.SetActive(false);
         }
 
-        List<IDebugDrawable> IPet<IDebugDrawable>.Owners => owners;
 
         public void BroadcastEvent<T>(T @event) where T : struct
         {
@@ -472,5 +528,8 @@ namespace DAFP.TOOLS.ECS
         {
             get { return Tag.Value.GameplayTag; }
         }
+
+        public IEnumerable<object> AbsolutePets =>
+            Children.Cast<object>().Concat(((IOwnerOf<IDebugDrawable>)this).Pets.Cast<object>());
     }
 }

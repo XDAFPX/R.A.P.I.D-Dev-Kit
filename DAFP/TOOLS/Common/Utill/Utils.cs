@@ -352,7 +352,7 @@ namespace DAFP.TOOLS.Common.Utill
         }
 
 
-        public static IEnumerable<T> GetAllNodes<T>(this IEnumerable<T> nodes) where T : IOwnable<T>, IOwner<T>
+        public static IEnumerable<T> GetAllNodes<T>(this IEnumerable<T> nodes) where T : IOwnedBy<T>, IOwnerOf<T>
         {
             HashSet<T> _all = new HashSet<T>();
             foreach (var _ownable in nodes)
@@ -363,7 +363,7 @@ namespace DAFP.TOOLS.Common.Utill
             return _all;
         }
 
-        public static IEnumerable<T> GetAllNodes<T>(this T node) where T : IOwnable<T>, IOwner<T>
+        public static IEnumerable<T> GetAllNodes<T>(this T node) where T : IOwnedBy<T>, IOwnerOf<T>
         {
             if (node == null)
                 yield break;
@@ -388,6 +388,27 @@ namespace DAFP.TOOLS.Common.Utill
                         _stack.Push(_pet);
                 }
             }
+        }
+
+        public static TMax MaxBy<T, TMax>(this IEnumerable<T> source, Func<T, TMax> selector)
+            where TMax : IComparable<TMax>
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (selector == null) throw new ArgumentNullException(nameof(selector));
+
+            using var enumerator = source.GetEnumerator();
+            if (!enumerator.MoveNext())
+                throw new InvalidOperationException("Sequence contains no elements");
+
+            TMax maxValue = selector(enumerator.Current);
+            foreach (var item in source)
+            {
+                var value = selector(item);
+                if (value.CompareTo(maxValue) > 0)
+                    maxValue = value;
+            }
+
+            return maxValue;
         }
 
         public static IEnumerable<T> ToValues<T>(this IEnumerable<SerializableInterface<T>> arr) where T : class
@@ -480,6 +501,11 @@ namespace DAFP.TOOLS.Common.Utill
         }
 
 
+        public static T FindByName<T>(this IEnumerable<T> nameables, string name) where T : INameable
+        {
+            return nameables.FirstOrDefault(nameable => nameable.Name == name);
+        }
+
         public static INameable FindByName(this IEnumerable<INameable> nameables, string name)
         {
             return nameables.FirstOrDefault(nameable => nameable.Name == name);
@@ -536,7 +562,7 @@ namespace DAFP.TOOLS.Common.Utill
         public static IInputController TryGetRootController(this BaseThinker thinker, Func<IInputController> fallback)
         {
             IInputController _controller = null;
-            var _root = ((IOwnable<IThinker>)thinker).GetRootOwner();
+            var _root = ((IOwnedBy<IThinker>)thinker).GetRootOwner();
             if (_root is IContainerOf<IInputController> _container)
             {
                 _controller = _container.GetContents();
@@ -801,6 +827,13 @@ namespace DAFP.TOOLS.Common.Utill
             return _t2; // might be negative (invalid)
         }
 
+        public static void NormalizeMinMax<T>(ref T min, ref T max, IComparer<T>? comparer = null)
+        {
+            comparer ??= Comparer<T>.Default;
+            if (comparer.Compare(min, max) > 0)
+                (min, max) = (max, min);
+        }
+
         public static T Clamp<T>(T value, T min, T max, IComparer<T>? comparer = null)
         {
             comparer ??= Comparer<T>.Default;
@@ -916,7 +949,7 @@ namespace DAFP.TOOLS.Common.Utill
             return !stat.Dead();
         }
 
-        public static T TakeDamage<T>(this T stat,IDamage damage) where T : IStat<uint>
+        public static T TakeDamage<T>(this T stat, IDamage damage) where T : IStat<uint>
         {
             stat.Value -= damage.Info.Damage.Value;
             return stat;

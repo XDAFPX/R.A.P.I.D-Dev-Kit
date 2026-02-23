@@ -7,7 +7,7 @@ namespace DAFP.TOOLS.Common.TextSys
     using System.Globalization;
     using System.Text;
 
-    public abstract class CompStyle : IOwnable<Span>, IPriority<CompStyle>
+    public abstract class CompStyle : IOwnedBy<Span>, IPriority<CompStyle>
     {
         private class Empty : CompStyle
         {
@@ -284,12 +284,12 @@ namespace DAFP.TOOLS.Common.TextSys
     }
 
 
-    public struct Span : IOwner<Span>, IEquatable<Span>
+    public struct Span : IOwnerOf<Span>, IEquatable<Span>
     {
-        public Span(string text, ISet<IOwnable<Span>> pets = default, string separator = " ")
+        public Span(string text, ISet<IOwnedBy<Span>> pets = default, string separator = " ")
         {
             Text = text;
-            Pets = pets;
+            _pets = pets;
             Separator = separator;
         }
 
@@ -298,9 +298,9 @@ namespace DAFP.TOOLS.Common.TextSys
 
         public string Eval()
         {
-            if (Pets == null)
+            if (_pets == null)
                 return Text;
-            var l = Pets.OfType<CompStyle>().ToList();
+            var l = _pets.OfType<CompStyle>().ToList();
             l.Sort();
             foreach (var _ownable in l)
             {
@@ -311,11 +311,20 @@ namespace DAFP.TOOLS.Common.TextSys
             return Text;
         }
 
-        public ISet<IOwnable<Span>> Pets { get; }
+        private ISet<IOwnedBy<Span>> _pets { get; }
+        IEnumerable<IOwnedBy<Span>> IOwnerOf<Span>.Pets => _pets ?? Enumerable.Empty<IOwnedBy<Span>>();
+        void IOwnerOf<Span>.AddPet(IOwnedBy<Span> pet)
+        {
+            _pets?.Add(pet);
+        }
+        bool IOwnerOf<Span>.RemovePet(IOwnedBy<Span> pet)
+        {
+            return _pets != null && pet != null && _pets.Remove(pet);
+        }
 
         public bool Equals(Span other)
         {
-            return Text == other.Text && Separator == other.Separator && Equals(Pets, other.Pets);
+            return Text == other.Text && Separator == other.Separator && Equals(_pets, other._pets);
         }
 
         public override bool Equals(object obj)
@@ -335,14 +344,14 @@ namespace DAFP.TOOLS.Common.TextSys
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Text, Separator, Pets);
+            return HashCode.Combine(Text, Separator, _pets);
         }
 
         public Span AddPass(CompStyle style)
         {
             if (style == null)
                 return this;
-            Pets?.Add(style);
+            _pets?.Add(style);
             return this;
         }
 
@@ -350,7 +359,7 @@ namespace DAFP.TOOLS.Common.TextSys
         {
             if (style == null)
                 return this;
-            Pets?.Remove(style);
+            _pets?.Remove(style);
             return this;
         }
 

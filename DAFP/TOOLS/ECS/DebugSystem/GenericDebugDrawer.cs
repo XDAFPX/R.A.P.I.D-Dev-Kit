@@ -13,7 +13,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         public DebugDrawLayer Layer { get; set; }
 
         protected IDebugSys<IGlobalGizmos, IMessenger> Sys;
-        protected T Host => ((IOwnable<IDebugDrawable>)this).GetCurrentOwner() as T;
+        protected T Host => ((IOwnedBy<IDebugDrawable>)this).GetCurrentOwner() as T;
 
         public void Initilize(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
         {

@@ -4,10 +4,11 @@ using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.BigData.Common
 {
-    public class VelocityBoard2D : Vector3Board
+    public class VelocityBoard2D : Vector3Board,ITickable
     {
         private Rigidbody2D Rb;
 
@@ -31,7 +32,7 @@ namespace DAFP.TOOLS.ECS.BigData.Common
         }
 
 
-        [Min(0)] [SerializeField] private float TopVelocity;
+        [Min(0)] [SerializeField] private float TopVelocity = 1000;
         [Min(0)] [SerializeField] private float MinVelocity;
         public override Vector3 MinValue => Vector3.one * MinVelocity;
 
@@ -47,7 +48,7 @@ namespace DAFP.TOOLS.ECS.BigData.Common
 
         public override void Tick()
         {
-            if (Rb != null)
+            if (Rb == null)
                 return;
             ensure_max_velocity();
             ensure_min_velocity();

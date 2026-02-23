@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using DAFP.GAME.Essential;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BuiltIn;
 using JetBrains.Annotations;

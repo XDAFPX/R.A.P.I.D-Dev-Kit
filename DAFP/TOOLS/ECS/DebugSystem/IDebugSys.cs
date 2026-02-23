@@ -7,8 +7,8 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
-    public interface IDebugSys<out TGizmos, out TMessenger> : IDrawable, IOwner<IDebugDrawable>,
-        Zenject.ITickable, IOwner<IDebugSys<IGlobalGizmos, IMessenger>>
+    public interface IDebugSys<out TGizmos, out TMessenger> : IDrawable, IOwnerOf<IDebugDrawable>,
+        Zenject.ITickable, IOwnerOf<IDebugSys<IGlobalGizmos, IMessenger>>
         where TGizmos : IGlobalGizmos where TMessenger : IMessenger
     {
         public TGizmos Gizmos { get; }
@@ -24,29 +24,24 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
         void IDrawable.Draw()
         {
-            foreach (var _ownable in ((IOwner<IDebugDrawable>)this).Pets)
+            foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
                 if (_ownable is IDrawable drawable)
                     drawable.Draw();
         }
 
-        void IOwner<IDebugDrawable>.AddPet(IOwnable<IDebugDrawable> pet)
+        void IOwnerOf<IDebugDrawable>.AddPet(IOwnedBy<IDebugDrawable> pet)
         {
             if (pet == this)
                 return;
             if (pet == null)
                 return;
-            ((IOwner<IDebugDrawable>)this).Pets.Add(pet);
+            ((IOwnerOf<IDebugDrawable>)this).AddPet(pet);
         }
 
-        bool IOwner<IDebugDrawable>.RemovePet(IOwnable<IDebugDrawable> pet)
+        bool IOwnerOf<IDebugDrawable>.RemovePet(IOwnedBy<IDebugDrawable> pet)
         {
-            if (pet == this)
-                return false;
-            if (pet == null)
-                return false;
-            ((IOwner<IDebugDrawable>)this).Pets.Remove(pet);
-
-            return true;
+            // default interface helper cannot mutate enumerable; let concrete implementations handle removal
+            return false;
         }
     }
 }

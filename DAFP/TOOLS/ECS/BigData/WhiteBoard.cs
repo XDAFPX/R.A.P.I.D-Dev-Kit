@@ -4,6 +4,8 @@ using System.Linq;
 using Archon.SwissArmyLib.Utils.Editor;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.BigData.Modifiers;
+using ModestTree;
 using UnityEngine;
 using UnityEngine.Serialization;
 using NRandom;
@@ -14,8 +16,9 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.BigData
 {
     [Serializable]
-    public abstract class WhiteBoard<T> : IStat<T>, IInitializable, ITickable, IEntityPet
+    public abstract class WhiteBoard<T> : IStat<T>, IInitializable, ITickable, 
     {
+        [SerializeField] protected List<SerializableInterface<IPegStatModifier<T>>> PegModifiers = new();
         [field: SerializeField] public string Name { get; set; }
 
         public abstract bool SyncToBlackBoard { get; }
@@ -25,7 +28,7 @@ namespace DAFP.TOOLS.ECS.BigData
         public abstract T MinValue { get; set; }
         public abstract T DefaultValue { get; set; }
 
-        protected IEntity Host => ((IEntityPet)this).GetCurrentOwner();
+        protected IEntity Host => GetCurrentOwner();
 
 
 #if UNITY_EDITOR
@@ -34,10 +37,10 @@ namespace DAFP.TOOLS.ECS.BigData
         [ReadOnly] [SerializeField] protected T InternalValue;
 
 
-        [SerializeField] [ReadOnly(OnlyWhilePlaying = true)]
-        protected SerializableInterface<IStatModifier<T>>[] Modifiers;
+        [SerializeField] protected List<SerializableInterface<IStatModifier<T>>> Modifiers = new();
 
-        public List<SerializableInterface<IStatBase>> Children;
+        public List<SerializableInterface<IStatBase>> Children = new List<SerializableInterface<IStatBase>>();
+
 
         public delegate void ValueChangedCallBack(T newValue, T oldValue);
 
@@ -59,23 +62,56 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public void Initialize()
         {
-            StatModifiers = StatModifiers
-                .Union(Modifiers.Select((@interface => @interface.Value)).OfType<StatModifier<T>>()).ToList();
+            configure_stat_owner();
+            configure_peg_modifiers();
 
             ResetToDefault();
             OnInitializeInternal();
         }
 
+        private void configure_stat_owner()
+        {
+            var children = Children.ToValues().ToArray();
+            foreach (var _statBase in children) 
+            {
+                _statBase.ChangeOwner(this);
+                if (_statBase is IInitializable _tickable)
+                {
+                    _tickable.Initialize();
+                }
+            }
+        }
+
+        private void configure_peg_modifiers()
+        {
+            var _own = ((IOwnedBy<IStatBase>)this).GetCurrentOwner();
+            foreach (var _statBase in PegModifiers.ToValues())
+            {
+                _statBase.Peg = _own;
+            }
+        }
+
         protected abstract void OnInitializeInternal();
 
-        // Simplified: just apply this board’s modifiers, return through GetValue,
-        // but do NOT write back into InternalValue or re-clamp here.
         private T internal_get_value()
         {
             var _temp = InternalValue;
-            StatModifiers.Sort();
-            foreach (var _modifier in StatModifiers)
-                _temp = _modifier.Apply(_temp);
+            List<IStatModifier<T>> _mods = new List<IStatModifier<T>>();
+            List<IPegStatModifier<T>> _pegs = new();
+            if (!PegModifiers.IsEmpty())
+            {
+                _pegs = PegModifiers.ToValues().ToList();
+                _pegs.Sort();
+            }
+
+            if (!Modifiers.IsEmpty())
+            {
+                _mods = Modifiers.ToValues().ToList();
+                _mods.Sort();
+            }
+
+            _temp = _pegs.Aggregate(_temp, (current, modifier) => modifier.Apply(current));
+            _temp = _mods.Aggregate(_temp, (current, modifier) => modifier.Apply(current));
 
             return GetValue(ClampAndProcessValue(_temp));
         }
@@ -95,27 +131,29 @@ namespace DAFP.TOOLS.ECS.BigData
         public abstract void SetToMin();
 
 
-        protected List<StatModifier<T>> StatModifiers = new();
         private List<IEntity> owners = new List<IEntity>();
 
         public void AddModifier(StatModifier<T> modifier)
         {
             if (modifier == null)
                 return;
-            if (StatModifiers.Contains(modifier))
+
+            var _mods = Modifiers.ToValues().ToList();
+            if (_mods.Contains(modifier))
                 return;
             OnModifierAdded?.Invoke(modifier);
-            StatModifiers.Add(modifier);
+            Modifiers.Add(new SerializableInterface<IStatModifier<T>>(modifier));
         }
 
         public void RemoveModifier(StatModifier<T> modifier)
         {
             if (modifier == null)
                 return;
-            if (!StatModifiers.Contains(modifier))
+            var _mods = Modifiers.ToValues().ToList();
+            if (!_mods.Contains(modifier))
                 return;
             OnModifierRemoved?.Invoke(modifier);
-            StatModifiers.Remove(modifier);
+            Modifiers.RemoveAll((@interface => @interface.Value.Equals(modifier)));
         }
 
         protected abstract void ResetInternal();
@@ -136,12 +174,12 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public void RemoveAllModifiers()
         {
-            StatModifiers.Clear();
+            Modifiers.Clear();
         }
 
         public void RemoveAllModifiersFrom(IEntity owner)
         {
-            StatModifiers.RemoveAll(modifier => modifier.GetCurrentOwner() == owner);
+            Modifiers.RemoveAll(modifier => modifier.Value.GetCurrentOwner() == owner);
         }
 
         public override string ToString()
@@ -167,28 +205,28 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public List<IStatBase> Owners { get; } = new List<IStatBase>();
 
-        ISet<IOwnable<IStatBase>> IOwner<IStatBase>.Pets => new DelegateSet<IOwnable<IStatBase>>(
-            (() => Children?.ToValues() ?? Array.Empty<IStatBase>()), ownable =>
-            {
-                var stat = (IStatBase)ownable;
-                if (Children.ToValues().FindByName((stat).Name) == null)
-                    return false;
-                stat.ChangeOwner(this);
-                Children.Add(new SerializableInterface<IStatBase>(stat));
-                return true;
-            }, (ownable =>
-            {
-                var _stat = ((IStatBase)ownable);
-                if (Children.ToValues().FindByName(_stat.Name) != null)
-                    return false;
-                _stat.ChangeOwner(null);
-                Children.RemoveAll((@interface => @interface.Value.Name != _stat.Name));
-                return true;
-            }), (ownable => Children.ToValues().FindByName(((IStatBase)ownable).Name) != null), (() => Children.Clear())
-        );
+        IEnumerable<IOwnedBy<IStatBase>> IOwnerOf<IStatBase>.Pets => (Children?.ToValues() ?? Array.Empty<IStatBase>()).Cast<IOwnedBy<IStatBase>>();
+        void IOwnerOf<IStatBase>.AddPet(IOwnedBy<IStatBase> ownedBy)
+        {
+            if (ownedBy == null) return;
+            if (Children == null)
+                Children = new List<SerializableInterface<IStatBase>>();
+            var _stat = (IStatBase)ownedBy;
+            if (Children.ToValues().FindByName(_stat.Name) != null)
+                return;
+            Children.Add(new SerializableInterface<IStatBase>(_stat));
+        }
+        bool IOwnerOf<IStatBase>.RemovePet(IOwnedBy<IStatBase> ownedBy)
+        {
+            if (ownedBy == null) return false;
+            if (Children == null) return false;
+            var _stat = (IStatBase)ownedBy;
+            var before = Children.Count;
+            Children.RemoveAll(@interface => @interface.Value.Name == _stat.Name);
+            return Children.Count < before;
+        }
 
-        List<IEntity> IPet<IEntity>.Owners => owners;
-
+        List<IEntity> IPetOf<IEntity>.Owners => owners;
         public virtual void OnStart()
         {
         }

@@ -16,7 +16,7 @@ namespace DAFP.TOOLS.Common.TextSys
 
         public CompText(string text, params CompStyle[] styles)
         {
-            _stack.Add(new Span(text, styles.Cast<IOwnable<Span>>().ToHashSet()));
+            _stack.Add(new Span(text, styles.Cast<IOwnedBy<Span>>().ToHashSet()));
         }
 
         public CompText Add(Span span)

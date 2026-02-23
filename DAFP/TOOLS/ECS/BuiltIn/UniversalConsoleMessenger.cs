@@ -19,23 +19,23 @@ using Object = UnityEngine.Object;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class UniversalConsoleMessenger : IMessenger, ISwitchable, IPet<IDebugSys<IGlobalGizmos, IMessenger>>
+    public class UniversalConsoleMessenger : IMessenger, ISwitchable, IPetOf<IDebugSys<IGlobalGizmos, IMessenger>>
     {
         [Inject]
         public UniversalConsoleMessenger([Inject(Id = "ConsoleUnlocked")] bool unlocked,
             [Inject(Id = "ConsoleFont")] Font consoleFont, [Inject(Id = "ConsoleTextSize")] float fontSize,
             [Inject(Id = "ConsoleCommandInterpriter")]
-            ICommandInterpriter interpriter)
+            ICommandInterpreter interpreter)
         {
             ConsoleUnlocked = unlocked;
             ConsoleFont = consoleFont;
             this.fontSize = fontSize;
             TMPConsoleFont = TMP_FontAsset.CreateFontAsset(ConsoleFont);
-            Interpriter = interpriter;
-            Interpriter.ChangeOwner(this);
+            Interpreter = interpreter;
+            Interpreter.ChangeOwner(this);
         }
 
-        protected ICommandInterpriter Interpriter;
+        protected ICommandInterpreter Interpreter;
         public bool ConsoleUnlocked;
         protected readonly Font ConsoleFont;
         private readonly float fontSize;
@@ -72,7 +72,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public string Procces(string input)
         {
-            var result = Interpriter.Procces(input);
+            var result = Interpreter.Procces(input);
             if (result == null)
                 return @$" '{input}' is not recognized as an internal or external command";
             return result;
@@ -618,9 +618,20 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             Root.gameObject.SetActive(false);
         }
 
-        public ISet<IOwnable<ICommandInterpriter>> Pets => new HashSet<IOwnable<ICommandInterpriter>> { Interpriter };
-        public List<ICommandInterpriter> Owners { get; } = new();
+        private readonly HashSet<IOwnedBy<ICommandInterpreter>> _pets = new();
+        IEnumerable<IOwnedBy<ICommandInterpreter>> IOwnerOf<ICommandInterpreter>.Pets => _pets;
+        void IOwnerOf<ICommandInterpreter>.AddPet(IOwnedBy<ICommandInterpreter> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return;
+            _pets.Add(pet);
+        }
+        bool IOwnerOf<ICommandInterpreter>.RemovePet(IOwnedBy<ICommandInterpreter> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return false;
+            return _pets.Remove(pet);
+        }
+        public List<ICommandInterpreter> Owners { get; } = new();
 
-        List<IDebugSys<IGlobalGizmos, IMessenger>> IPet<IDebugSys<IGlobalGizmos, IMessenger>>.Owners => owners;
+        List<IDebugSys<IGlobalGizmos, IMessenger>> IPetOf<IDebugSys<IGlobalGizmos, IMessenger>>.Owners => owners;
     }
 }

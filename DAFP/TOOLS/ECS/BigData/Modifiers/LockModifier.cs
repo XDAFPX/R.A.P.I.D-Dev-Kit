@@ -16,7 +16,13 @@
             return lockedValue;
         }
 
-        public override int Priority => 1000 + setPriority;
+        public override int Priority
+        {
+            get => 1000 + setPriority;
+            set
+            {
+            }
+        }
 
         public override void Dispose()
         {

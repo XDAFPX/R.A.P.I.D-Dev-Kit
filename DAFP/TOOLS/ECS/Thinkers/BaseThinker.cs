@@ -18,9 +18,9 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.Thinkers
 {
-    public interface IThinker : IThinkerHierarchy, IPet<IDebugDrawable>, IDebugDrawable,
-        IOwner<IThinker>,
-        IPet<IThinker>, IOwnable<IThinker>, ISubscriber
+    public interface IThinker : IThinkerHierarchy, IPetOf<IDebugDrawable>, IDebugDrawable,
+        IOwnerOf<IThinker>,
+        IPetOf<IThinker>, IOwnedBy<IThinker>, ISubscriber
     {
         bool DIInjected { get; }
         bool HasInitialized { get; }
@@ -102,9 +102,9 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         private void de_init_debug_drawers()
         {
-            if (Pets == null || Pets.IsEmpty())
+            if (DebugPets == null || DebugPets.IsEmpty())
                 return;
-            Pets.Clear();
+            DebugPets.Clear();
             DebugSystem.RemovePet(this);
         }
 
@@ -115,8 +115,8 @@ namespace DAFP.TOOLS.ECS.Thinkers
             var _debugDrawers = pets as IDebugDrawer[] ?? pets.ToArray();
             if (_debugDrawers.IsEmpty())
                 return;
-            Pets.UnionWith(_debugDrawers);
-            var petsSnapshot = Pets.ToArray();
+            DebugPets.UnionWith(_debugDrawers);
+            var petsSnapshot = DebugPets.ToArray();
 
             foreach (var _ownable in petsSnapshot)
             {
@@ -150,17 +150,31 @@ namespace DAFP.TOOLS.ECS.Thinkers
         {
             foreach (var _child in ChildThinkers)
             {
-                ((IPet<IThinker>)_child.Value).ChangeOwner(this);
+                ((IPetOf<IThinker>)_child.Value).ChangeOwner(this);
                 _child.Value.Initialize(host);
             }
         }
 
-        public ISet<IOwnable<IDebugDrawable>> Pets { get; } = new HashSet<IOwnable<IDebugDrawable>>();
+        private readonly ISet<IOwnedBy<IDebugDrawable>> DebugPets = new HashSet<IOwnedBy<IDebugDrawable>>();
         public List<IDebugDrawable> Owners { get; } = new();
 
-        ISet<IOwnable<IThinker>> IOwner<IThinker>.Pets => childCache.Cast<IOwnable<IThinker>>().ToHashSet();
+        IEnumerable<IOwnedBy<IDebugDrawable>> IOwnerOf<IDebugDrawable>.Pets => DebugPets;
+        void IOwnerOf<IDebugDrawable>.AddPet(IOwnedBy<IDebugDrawable> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return;
+            DebugPets.Add(pet);
+        }
+        bool IOwnerOf<IDebugDrawable>.RemovePet(IOwnedBy<IDebugDrawable> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return false;
+            return DebugPets.Remove(pet);
+        }
 
-        List<IThinker> IPet<IThinker>.Owners => owners;
+        IEnumerable<IOwnedBy<IThinker>> IOwnerOf<IThinker>.Pets => childCache.Cast<IOwnedBy<IThinker>>();
+        void IOwnerOf<IThinker>.AddPet(IOwnedBy<IThinker> pet) { /* no-op: children are defined via ChildThinkers */ }
+        bool IOwnerOf<IThinker>.RemovePet(IOwnedBy<IThinker> pet) { return false; }
+
+        List<IThinker> IPetOf<IThinker>.Owners => owners;
 
 
         // -- Generic implementations

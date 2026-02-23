@@ -19,50 +19,46 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class UniversalCommandInterpriter : ICommandInterpriter
+    public class UniversalCommandInterpreter : ICommandInterpreter
     {
-        private ISet<IOwnable<ICommandInterpriter>> pets;
-
-
-        public UniversalCommandInterpriter(IEnumerable<IConsoleCommand> commands)
+        public UniversalCommandInterpreter(IEnumerable<IConsoleCommand> commands)
         {
-            pets = new HashSet<IOwnable<ICommandInterpriter>>();
+            Children = new List<ICommandInterpreter>();
             foreach (var _ownable in commands
-                         .Cast<IOwnable<ICommandInterpriter>>())
+                         .Cast<IOwnedBy<ICommandInterpreter>>())
                 _ownable.ChangeOwner(this);
         }
 
         public virtual string Procces(string input)
         {
-            foreach (var _ownable in pets)
-                if (_ownable is ICommandInterpriter interpriter)
-                {
-                    var result = interpriter.Procces(input);
-                    if (result != null)
-                        return result;
-                }
+            foreach (var _ownable in Children)
+            {
+                var result = _ownable.Procces(input);
+                if (result != null)
+                    return result;
+            }
 
             return null;
         }
 
 
-        ISet<IOwnable<ICommandInterpriter>> IOwner<ICommandInterpriter>.Pets => pets;
 
-        public List<ICommandInterpriter> Owners { get; } = new();
+        public List<ICommandInterpreter> Children { get; } = new();
+        public List<ICommandInterpreter> Owners { get; } = new();
 
-        public static ICommandInterpriter GetRoot(ICommandInterpriter self)
+        public static ICommandInterpreter GetRoot(ICommandInterpreter self)
         {
-            var root = (IOwnable<ICommandInterpriter>)self as ICommandInterpriter;
+            var root = (IOwnedBy<ICommandInterpreter>)self as ICommandInterpreter;
             while (root.GetCurrentOwner() != null) root = root.GetCurrentOwner();
 
             return root;
         }
 
-        public static IDebugSys<IGlobalGizmos, IMessenger> TryGetSys(ICommandInterpriter self)
+        public static IDebugSys<IGlobalGizmos, IMessenger> TryGetSys(ICommandInterpreter self)
         {
             var root = GetRoot(self);
             if (root is IMessenger messenger)
-                if (root is IOwnable<IDebugSys<IGlobalGizmos, IMessenger>> ownable)
+                if (root is IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>> ownable)
                     return ownable.GetCurrentOwner();
 
 
@@ -171,19 +167,20 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             public MatCommand()
             {
-                Pets = new HashSet<IOwnable<ICommandInterpriter>> { new MatDebugViewCommand() };
-                foreach (var _ownable in Pets) _ownable.ChangeOwner(this);
+                Children = new() { new MatDebugViewCommand() };
+                foreach (var _ownable in Children) _ownable.ChangeOwner(this);
             }
 
-            public ISet<IOwnable<ICommandInterpriter>> Pets { get; }
-            public List<ICommandInterpriter> Owners { get; } = new();
+
+            public List<ICommandInterpreter> Children { get; }
+            public List<ICommandInterpreter> Owners { get; } = new();
 
 
             public string Procces(string input)
             {
                 if (!input.Contains("mat"))
                     return null;
-                foreach (var _ownable in Pets)
+                foreach (var _ownable in Children)
                 {
                     if (_ownable is not IConsoleCommand cmd) continue;
                     if (!CheckIfInputContainsCommand(input, cmd.Name)) continue;
@@ -200,8 +197,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             public class MatDebugViewCommand : IConsoleCommand
             {
-                public ISet<IOwnable<ICommandInterpriter>> Pets { get; } = new HashSet<IOwnable<ICommandInterpriter>>();
-                public List<ICommandInterpriter> Owners { get; } = new();
+                public List<ICommandInterpreter> Children { get; } = new();
+                public List<ICommandInterpreter> Owners { get; } = new();
 
                 public string Procces(string input)
                 {
@@ -234,8 +231,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             private readonly ISaveSystem saveSystem;
             private readonly IRandom random;
             private readonly World world;
-            public ISet<IOwnable<ICommandInterpriter>> Pets { get; } = new HashSet<IOwnable<ICommandInterpriter>>();
-            public List<ICommandInterpriter> Owners { get; } = new();
+
+            public List<ICommandInterpreter> Children { get; } = new();
+            public List<ICommandInterpreter> Owners { get; } = new();
 
             [Inject]
             public LoadLevelCommand(ISaveSystem saveSystem, IRandom random, World world)
@@ -269,8 +267,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public class ChangeSceneCommand : IConsoleCommand
         {
-            public ISet<IOwnable<ICommandInterpriter>> Pets { get; } = new HashSet<IOwnable<ICommandInterpriter>>();
-            public List<ICommandInterpriter> Owners { get; } = new();
+            public List<ICommandInterpreter> Children { get; } = new();
+            public List<ICommandInterpreter> Owners { get; } = new();
 
             public string Procces(string input)
             {
@@ -298,8 +296,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public class PlayAudioCommand : IConsoleCommand
         {
             private readonly IAudioSystem sys;
-            public ISet<IOwnable<ICommandInterpriter>> Pets { get; } = new HashSet<IOwnable<ICommandInterpriter>>();
-            public List<ICommandInterpriter> Owners { get; } = new();
+            public List<ICommandInterpreter> Children { get; } = new();
+
+
+            public List<ICommandInterpreter> Owners { get; } = new();
 
             [Inject]
             public PlayAudioCommand(IAudioSystem sys)
@@ -324,12 +324,14 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             public IMessage Description { get; set; } =
                 IMessage.Literal("plays a sound effect or music");
+
         }
 
         public class VersionCommand : IConsoleCommand
         {
-            public ISet<IOwnable<ICommandInterpriter>> Pets { get; } = new HashSet<IOwnable<ICommandInterpriter>>();
-            public List<ICommandInterpriter> Owners { get; } = new();
+            public List<ICommandInterpreter> Children { get; } = new();
+
+            public List<ICommandInterpreter> Owners { get; } = new();
 
             public string Procces(string input)
             {
@@ -351,8 +353,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public class QuitCommand : IConsoleCommand
         {
-            public ISet<IOwnable<ICommandInterpriter>> Pets { get; } = new HashSet<IOwnable<ICommandInterpriter>>();
-            public List<ICommandInterpriter> Owners { get; } = new();
+            public List<ICommandInterpreter> Children { get; } = new();
+
+            public List<ICommandInterpreter> Owners { get; } = new();
 
             public string Procces(string input)
             {
@@ -370,8 +373,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public class HelpCommand : IConsoleCommand
         {
-            public ISet<IOwnable<ICommandInterpriter>> Pets { get; } = new HashSet<IOwnable<ICommandInterpriter>>();
-            public List<ICommandInterpriter> Owners { get; } = new();
+            public List<ICommandInterpreter> Children { get; } = new();
+            public List<ICommandInterpreter> Owners { get; } = new();
 
             public string Procces(string input)
             {
@@ -391,14 +394,14 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
 
 
-            private void GetPets(ICommandInterpriter interpriter, List<IConsoleCommand> commands)
+            private void GetPets(ICommandInterpreter interpreter, List<IConsoleCommand> commands)
             {
-                if (interpriter == default)
+                if (interpreter == default)
                     return;
-                if (interpriter is IConsoleCommand cmd)
+                if (interpreter is IConsoleCommand cmd)
                     commands.Add(cmd);
-                foreach (var _interpriterPet in interpriter.Pets)
-                    if (_interpriterPet is ICommandInterpriter inter)
+                foreach (var _interpriterPet in interpreter.Pets)
+                    if (_interpriterPet is ICommandInterpreter inter)
                         GetPets(inter, commands);
             }
 

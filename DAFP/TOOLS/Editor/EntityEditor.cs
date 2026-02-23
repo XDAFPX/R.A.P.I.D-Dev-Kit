@@ -33,11 +33,11 @@ namespace DAFP.TOOLS.Editor
 
         private void OnUndoRedo()
         {
-            if (_entity != null && _entity.Stats != _previousStats)
+            /*if (_entity != null && _entity.Stats != _previousStats)
             {
                 StatInjector.InjectAndValidateStats(_entity);
                 _previousStats = _entity.Stats;
-            }
+            }*/
         }
 
         public override void OnInspectorGUI()
@@ -63,7 +63,7 @@ namespace DAFP.TOOLS.Editor
             {
                 if (_entity.Stats != statsBeforeGUI)
                 {
-                    StatInjector.InjectAndValidateStats(_entity);
+                    /*StatInjector.InjectAndValidateStats(_entity);*/
                     _previousStats = _entity.Stats;
                     Debug.Log($"Stats reference changed for {_entity.name} - InjectAndValidateStats called");
                 }

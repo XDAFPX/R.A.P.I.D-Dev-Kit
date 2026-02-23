@@ -35,7 +35,7 @@ namespace DAFP.TOOLS.Injection
         where TConsoleService : IMessenger
         where TGizmosService : IGlobalGizmos
         where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IMessenger>
-        where TConsoleInterpriter : ICommandInterpriter
+        where TConsoleInterpriter : ICommandInterpreter
         where TAssetManager : IAssetManager
 
     {
@@ -91,12 +91,12 @@ namespace DAFP.TOOLS.Injection
         {
             return new Type[]
             {
-                typeof(UniversalCommandInterpriter.HelpCommand), typeof(UniversalCommandInterpriter.QuitCommand),
-                typeof(UniversalCommandInterpriter.LoadLevelCommand),
-                typeof(UniversalCommandInterpriter.VersionCommand),
-                typeof(UniversalCommandInterpriter.ChangeSceneCommand),
-                typeof(UniversalCommandInterpriter.PlayAudioCommand),
-                typeof(UniversalCommandInterpriter.MatCommand)
+                typeof(UniversalCommandInterpreter.HelpCommand), typeof(UniversalCommandInterpreter.QuitCommand),
+                typeof(UniversalCommandInterpreter.LoadLevelCommand),
+                typeof(UniversalCommandInterpreter.VersionCommand),
+                typeof(UniversalCommandInterpreter.ChangeSceneCommand),
+                typeof(UniversalCommandInterpreter.PlayAudioCommand),
+                typeof(UniversalCommandInterpreter.MatCommand)
             };
         }
 
@@ -254,7 +254,7 @@ namespace DAFP.TOOLS.Injection
             bind_commands();
 
             Container.BindInterfacesAndSelfTo<TConsoleInterpriter>().AsSingle().NonLazy();
-            Container.Bind<ICommandInterpriter>()
+            Container.Bind<ICommandInterpreter>()
                 .WithId("ConsoleCommandInterpriter")
                 .To<TConsoleInterpriter>()
                 .FromResolve();

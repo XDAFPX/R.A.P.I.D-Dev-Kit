@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using DAFP.TOOLS.Common.Utill;
+using ModestTree;
+using NUnit.Framework;
+using PixelRouge.Inspector.Extensions;
 using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData
@@ -14,926 +18,581 @@ namespace DAFP.TOOLS.ECS.BigData
 
     public static class StatInjector
     {
-        private const BindingFlags BINDING_FLAGS = BindingFlags.Public | BindingFlags.NonPublic |
-                                                   BindingFlags.Instance | BindingFlags.FlattenHierarchy;
-
-        // Internal model for missing required injections
-        private class MissingRequired
+        public static void InjectStats(IEntity entity, object[] additionalSources)
         {
-            public string Path;
-            public Type DeclaredType;
-            public Type ValueType;
-            public object FallbackObject;
-            public string FallbackFieldName;
+            if (entity?.Stats == null)
+                return;
+
+            if (extract_injectable_fields(entity, additionalSources, out var _refined, out var _fieldSources)) return;
+
+            foreach (var _valueTuple in _refined)
+            {
+                var _source = (_fieldSources != null && _fieldSources.TryGetValue(_valueTuple.Item1, out var __s))
+                    ? __s
+                    : (object)entity;
+                inject_stat(_valueTuple, entity, _source);
+            }
         }
 
-        public static bool InjectAndValidateStats(IEntity entity)
+
+        public static void FixStats(IEntity entity, object[] additionalSources)
         {
-            if (entity.Stats == null)
-                return false;
-            var _type = entity.GetType();
+            if (entity?.Stats == null)
+                return;
+            if (extract_declared_stats(entity, additionalSources, out var _refined)) return;
 
-            // 1) Inject only (no creation); collect missing required with full metadata
-            var _fields = _type.GetFields(BINDING_FLAGS)
-                .Where(f => f.GetCustomAttribute<InjectStatAttribute>() != null)
-                .ToArray();
-            var _properties = _type.GetProperties(BINDING_FLAGS)
-                .Where(p => p.GetCustomAttribute<InjectStatAttribute>() != null && p.CanWrite)
-                .ToArray();
 
-            var _missing = new List<MissingRequired>();
-            bool _allInjected = true;
+            // uint _maxDeph = _refined.MaxBy(t => t.Item2.DephRating());
 
-            foreach (var _field in _fields)
+            apply_flat_fix();
+
+
+            foreach (var _valueTuple in _refined)
             {
-                var _inject = _field.GetCustomAttribute<InjectStatAttribute>();
-                var _required = _field.GetCustomAttribute<RequireStatAttribute>() != null;
+                var _field = _valueTuple.Item1;
+                var _naming = $"[{_valueTuple.Item2.StatName}]/({_valueTuple.Item1.Name})";
 
-                if (!try_inject_field(entity, _field, _inject, _required))
-                {
-                    _allInjected = false;
-                    if (_required)
-                    {
-                        var _statValueType = get_stat_value_type(_field.FieldType);
-                        _missing.Add(new MissingRequired
-                        {
-                            Path = _inject.StatName,
-                            DeclaredType = _field.FieldType,
-                            ValueType = _statValueType,
-                            FallbackObject = _inject.FallbackObject,
-                            FallbackFieldName = _inject.FallbackFieldName
-                        });
-                    }
-                }
-            }
 
-            foreach (var _property in _properties)
-            {
-                var _inject = _property.GetCustomAttribute<InjectStatAttribute>();
-                var _required = _property.GetCustomAttribute<RequireStatAttribute>() != null;
+                if (DEBUG)
+                    Debug.Log($"StatInjector: trying to fix  {_naming} :: ");
 
-                if (!try_inject_property(entity, _property, _inject, _required))
-                {
-                    _allInjected = false;
-                    if (_required)
-                    {
-                        var _statValueType = get_stat_value_type(_property.PropertyType);
-                        _missing.Add(new MissingRequired
-                        {
-                            Path = _inject.StatName,
-                            DeclaredType = _property.PropertyType,
-                            ValueType = _statValueType,
-                            FallbackObject = _inject.FallbackObject,
-                            FallbackFieldName = _inject.FallbackFieldName
-                        });
-                    }
-                }
-            }
-
-            if (_missing.Count == 0)
-            {
-                return _allInjected;
-            }
-
-            // 2) Build a quick lookup of required declarations by path for choosing parent types
-            var _requiredByPath = new Dictionary<string, (Type declared, Type value)>(StringComparer.OrdinalIgnoreCase);
-            foreach (var _m in _missing)
-            {
-                if (!_requiredByPath.ContainsKey(_m.Path))
-                {
-                    _requiredByPath[_m.Path] = (_m.DeclaredType, _m.ValueType);
-                }
-            }
-
-            // Also include already-declared required members that did inject successfully
-            foreach (var _field in _fields)
-            {
-                var _req = _field.GetCustomAttribute<RequireStatAttribute>() != null;
-                if (!_req) continue;
-                var _inject = _field.GetCustomAttribute<InjectStatAttribute>();
-                if (_inject == null) continue;
-                var _path = _inject.StatName;
-                if (string.IsNullOrWhiteSpace(_path)) continue;
-                var _valueType = get_stat_value_type(_field.FieldType);
-                if (!_requiredByPath.ContainsKey(_path))
-                    _requiredByPath[_path] = (_field.FieldType, _valueType);
-            }
-
-            foreach (var _property in _properties)
-            {
-                var _req = _property.GetCustomAttribute<RequireStatAttribute>() != null;
-                if (!_req) continue;
-                var _inject = _property.GetCustomAttribute<InjectStatAttribute>();
-                if (_inject == null) continue;
-                var _path = _inject.StatName;
-                if (string.IsNullOrWhiteSpace(_path)) continue;
-                var _valueType = get_stat_value_type(_property.PropertyType);
-                if (!_requiredByPath.ContainsKey(_path))
-                    _requiredByPath[_path] = (_property.PropertyType, _valueType);
-            }
-
-            // 3) Create hierarchy for each missing required path
-            foreach (var _m in _missing)
-            {
+                PathBuilder _path = null;
                 try
                 {
-                    ensure_path_and_create_leaf(entity.Stats, _m.Path, _m.DeclaredType, _m.ValueType, _m.FallbackObject, _requiredByPath);
+                    _path = new PathBuilder(_valueTuple.Item2.StatName);
                 }
                 catch (Exception _e)
                 {
-                    Debug.LogError($"Failed to ensure path '{_m.Path}': {_e.Message}", entity.GetWorldRepresentation());
+                    if (DEBUG)
+                        Debug.LogError($"StatInjector: failed to build path from {_naming} :: {_e}");
+                    return;
                 }
-            }
 
-            // After creation, mark dirty once
-            entity.Stats.MarkAsDirty();
+                if (entity.Stats.Has(_path))
+                    continue;
 
-            // 4) Re-inject only
-            bool _reinjectOk = re_inject_after_adding_stats(entity, _fields, _properties);
-            return _reinjectOk;
-        }
 
-        /// <summary>
-        /// Ensures the full path exists; creates intermediate parents with GenericWhiteBoard<TLeaf>
-        /// and finally creates/returns the leaf if missing. Parents use same value type as the leaf.
-        /// </summary>
-        private static IStatBase ensure_path_and_create_leaf(StatContainer container, string path,
-            Type declaredLeafType, Type leafValueType, object fallbackObject,
-            Dictionary<string, (Type declared, Type value)> requiredByPath)
-        {
-            if (container == null) return null;
-            if (string.IsNullOrWhiteSpace(path)) return null;
-
-            // If the whole path already exists, nothing to create
-            var _existing = resolve_stat_by_path(container, path);
-            if (_existing != null)
-                return _existing;
-
-            var _segments = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToArray();
-            if (_segments.Length == 0) return null;
-
-            IStatBase _currentParent = null;
-
-            // Ensure each parent segment
-            for (int _i = 0; _i < _segments.Length; _i++)
-            {
-                string _seg = _segments[_i];
-                bool _isLeaf = (_i == _segments.Length - 1);
-
-                // Try find existing at current level
-                IStatBase _found = (_currentParent == null)
-                    ? try_find_root_by_name(container, _seg)
-                    : try_find_child_by_name(_currentParent, _seg);
-
-                if (_found != null)
+                if (_path.GetTotalDepth() == 0)
                 {
-                    _currentParent = _found;
+                    simple_resolve_stat(entity, _valueTuple, _naming);
                     continue;
                 }
 
-                // Create missing node
-                IStatBase _created;
-                if (_isLeaf)
+                var _data = _path.IterateProgressivePaths().ToArray();
+                var _dataOnlyNames = _path.IterateRootToLeaf().ToArray();
+
+
+                resolve_stat_dependencies(_data, _dataOnlyNames, _field, _valueTuple);
+
+
+                var _leafStat = try_generate_stat(_valueTuple);
+                entity.Stats.Add(_path, _leafStat);
+            }
+
+
+            void apply_flat_fix()
+            {
+                foreach (var _valueTuple in _refined.Where(((tuple) =>
+                             new PathBuilder(tuple.Item2.StatName).GetTotalDepth() == 0)))
                 {
-                    // Create leaf using declaredLeafType or fallback to GenericWhiteBoard
-                    var _concreteLeaf = determine_concrete_stat_type(declaredLeafType, leafValueType);
-                    _created = (fallbackObject != null)
-                        ? create_stat_with_fallback(_concreteLeaf, leafValueType, fallbackObject)
-                        : (IStatBase)Activator.CreateInstance(_concreteLeaf);
+                    var _naming = $"[{_valueTuple.Item2.StatName}]/({_valueTuple.Item1.Name})";
+                    simple_resolve_stat(entity, _valueTuple, _naming);
                 }
-                else
+            }
+
+            void resolve_stat_dependencies(string[] _data, string[] _dataOnlyNames, FieldInfo _field,
+                (FieldInfo, DeclareStatAttribute) _valueTuple)
+            {
+                for (int _i = 0; _i < _data.Length - 1; _i++)
                 {
-                    // Create intermediate parent as GenericWhiteBoard<TLeaf>
-                    if (leafValueType == null)
+                    var _entryPath = _data[_i];
+                    var _name = _dataOnlyNames[_i];
+
+                    if (entity.Stats.Has(new PathBuilder(_entryPath)))
+                        continue;
+
+
+                    var _foundMatchInDecleared = _refined.FirstOrDefault((tuple => tuple.Item2.StatName == _entryPath));
+                    if (!_foundMatchInDecleared.Equals(default))
                     {
-                        throw new ArgumentException(
-                            $"Cannot determine value type T for path '{path}'. Declared leaf type: '{declaredLeafType?.Name ?? "<null>"}'. Ensure the member type implements IStat<T> or derives WhiteBoard<T>.");
+                        var _stat = try_generate_stat(_foundMatchInDecleared);
+
+                        entity.Stats.Add(new PathBuilder(_entryPath), _stat);
+                        continue;
                     }
 
-                    var _parentType = typeof(GenericWhiteBoard<>).MakeGenericType(leafValueType);
-                    _created = (IStatBase)Activator.CreateInstance(_parentType);
+                    var _auto = (_field, new DeclareStatAttribute(_entryPath, _valueTuple.Item2.FallbackObject));
+                    var _autoStat = try_generate_stat(_auto);
+                    entity.Stats.Add(new PathBuilder(_entryPath), _autoStat);
                 }
-
-                _created.Name = _seg;
-
-                // Attach
-                if (_currentParent == null)
-                {
-                    // Add as root
-                    // Avoid duplicate add if somehow appeared
-                    if (try_find_root_by_name(container, _seg) == null)
-                        container.Add(_created);
-                }
-                else
-                {
-                    add_child_to_parent(_currentParent, _created);
-                }
-
-                _currentParent = _created;
-            }
-
-            // Return the leaf (should resolve now)
-            return resolve_stat_by_path(container, path);
-        }
-
-        /// <summary>
-        /// Re-injects stats after adding missing ones, without recursion
-        /// </summary>
-        private static bool re_inject_after_adding_stats(IEntity entity, IEnumerable<FieldInfo> fields,
-            IEnumerable<PropertyInfo> properties)
-        {
-            bool _allSuccessful = true;
-
-            // Re-inject fields that were missing
-            foreach (var _field in fields)
-            {
-                var _injectAttr = _field.GetCustomAttribute<InjectStatAttribute>();
-                var _isRequired = _field.GetCustomAttribute<RequireStatAttribute>() != null;
-
-                // Only re-inject if field is still null/not set
-                if (_field.GetValue(entity) == null)
-                {
-                    if (!try_inject_field(entity, _field, _injectAttr, _isRequired))
-                    {
-                        _allSuccessful = false;
-                    }
-                }
-            }
-
-            // Re-inject properties that were missing
-            foreach (var _property in properties)
-            {
-                var _injectAttr = _property.GetCustomAttribute<InjectStatAttribute>();
-                var _isRequired = _property.GetCustomAttribute<RequireStatAttribute>() != null;
-
-                // Only re-inject if property is still null/not set
-                if (_property.GetValue(entity) == null)
-                {
-                    if (!try_inject_property(entity, _property, _injectAttr, _isRequired))
-                    {
-                        _allSuccessful = false;
-                    }
-                }
-            }
-
-            return _allSuccessful;
-        }
-
-        /// <summary>
-        /// Creates a stat instance with a fallback value
-        /// </summary>
-        private static IStatBase create_stat_with_fallback(Type concreteType, Type statValueType, object fallbackObject)
-        {
-            // Try to find a constructor that accepts the value type
-            var _valueConstructor = concreteType.GetConstructor(new[] { statValueType });
-
-            if (_valueConstructor != null && is_value_type_compatible(fallbackObject, statValueType))
-            {
-                // Use constructor that takes a value
-                var _convertedValue = Convert.ChangeType(fallbackObject, statValueType);
-                return (IStatBase)_valueConstructor.Invoke(new[] { _convertedValue });
-            }
-
-            // Otherwise, create with default constructor and set Value property
-            var _instance = (IStatBase)Activator.CreateInstance(concreteType);
-
-            // Try to set the Value property
-            var _valueProperty = concreteType.GetProperty("Value");
-            if (_valueProperty != null && _valueProperty.CanWrite)
-            {
-                try
-                {
-                    var _convertedValue = Convert.ChangeType(fallbackObject, statValueType);
-                    _valueProperty.SetValue(_instance, _convertedValue);
-                }
-                catch (Exception _e)
-                {
-                    Debug.LogWarning($"Failed to set fallback value on {concreteType.Name}: {_e.Message}");
-                }
-            }
-
-            return _instance;
-        }
-
-        /// <summary>
-        /// Checks if a fallback object can be converted to the target type
-        /// </summary>
-        private static bool is_value_type_compatible(object value, Type targetType)
-        {
-            if (value == null)
-                return !targetType.IsValueType || Nullable.GetUnderlyingType(targetType) != null;
-
-            var _valueType = value.GetType();
-
-            // Direct assignable
-            if (targetType.IsAssignableFrom(_valueType))
-                return true;
-
-            // Can be converted
-            try
-            {
-                Convert.ChangeType(value, targetType);
-                return true;
-            }
-            catch
-            {
-                return false;
             }
         }
 
-        /// <summary>
-        /// Gets the value type T from IStat<T>
-        /// </summary>
-        private static Type get_stat_value_type(Type statType)
+        private static bool extract_declared_stats(IEntity entity, object[] additionalSources,
+            out (FieldInfo, DeclareStatAttribute)[] _refined)
         {
-            if (is_stat_type(statType, out var _valueType))
-            {
-                return _valueType;
-            }
-
-            throw new InvalidOperationException($"Type {statType.Name} does not implement IStat<T>");
+            // Backward-compatible overload: ignore sources mapping
+            return extract_declared_stats(entity, additionalSources, out _refined, out _);
         }
 
-        /// <summary>
-        /// Determines the concrete type to instantiate for a missing stat.
-        /// If the field/property is declared as a concrete type (e.g., HealthStat or MyCustomStat<int>), use that.
-        /// If it's declared as IStat<T>, default to GenericWhiteBoard<T>.
-        /// </summary>
-        private static Type determine_concrete_stat_type(Type declaredType, Type statValueType)
+        // Collect declared fields only (for FixStats)
+        private static bool extract_declared_stats(IEntity entity, object[] additionalSources,
+            out (FieldInfo, DeclareStatAttribute)[] _refined,
+            out Dictionary<FieldInfo, object> fieldSources)
         {
-            if (statValueType == null)
-                throw new ArgumentException(
-                    "statValueType cannot be null when determining concrete stat type. This usually means the member type does not implement IStat<T> nor derive WhiteBoard<T>.");
+            object[] _sources = additionalSources.Concat(new[] { entity }).ToArray();
 
-            // If no declared type, use default implementation
-            if (declaredType == null)
+            var _rawFields = new List<FieldInfo>();
+            fieldSources = new Dictionary<FieldInfo, object>();
+
+            foreach (var _source in _sources)
             {
-                return typeof(GenericWhiteBoard<>).MakeGenericType(statValueType);
-            }
+                var _fields = _source.GetAllFields(info => info.HasAttribute(typeof(DeclareStatAttribute)));
 
-            // If the declared type is an interface (e.g., IStat<T>), use a default implementation
-            if (declaredType.IsInterface)
-            {
-                return typeof(GenericWhiteBoard<>).MakeGenericType(statValueType);
-            }
-
-            // If it's a concrete class that implements IStat<T>, use that type directly
-            // This handles both generic (MyCustomStat<int>) and non-generic (HealthStat : Stat<int>) cases
-            if (declaredType.IsClass && !declaredType.IsAbstract)
-            {
-                var _istatInterface = declaredType.GetInterfaces()
-                    .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStat<>));
-
-                if (_istatInterface != null)
+                foreach (var _f in _fields)
                 {
-                    // Use the declared type as-is (whether it's generic or not)
-                    return declaredType;
+                    if (!_rawFields.Contains(_f))
+                        _rawFields.Add(_f);
+                    if (!fieldSources.ContainsKey(_f))
+                        fieldSources[_f] = _source;
                 }
             }
 
-            // Fallback to GenericWhiteBoard
-            return typeof(GenericWhiteBoard<>).MakeGenericType(statValueType);
-        }
-
-        /// <summary>
-        /// Checks if a type is IStat<T> or implements IStat<T>, and returns the value type T.
-        /// </summary>
-        private static bool is_stat_type(Type type, out Type statValueType)
-        {
-            statValueType = null;
-
-            if (type == null)
-                return false;
-
-            // Check if it's directly IStat<T>
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IStat<>))
+            if (_rawFields.Count == 0)
             {
-                statValueType = type.GetGenericArguments()[0];
+                _refined = null;
+                fieldSources = null;
                 return true;
             }
 
-            // Check if it implements IStat<T>
-            var _istatInterface = type.GetInterfaces()
-                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IStat<>));
-
-            if (_istatInterface != null)
-            {
-                statValueType = _istatInterface.GetGenericArguments()[0];
-                return true;
-            }
-
-            // Fallback: try to detect generic base WhiteBoard<T>
-            var t = type;
-            while (t != null)
-            {
-                if (t.IsGenericType)
-                {
-                    var def = t.GetGenericTypeDefinition();
-                    if (def == typeof(WhiteBoard<>))
-                    {
-                        statValueType = t.GetGenericArguments()[0];
-                        return true;
-                    }
-                }
-
-                t = t.BaseType;
-            }
-
+            _refined = _rawFields
+                .Select(info => (info, info.GetCustomAttribute<DeclareStatAttribute>()))
+                .ToArray();
             return false;
         }
 
-        private static bool try_inject_field(IEntity entity, FieldInfo field, InjectStatAttribute attr, bool isRequired)
+        // Collect both declared and injection-only fields for injection pass
+        private static bool extract_injectable_fields(IEntity entity, object[] additionalSources,
+            out (FieldInfo field, string statName)[] _refined,
+            out Dictionary<FieldInfo, object> fieldSources)
         {
-            try
+            object[] _sources = additionalSources.Concat(new[] { entity }).ToArray();
+            var _rawFields = new List<FieldInfo>();
+            fieldSources = new Dictionary<FieldInfo, object>();
+
+            foreach (var _source in _sources)
             {
-                var _fieldType = field.FieldType;
+                var _fields = _source.GetAllFields(info =>
+                    info.HasAttribute(typeof(DeclareStatAttribute)) || info.HasAttribute(typeof(InjectStatAttribute)));
 
-                // Handle IStat<T> or concrete implementations
-                if (is_stat_type(_fieldType, out var _statValueType))
+                foreach (var _f in _fields)
                 {
-                    object _stat = get_stat(entity.Stats, attr.StatName, _statValueType, _fieldType);
-
-                    // Try fallback field if primary stat not found
-                    if (_stat == null && !string.IsNullOrEmpty(attr.FallbackFieldName))
-                    {
-                        _stat = get_fallback_value(entity, attr.FallbackFieldName, _fieldType);
-
-                        if (_stat != null)
-                        {
-                            Debug.Log(
-                                $"Stat '{attr.StatName}' not found for field '{field.Name}' on {entity.Name}, using fallback field '{attr.FallbackFieldName}'",
-                                entity.GetWorldRepresentation());
-                        }
-                    }
-
-                    if (_stat == null)
-                    {
-                        if (isRequired)
-                        {
-                            var _fallbackMsg = !string.IsNullOrEmpty(attr.FallbackFieldName)
-                                ? $" (fallback field '{attr.FallbackFieldName}' also unavailable)"
-                                : "";
-                            // Debug.LogError(
-                            //     $"[REQUIRED] Stat '{attr.StatName}' not found for field '{field.Name}' on {entity.Name}{_fallbackMsg}",
-                            //     entity.GetWorldRepresentation());
-                            return false;
-                        }
-                        else
-                        {
-                            var _fallbackMsg = !string.IsNullOrEmpty(attr.FallbackFieldName)
-                                ? $" (fallback field '{attr.FallbackFieldName}' also unavailable)"
-                                : "";
-                            Debug.LogWarning(
-                                $"[OPTIONAL] Stat '{attr.StatName}' not found for field '{field.Name}' on {entity.Name}{_fallbackMsg}",
-                                entity.GetWorldRepresentation());
-                            return true;
-                        }
-                    }
-
-                    field.SetValue(entity, _stat);
-                    return true;
+                    if (!_rawFields.Contains(_f))
+                        _rawFields.Add(_f);
+                    if (!fieldSources.ContainsKey(_f))
+                        fieldSources[_f] = _source;
                 }
-
-                Debug.LogWarning(
-                    $"Field '{field.Name}' has unsupported type for stat injection: {_fieldType.Name}. Expected IStat<T> or a concrete implementation.",
-                    entity.GetWorldRepresentation());
-                return !isRequired;
             }
-            catch (Exception _e)
-            {
-                if (isRequired)
-                {
-                    Debug.LogError(
-                        $"Failed to inject REQUIRED stat '{attr.StatName}' into field '{field.Name}' on {entity.Name}: {_e.Message}",
-                        entity.GetWorldRepresentation());
-                    return false;
-                }
 
-                Debug.LogWarning(
-                    $"Failed to inject optional stat '{attr.StatName}' into field '{field.Name}' on {entity.Name}: {_e.Message}",
-                    entity.GetWorldRepresentation());
+            if (_rawFields.Count == 0)
+            {
+                _refined = null;
+                fieldSources = null;
                 return true;
             }
-        }
 
-        private static bool try_inject_property(IEntity entity, PropertyInfo property, InjectStatAttribute attr,
-            bool isRequired)
-        {
-            try
-            {
-                var _propertyType = property.PropertyType;
-
-                if (is_stat_type(_propertyType, out var _statValueType))
+            _refined = _rawFields
+                .Select(info =>
                 {
-                    object _stat = get_stat(entity.Stats, attr.StatName, _statValueType, _propertyType);
-
-                    // Try fallback field if primary stat not found
-                    if (_stat == null && !string.IsNullOrEmpty(attr.FallbackFieldName))
-                    {
-                        _stat = get_fallback_value(entity, attr.FallbackFieldName, _propertyType);
-
-                        if (_stat != null)
-                        {
-                            Debug.Log(
-                                $"Stat '{attr.StatName}' not found for property '{property.Name}' on {entity.Name}, using fallback field '{attr.FallbackFieldName}'",
-                                entity.GetWorldRepresentation());
-                        }
-                    }
-
-                    if (_stat == null)
-                    {
-                        if (isRequired)
-                        {
-                            var _fallbackMsg = !string.IsNullOrEmpty(attr.FallbackFieldName)
-                                ? $" (fallback field '{attr.FallbackFieldName}' also unavailable)"
-                                : "";
-                            Debug.LogError(
-                                $"[REQUIRED] Stat '{attr.StatName}' not found for property '{property.Name}' on {entity.Name}{_fallbackMsg}",
-                                entity.GetWorldRepresentation());
-                            return false;
-                        }
-                        else
-                        {
-                            var _fallbackMsg = !string.IsNullOrEmpty(attr.FallbackFieldName)
-                                ? $" (fallback field '{attr.FallbackFieldName}' also unavailable)"
-                                : "";
-                            Debug.LogWarning(
-                                $"[OPTIONAL] Stat '{attr.StatName}' not found for property '{property.Name}' on {entity.Name}{_fallbackMsg}",
-                                entity.GetWorldRepresentation());
-                            return true;
-                        }
-                    }
-
-                    property.SetValue(entity, _stat);
-                    return true;
-                }
-
-                Debug.LogWarning(
-                    $"Property '{property.Name}' has unsupported type for stat injection: {_propertyType.Name}. Expected IStat<T> or a concrete implementation.",
-                    entity.GetWorldRepresentation());
-                return !isRequired;
-            }
-            catch (Exception _e)
-            {
-                if (isRequired)
-                {
-                    Debug.LogError(
-                        $"Failed to inject REQUIRED stat '{attr.StatName}' into property '{property.Name}' on {entity.Name}: {_e.Message}",
-                        entity.GetWorldRepresentation());
-                    return false;
-                }
-
-                Debug.LogWarning(
-                    $"Failed to inject optional stat '{attr.StatName}' into property '{property.Name}' on {entity.Name}: {_e.Message}",
-                    entity.GetWorldRepresentation());
-                return true;
-            }
-        }
-
-        private static object get_stat(StatContainer stats, string statName, Type statValueType, Type declaredType)
-        {
-            try
-            {
-                // Path-based resolution: e.g., "Damage/PunchDamage"
-                if (!string.IsNullOrEmpty(statName) && statName.Contains("/"))
-                {
-                    var _node = resolve_stat_by_path(stats, statName);
-                    if (_node == null)
-                    {
-                        return null;
-                    }
-
-                    // Type compatibility check
-                    if (!declaredType.IsInstanceOfType(_node))
-                    {
-                        // For IStat<T> declared as interface, allow compatible implementations
-                        if (is_stat_type(_node.GetType(), out var _nodeValueType))
-                        {
-                            if (_nodeValueType != statValueType)
-                            {
-                                Debug.LogWarning(
-                                    $"Stat path '{statName}' resolved to type with value {_nodeValueType.Name}, expected {statValueType.Name}");
-                                return null;
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogWarning(
-                                $"Stat path '{statName}' resolved to incompatible type {_node.GetType().Name} for {declaredType.Name}");
-                            return null;
-                        }
-                    }
-
-                    return _node;
-                }
-
-                // Fallback to flat-name lookup via StatContainer.Has(...)
-                if (stats != null && stats.Has(statName, out IStatBase _foundBase))
-                {
-                    // Type compatibility check
-                    if (!declaredType.IsInstanceOfType(_foundBase))
-                    {
-                        // When declared as IStat<T>, allow compatible implementations with matching T
-                        if (is_stat_type(_foundBase.GetType(), out var _nodeValueType))
-                        {
-                            if (_nodeValueType != statValueType)
-                            {
-                                Debug.LogWarning(
-                                    $"Stat '{statName}' found but has value type {_nodeValueType.Name}, expected {statValueType.Name}");
-                                return null;
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogWarning(
-                                $"Stat '{statName}' found but is incompatible type {_foundBase.GetType().Name} for {declaredType.Name}");
-                            return null;
-                        }
-                    }
-
-                    return _foundBase;
-                }
-
-                // Not found
-                return null;
-            }
-            catch (Exception _e)
-            {
-                Debug.LogWarning($"Exception getting stat '{statName}': {_e.Message}");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Resolves a stat by a slash-separated path starting from top-level stats in the container.
-        /// Example: "Damage/PunchDamage/Bonus".
-        /// </summary>
-        private static IStatBase resolve_stat_by_path(StatContainer container, string path)
-        {
-            if (container == null || string.IsNullOrWhiteSpace(path))
-                return null;
-
-            var _segments = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .Where(s => !string.IsNullOrEmpty(s))
+                    var decl = info.GetCustomAttribute<DeclareStatAttribute>();
+                    if (decl != null) return (info, decl.StatName);
+                    var inj = info.GetCustomAttribute<InjectStatAttribute>();
+                    return (info, inj.StatName);
+                })
                 .ToArray();
-            if (_segments.Length == 0)
-                return null;
-
-            var _roots = get_root_stats(container);
-            if (_roots == null)
-                return null;
-
-            IEnumerable<IStatBase> _currentLevel = _roots;
-            IStatBase _current = null;
-
-            for (int _i = 0; _i < _segments.Length; _i++)
-            {
-                string _seg = _segments[_i];
-                var _matches = _currentLevel
-                    .Where(s => s != null && !string.IsNullOrEmpty(s.Name) &&
-                                string.Equals(s.Name, _seg, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (_matches.Count == 0)
-                {
-                    return null; // missing segment
-                }
-
-                if (_matches.Count > 1)
-                {
-                    Debug.LogWarning(
-                        $"Ambiguous stat path segment '{_seg}' at '{string.Join("/", _segments.Take(_i))}'. {_matches.Count} matches found.");
-                    return null;
-                }
-
-                _current = _matches[0];
-                _currentLevel = get_children(_current);
-            }
-
-            return _current;
+            return false;
         }
 
-        private static IEnumerable<IStatBase> get_root_stats(StatContainer container)
+        private static void inject_stat((FieldInfo field, string statName) field, IEntity entity, object source)
         {
-            try
+            var path = new PathBuilder(field.statName);
+            if (entity.Stats.Has(path, out var _statBase))
             {
-                var _field = typeof(StatContainer).GetField("Stats", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (_field == null)
-                    return null;
-
-                var _raw =
-                    _field.GetValue(
-                        container) as System.Collections.IEnumerable; // List<SerializableInterface<IStatBase>>
-                if (_raw == null)
-                    return null;
-
-                var _list = new List<IStatBase>();
-                foreach (var _item in _raw)
-                {
-                    // Each item is SerializableInterface<IStatBase> with property Value
-                    var _prop = _item.GetType().GetProperty("Value");
-                    if (_prop == null) continue;
-                    var _val = _prop.GetValue(_item) as IStatBase;
-                    if (_val != null) _list.Add(_val);
-                }
-
-                return _list;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static IEnumerable<IStatBase> get_children(IStatBase owner)
-        {
-            if (owner == null)
-                yield break;
-
-            // Try to read WhiteBoard<>.Children directly to avoid null DelegateSet usage
-            var _type = owner.GetType();
-            // Walk inheritance to find WhiteBoard<>
-            Type _t = _type;
-            while (_t != null)
-            {
-                if (_t.IsGenericType && _t.GetGenericTypeDefinition().Name.StartsWith("WhiteBoard"))
-                {
-                    var _childrenField = _t.GetField("Children",
-                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (_childrenField != null)
-                    {
-                        var _listObj =
-                            _childrenField
-                                    .GetValue(owner) as
-                                System.Collections.IEnumerable; // List<SerializableInterface<IStatBase>>
-                        if (_listObj != null)
-                        {
-                            foreach (var _item in _listObj)
-                            {
-                                var _valProp = _item.GetType().GetProperty("Value");
-                                if (_valProp == null) continue;
-                                if (_valProp.GetValue(_item) is IStatBase _child && _child != null)
-                                    yield return _child;
-                            }
-
-                            yield break; // already enumerated
-                        }
-                    }
-                }
-
-                _t = _t.BaseType;
-            }
-
-            // Fallback to IOwner<IStatBase>.Pets enumeration
-            if (owner is DAFP.TOOLS.Common.IOwner<IStatBase> _o && _o.Pets != null)
-            {
-                foreach (var _pet in _o.Pets)
-                {
-                    if (_pet is IStatBase _child)
-                        yield return _child;
-                }
-            }
-        }
-
-        private static IStatBase try_find_root_by_name(StatContainer container, string name)
-        {
-            if (container == null || string.IsNullOrEmpty(name)) return null;
-            var _roots = get_root_stats(container);
-            if (_roots == null) return null;
-            return _roots.FirstOrDefault(s =>
-                s != null && !string.IsNullOrEmpty(s.Name) &&
-                string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static IStatBase try_find_child_by_name(IStatBase parent, string name)
-        {
-            if (parent == null || string.IsNullOrEmpty(name)) return null;
-            return get_children(parent).FirstOrDefault(s =>
-                s != null && !string.IsNullOrEmpty(s.Name) &&
-                string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static void add_child_to_parent(IStatBase parent, IStatBase child)
-        {
-            if (parent == null || child == null) return;
-
-            var _list = ensure_children_list(parent);
-            if (_list == null) return;
-
-            // Create SerializableInterface<IStatBase> wrapper and add to list via reflection
-            var _elementType = _list.GetType().GetGenericArguments()[0];
-            var _ctor = _elementType.GetConstructor(new[] { typeof(object) });
-            object _wrapper = null;
-            if (_ctor != null)
-            {
-                // SerializableInterface<T> does not have ctor(object), so this path likely fails
-                // Fallback to find ctor(TInterface)
-                _ctor = null;
-            }
-
-            if (_ctor == null)
-            {
-                // Find any ctor with 1 parameter and try invoke with child
-                var _ctors = _elementType.GetConstructors();
-                foreach (var _c in _ctors)
-                {
-                    var _pars = _c.GetParameters();
-                    if (_pars.Length == 1 && _pars[0].ParameterType.IsAssignableFrom(typeof(IStatBase)))
-                    {
-                        _ctor = _c;
-                        break;
-                    }
-                }
-
-                if (_ctor == null)
-                {
-                    // Handle generic parameter specifically: SerializableInterface<IStatBase>
-                    var _ct = _elementType.GetConstructor(new[] { typeof(IStatBase) });
-                    if (_ct != null) _ctor = _ct;
-                }
-            }
-
-            if (_ctor == null)
-            {
-                // Last resort: invoke default and try set Value property
-                _wrapper = Activator.CreateInstance(_elementType);
-                var _valueProp = _elementType.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
-                _valueProp?.SetValue(_wrapper, child);
+                field.field.SetValue(source, _statBase);
             }
             else
             {
-                _wrapper = _ctor.Invoke(new object[] { child });
+                var _naming = $"[{field.statName}]/({field.field.Name})";
+                Debug.LogError($"StatInjector: failed to inject:  {_naming} ::");
+                Debug.LogError($"StatInjector: critical error");
             }
-
-            var _addMethod = _list.GetType().GetMethod("Add");
-            _addMethod?.Invoke(_list, new[] { _wrapper });
         }
 
-        private static System.Collections.IList ensure_children_list(IStatBase parent)
+        private static IStatBase try_generate_stat((FieldInfo, DeclareStatAttribute) _foundMatchInDecleared)
         {
-            var _type = parent.GetType();
-            Type _t = _type;
-            while (_t != null)
-            {
-                if (_t.IsGenericType && _t.GetGenericTypeDefinition().Name.StartsWith("WhiteBoard"))
-                {
-                    var _childrenField = _t.GetField("Children",
-                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (_childrenField != null)
-                    {
-                        var _current = _childrenField.GetValue(parent);
-                        if (_current == null)
-                        {
-                            // Instantiate list with proper generic argument from field type
-                            var _fieldType =
-                                _childrenField.FieldType; // should be List<SerializableInterface<IStatBase>>
-                            var _instance = Activator.CreateInstance(_fieldType);
-                            _childrenField.SetValue(parent, _instance);
-                            return _instance as System.Collections.IList;
-                        }
-
-                        return _current as System.Collections.IList;
-                    }
-                }
-
-                _t = _t.BaseType;
-            }
-
-            return null;
-        }
-
-        private static object get_fallback_value(IEntity entity, string fallbackFieldName, Type expectedType)
-        {
+            IStatBase stat = null;
             try
             {
-                var _entityType = entity.GetType();
-
-                // Try to find field
-                var _field = _entityType.GetField(fallbackFieldName, BINDING_FLAGS);
-                if (_field != null && expectedType.IsAssignableFrom(_field.FieldType))
-                {
-                    return _field.GetValue(entity);
-                }
-
-                // Try to find property
-                var _property = _entityType.GetProperty(fallbackFieldName, BINDING_FLAGS);
-                if (_property != null && expectedType.IsAssignableFrom(_property.PropertyType) && _property.CanRead)
-                {
-                    return _property.GetValue(entity);
-                }
-
-                Debug.LogWarning(
-                    $"Fallback field/property '{fallbackFieldName}' not found or has wrong type on {entity.Name}");
-                return null;
+                stat = generate_stat_from_info(_foundMatchInDecleared);
             }
             catch (Exception _e)
             {
-                Debug.LogWarning($"Exception getting fallback value from '{fallbackFieldName}': {_e.Message}");
-                return null;
+                if (DEBUG)
+                    Debug.LogError(
+                        $"StatInjector: failed to generate stat from info {_foundMatchInDecleared.Item2.StatName} :: {_e}");
             }
+
+            return stat;
+        }
+
+        private static void simple_resolve_stat(IEntity entity, (FieldInfo, DeclareStatAttribute) valueTuple,
+            string naming)
+        {
+            if (check_field(valueTuple, entity.Stats))
+            {
+                try
+                {
+                    entity.Stats.Add(generate_stat_from_info(valueTuple));
+                }
+                catch (Exception _e)
+                {
+                    if (DEBUG)
+                        Debug.LogError($"StatInjector: failed to generate stat from info {naming} :: {_e}");
+                }
+            }
+        }
+
+        public static bool DEBUG = true;
+
+        private static bool check_field((FieldInfo, DeclareStatAttribute) field, StatContainer stats)
+        {
+            PathBuilder _path = null;
+            var _naming = $"[{field.Item2.StatName}]/({field.Item1.Name})";
+            try
+            {
+                _path = new PathBuilder(field.Item2.StatName);
+            }
+            catch (Exception _ex)
+            {
+                if (DEBUG)
+                    Debug.Log($"StatInjector: field resolution failed {_naming} :: " + _ex.Message);
+                return false;
+            }
+
+            if (stats.Has(_path))
+                return false;
+
+
+            return true;
+        }
+
+        private static IStatBase generate_stat_from_info((FieldInfo, DeclareStatAttribute) field)
+        {
+            PathBuilder _path = null;
+            try
+            {
+                _path = new PathBuilder(field.Item2.StatName);
+            }
+            catch (Exception _e)
+            {
+                Debug.LogError($"StatInjector: stat {field.Item1.Name} has invalid name:: {_e} ");
+                throw;
+            }
+
+            var _naming = $"[{field.Item2.StatName}]/({field.Item1.Name})";
+            if (DEBUG)
+                Debug.Log($"StatInjector: stat {_naming} :: ");
+
+            if (field.Item1.FieldType is { IsGenericType: true })
+            {
+                // Choose a concrete whiteboard implementation based on the generic type argument.
+                // This makes it easy to extend with specialized boards later (e.g., IntBoard, FloatBoard, etc.).
+                Type _gen = field.Item1.FieldType.GenericTypeArguments[0];
+
+                Type boardType;
+                switch (Type.GetTypeCode(_gen))
+                {
+                    case TypeCode.Boolean:
+                        boardType = typeof(DAFP.TOOLS.ECS.BigData.Common.BoolBoard);
+                        break;
+                    default:
+                        boardType = typeof(GenericWhiteBoard<>).MakeGenericType(_gen);
+                        break;
+                }
+
+                var _inst = (IStatBase)Activator.CreateInstance(boardType);
+                configure_stat_defaults(field, _inst, _path, _gen);
+
+                return _inst;
+            }
+
+            IStatBase _stat = (IStatBase)Activator.CreateInstance(field.Item1.FieldType);
+            configure_stat_defaults(field, _stat, _path, null);
+            return _stat;
+        }
+
+        private static void configure_stat_defaults((FieldInfo, DeclareStatAttribute) field, IStatBase inst,
+            PathBuilder path,
+            Type genericsType)
+        {
+            inst.Name = path.GetLeaf();
+
+            object _fallbackValue = field.Item2.FallbackObject;
+
+
+            if (genericsType == null)
+            {
+                if (_fallbackValue == default) // fix for placeholders
+                    return;
+
+                inst.SetAbsoluteDefault(_fallbackValue);
+                return;
+            }
+
+            // Apply Max/Default as before (convert if needed)
+            object _valueToApply;
+            if (_fallbackValue == null || genericsType.IsAssignableFrom(_fallbackValue.GetType()))
+            {
+                _valueToApply = _fallbackValue;
+                inst.SetAbsoluteDefault(_valueToApply);
+            }
+            else
+            {
+                object _convertedValue = try_convert(_fallbackValue, genericsType);
+                _valueToApply = _convertedValue;
+                inst.SetAbsoluteDefault(_valueToApply);
+            }
+        }
+
+
+        public static object try_convert(object value, Type targetType)
+        {
+            if (value == null)
+                return targetType.IsValueType ? Activator.CreateInstance(targetType) : null;
+
+            try
+            {
+                // Try IConvertible (handles primitives, strings, etc.)
+                if (value is IConvertible)
+                {
+                    return Convert.ChangeType(value, targetType);
+                }
+
+                // Try implicit/explicit operators
+                var _convertMethod = targetType.GetMethod("op_Implicit", new[] { value.GetType() })
+                                     ?? targetType.GetMethod("op_Explicit", new[] { value.GetType() });
+                if (_convertMethod != null)
+                {
+                    return _convertMethod.Invoke(null, new[] { value });
+                }
+
+                // Try TypeConverter
+                var _converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
+                if (_converter.CanConvertFrom(value.GetType()))
+                {
+                    return _converter.ConvertFrom(value);
+                }
+
+                // Try constructor that takes the source type
+                var _constructor = targetType.GetConstructor(new[] { value.GetType() });
+                if (_constructor != null)
+                {
+                    return _constructor.Invoke(new[] { value });
+                }
+
+                // Last resort: try parsing if target type has Parse method and value is string
+                if (value is string _str)
+                {
+                    var _parseMethod = targetType.GetMethod("Parse", new[] { typeof(string) });
+                    if (_parseMethod != null && _parseMethod.IsStatic)
+                    {
+                        return _parseMethod.Invoke(null, new object[] { _str });
+                    }
+                }
+            }
+            catch
+            {
+                // If all conversions fail, return default value
+            }
+
+            // Return default value for the type
+            return targetType.IsValueType ? Activator.CreateInstance(targetType) : null;
+        }
+
+        // Utility: Compare two objects as the specified generic type using Comparer<T>.Default
+        private static int CompareAs(object a, object b, Type gen)
+        {
+            if (a == null && b == null) return 0;
+            if (a == null) return -1;
+            if (b == null) return 1;
+
+            var comparerType = typeof(Comparer<>).MakeGenericType(gen);
+            var defaultProp = comparerType.GetProperty("Default");
+            var defaultComparer = defaultProp.GetValue(null);
+            var compareMethod = comparerType.GetMethod("Compare", new[] { gen, gen });
+            return (int)compareMethod.Invoke(defaultComparer, new[] { a, b });
+        }
+
+        public class PathBuilder
+        {
+            private List<string> segments;
+            private int currentIndex;
+            private const char SEPARATOR = '/';
+
+            public PathBuilder(string path)
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                    throw new ArgumentException("Path cannot be null or empty", nameof(path));
+
+                segments = path.Split(SEPARATOR, StringSplitOptions.RemoveEmptyEntries).ToList();
+
+                if (segments.Count == 0)
+                    throw new ArgumentException("Path must contain at least one segment", nameof(path));
+
+                currentIndex = segments.Count - 1; // Start at bottom (leaf)
+            }
+
+            // Get the topmost parent (root)
+            public string GetRoot() => segments[0];
+
+            // Get the bottommost child (leaf)
+            public string GetLeaf() => segments[^1];
+
+            // Get current segment
+            public string GetCurrent() => segments[currentIndex];
+
+            // Move up the tree (towards root)
+            public PathBuilder MoveUp(int steps = 1)
+            {
+                currentIndex = Math.Max(0, currentIndex - steps);
+                return this;
+            }
+
+            // Move down the tree (towards leaf)
+            public PathBuilder MoveDown(int steps = 1)
+            {
+                currentIndex = Math.Min(segments.Count - 1, currentIndex + steps);
+                return this;
+            }
+
+            // Move to root
+            public PathBuilder MoveToRoot()
+            {
+                currentIndex = 0;
+                return this;
+            }
+
+            // Move to leaf
+            public PathBuilder MoveToLeaf()
+            {
+                currentIndex = segments.Count - 1;
+                return this;
+            }
+
+            // Get current depth (0-based, root = 0)
+            public int GetDepth() => currentIndex;
+
+            // Get total depth
+            public int GetTotalDepth() => segments.Count - 1;
+
+            // Get path from root to current position
+            public string GetPathToCurrent() => string.Join(SEPARATOR, segments.Take(currentIndex + 1));
+
+            // Get full path
+            public string GetFullPath() => string.Join(SEPARATOR, segments);
+
+            // Get parent of current (or null if at root)
+            public string GetParent() => currentIndex > 0 ? segments[currentIndex - 1] : null;
+
+            // Get child of current (or null if at leaf)
+            public string GetChild() => currentIndex < segments.Count - 1 ? segments[currentIndex + 1] : null;
+
+            // Get all ancestors from current position to root
+            public List<string> GetAncestors()
+            {
+                return segments.Take(currentIndex).Reverse().ToList();
+            }
+
+            // Get all descendants from current position to leaf
+            public List<string> GetDescendants()
+            {
+                return segments.Skip(currentIndex + 1).ToList();
+            }
+
+            // Iterate through progressive paths from root to leaf
+            // Returns: "Health", "Health/TestHealth", "Health/TestHealth/Test"
+            public IEnumerable<string> IterateProgressivePaths()
+            {
+                for (int _i = 0; _i < segments.Count; _i++)
+                {
+                    yield return string.Join(SEPARATOR, segments.Take(_i + 1));
+                }
+            }
+
+            // Iterate through all segments from root to leaf
+            public IEnumerable<string> IterateRootToLeaf()
+            {
+                foreach (var _segment in segments)
+                {
+                    yield return _segment;
+                }
+            }
+
+            // Iterate through all segments from leaf to root
+            public IEnumerable<string> IterateLeafToRoot()
+            {
+                for (int _i = segments.Count - 1; _i >= 0; _i--)
+                {
+                    yield return segments[_i];
+                }
+            }
+
+            // Iterate from current position to root
+            public IEnumerable<string> IterateToRoot()
+            {
+                for (int _i = currentIndex; _i >= 0; _i--)
+                {
+                    yield return segments[_i];
+                }
+            }
+
+            // Iterate from current position to leaf
+            public IEnumerable<string> IterateToLeaf()
+            {
+                for (int _i = currentIndex; _i < segments.Count; _i++)
+                {
+                    yield return segments[_i];
+                }
+            }
+
+            // Iterate with index and depth information
+            public IEnumerable<(string segment, int index, int depth)> IterateWithInfo()
+            {
+                for (int _i = 0; _i < segments.Count; _i++)
+                {
+                    yield return (segments[_i], _i, _i);
+                }
+            }
+
+            // Execute an action on each segment while iterating
+            public void ForEach(Action<string> action)
+            {
+                foreach (var _segment in segments)
+                {
+                    action(_segment);
+                }
+            }
+
+            // Execute an action with index/depth info
+            public void ForEach(Action<string, int, int> action)
+            {
+                for (int _i = 0; _i < segments.Count; _i++)
+                {
+                    action(segments[_i], _i, _i);
+                }
+            }
+
+            public override string ToString() => GetPathToCurrent();
         }
     }
 }

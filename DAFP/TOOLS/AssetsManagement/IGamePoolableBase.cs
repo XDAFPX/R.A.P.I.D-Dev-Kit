@@ -2,6 +2,8 @@
 {
     public interface IGamePoolableBase : IPoolComponentProvider
     {
+        string UName { get; }
+        string Prefix { get; }
         void OnSpawn();
     }
 }

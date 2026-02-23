@@ -2,7 +2,7 @@
 
 namespace DAFP.TOOLS.Common
 {
-    public interface IPet<TOwner> : IOwnable<TOwner> where TOwner : IOwner<TOwner>
+    public interface IPetOf<TOwner,TSelf> : IOwnedBy<TOwner> where TOwner : IOwnerOf<TSelf> where TSelf : IPetOf<TOwner,TSelf>
     {
         List<TOwner> Owners { get; }
 
@@ -11,26 +11,26 @@ namespace DAFP.TOOLS.Common
             return Owners.Count >= 2 ? Owners[^2] : default;
         }
 
-        TOwner IOwnable<TOwner>.GetCurrentOwner()
+        TOwner IOwnedBy<TOwner>.GetCurrentOwner()
         {
             return Owners.Count > 0 ? Owners[^1] : default;
         }
 
-        void IOwnable<TOwner>.ChangeOwner(TOwner newOwner)
+        void IOwnedBy<TOwner>.ChangeOwner(TOwner newOwner)
         {
-            var current = GetCurrentOwner();
-            if (current == null)
+            var _current = GetCurrentOwner();
+            if (_current == null)
             {
-                newOwner?.AddPet(this);
+                newOwner?.AddPet((TSelf)this);
                 if (newOwner != null) Owners.Add(newOwner);
             }
             else
             {
-                current.RemovePet(this);
+                _current.RemovePet((TSelf)this);
                 if (newOwner != null)
                 {
                     Owners.Add(newOwner);
-                    newOwner.AddPet(this);
+                    newOwner.AddPet((TSelf)this);
                 }
                 else
                 {

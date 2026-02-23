@@ -7,10 +7,14 @@ namespace DAFP.TOOLS.ECS.BigData
     /// <summary>
     /// Abstract modifier record for IStat, implementing IPet and IDisposable.
     /// </summary>
-    public interface IStatModifier<T> : IComparable<IStatModifier<T>>, IEntityOwnable, IDisposable
+    public interface IStatModifier<T> : IComparable<IStatModifier<T>>, IEntityOwnedBy, IDisposable, IPrioritized
     {
         T Apply(T value);
-        int Priority { get; }
+
+        int IComparable<IStatModifier<T>>.CompareTo(IStatModifier<T> other)
+        {
+            return Priority.CompareTo(other.Priority);
+        }
     }
 
 
@@ -23,7 +27,7 @@ namespace DAFP.TOOLS.ECS.BigData
         }
 
         public abstract T Apply(T value);
-        public abstract int Priority { get; }
+        public abstract int Priority { get; set; }
 
         public int CompareTo(IStatModifier<T> other)
         {

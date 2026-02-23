@@ -58,6 +58,17 @@ namespace DAFP.TOOLS.ECS.BigData
         }
 
         public List<IStatBase> Owners { get; } = new List<IStatBase>();
-        public ISet<IOwnable<IStatBase>> Pets { get; } = new HashSet<IOwnable<IStatBase>>();
+        private readonly ISet<IOwnedBy<IStatBase>> _pets = new HashSet<IOwnedBy<IStatBase>>();
+        IEnumerable<IOwnedBy<IStatBase>> IOwnerOf<IStatBase>.Pets => _pets;
+        void IOwnerOf<IStatBase>.AddPet(IOwnedBy<IStatBase> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return;
+            _pets.Add(pet);
+        }
+        bool IOwnerOf<IStatBase>.RemovePet(IOwnedBy<IStatBase> pet)
+        {
+            if (pet == null || ReferenceEquals(pet, this)) return false;
+            return _pets.Remove(pet);
+        }
     }
 }

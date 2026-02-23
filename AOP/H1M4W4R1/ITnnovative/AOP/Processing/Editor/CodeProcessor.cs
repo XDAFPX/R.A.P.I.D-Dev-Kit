@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Reflection;
+using System.Security.Cryptography;
 using ITnnovative.AOP.Attributes;
 using ITnnovative.AOP.Attributes.Event;
 using ITnnovative.AOP.Attributes.Method;
@@ -32,7 +33,138 @@ namespace ITnnovative.AOP.Processing.Editor
         /// </summary>
         private static Dictionary<Type, List<Type>> _typeCache = new Dictionary<Type, List<Type>>();
 
+        /// <summary>
+        /// Path to store assembly hash cache
+        /// </summary>
+        private static readonly string HashCachePath = Path.Combine(
+            Application.dataPath, 
+            "../Library/AOPWeavingCache.json"
+        );
+
         public const bool DEBUG = false;
+
+        /// <summary>
+        /// Container for storing assembly hash information
+        /// </summary>
+        [Serializable]
+        private class AssemblyHashCache
+        {
+            public Dictionary<string, string> FileHashes = new Dictionary<string, string>();
+        }
+
+        /// <summary>
+        /// Calculate MD5 hash of a file
+        /// </summary>
+        private static string CalculateFileHash(string filePath)
+        {
+            using (var md5 = MD5.Create())
+            using (var stream = File.OpenRead(filePath))
+            {
+                var hash = md5.ComputeHash(stream);
+                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
+        /// <summary>
+        /// Load the hash cache from disk
+        /// </summary>
+        private static AssemblyHashCache LoadHashCache()
+        {
+            if (!File.Exists(HashCachePath))
+            {
+                return new AssemblyHashCache();
+            }
+
+            try
+            {
+                var json = File.ReadAllText(HashCachePath);
+                return JsonConvert.DeserializeObject<AssemblyHashCache>(json) ?? new AssemblyHashCache();
+            }
+            catch (Exception ex)
+            {
+                if (DEBUG)
+                    Debug.LogWarning($"[Unity AOP] Failed to load hash cache: {ex.Message}");
+                return new AssemblyHashCache();
+            }
+        }
+
+        /// <summary>
+        /// Save the hash cache to disk
+        /// </summary>
+        private static void SaveHashCache(AssemblyHashCache cache)
+        {
+            try
+            {
+                var json = JsonConvert.SerializeObject(cache, Formatting.Indented);
+                File.WriteAllText(HashCachePath, json);
+            }
+            catch (Exception ex)
+            {
+                if (DEBUG)
+                    Debug.LogWarning($"[Unity AOP] Failed to save hash cache: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Filter DLL files to only those that have changed since last weaving
+        /// </summary>
+        private static string[] FilterChangedAssemblies(string[] dllFiles)
+        {
+            var cache = LoadHashCache();
+            var changedFiles = new List<string>();
+
+            foreach (var filePath in dllFiles)
+            {
+                // Skip if file doesn't exist
+                if (!File.Exists(filePath))
+                    continue;
+
+                var currentHash = CalculateFileHash(filePath);
+                
+                // Check if hash exists and matches
+                if (cache.FileHashes.TryGetValue(filePath, out var cachedHash))
+                {
+                    if (currentHash != cachedHash)
+                    {
+                        if (DEBUG)
+                            Debug.Log($"[Unity AOP] Assembly changed: {Path.GetFileName(filePath)}");
+                        changedFiles.Add(filePath);
+                    }
+                    else if (DEBUG)
+                    {
+                        Debug.Log($"[Unity AOP] Assembly unchanged, skipping: {Path.GetFileName(filePath)}");
+                    }
+                }
+                else
+                {
+                    // New file or first run
+                    if (DEBUG)
+                        Debug.Log($"[Unity AOP] New assembly detected: {Path.GetFileName(filePath)}");
+                    changedFiles.Add(filePath);
+                }
+            }
+
+            return changedFiles.ToArray();
+        }
+
+        /// <summary>
+        /// Update hash cache with newly weaved assemblies
+        /// </summary>
+        private static void UpdateHashCache(string[] weavedFiles)
+        {
+            var cache = LoadHashCache();
+
+            foreach (var filePath in weavedFiles)
+            {
+                if (File.Exists(filePath))
+                {
+                    var hash = CalculateFileHash(filePath);
+                    cache.FileHashes[filePath] = hash;
+                }
+            }
+
+            SaveHashCache(cache);
+        }
 
         public static void WeaveAssembly(AssemblyDefinition assembly)
         {
@@ -355,12 +487,15 @@ namespace ITnnovative.AOP.Processing.Editor
             if (DEBUG)
                 Debug.Log($"[Unity AOP] Weaving assemblies...");
 
+            var successfullyWeavedFiles = new List<string>();
+
             foreach (var filePath in dllFiles)
             {
                 if (filePath.Contains("Mono.Cecil.Rocks.dll") ||
                     filePath.Contains("Mono.Cecil.dll") ||
                     filePath.Contains("Newtonsoft.Json.dll") ||
-                    filePath.Contains("UnityEngine"))
+                    filePath.Contains("UnityEngine") || 
+                    filePath.Contains("Editor"))
                     continue;
 
                 if (DEBUG)
@@ -397,6 +532,7 @@ namespace ITnnovative.AOP.Processing.Editor
                         readerParameters.ReadSymbols = true;
                         var assembly = AssemblyDefinition.ReadAssembly(filePath, readerParameters);
                         WeaveAssembly(assembly);
+                        successfullyWeavedFiles.Add(filePath);
                     }
                     catch (Exception)
                     {
@@ -404,6 +540,7 @@ namespace ITnnovative.AOP.Processing.Editor
                         readerParameters.ReadSymbols = false;
                         var assembly = AssemblyDefinition.ReadAssembly(filePath, readerParameters);
                         WeaveAssembly(assembly);
+                        successfullyWeavedFiles.Add(filePath);
                     }
                 }
                 catch (Exception ex)
@@ -416,6 +553,12 @@ namespace ITnnovative.AOP.Processing.Editor
                 {
                     resolver?.Dispose();
                 }
+            }
+
+            // Update hash cache for successfully weaved files
+            if (successfullyWeavedFiles.Count > 0)
+            {
+                UpdateHashCache(successfullyWeavedFiles.ToArray());
             }
         }
 
@@ -436,12 +579,61 @@ namespace ITnnovative.AOP.Processing.Editor
         }
 
         /// <summary>
-        /// Weave assemblies in editor
+        /// Weave assemblies in editor - only reweaves changed assemblies
         /// </summary>
         public static void WeaveEditorAssemblies()
         {
+            var allDllFiles = GetEditorAssembliesPaths();
+            var changedDllFiles = FilterChangedAssemblies(allDllFiles);
+            
+            if (changedDllFiles.Length == 0)
+            {
+                if (DEBUG)
+                    Debug.Log("[Unity AOP] No assemblies changed, skipping weaving.");
+                return;
+            }
+
+            if (DEBUG)
+                Debug.Log($"[Unity AOP] Found {changedDllFiles.Length} changed assemblies out of {allDllFiles.Length} total.");
+
+            WeaveAssembliesAtPaths(changedDllFiles);
+        }
+
+        /// <summary>
+        /// Force weave all assemblies, ignoring cache
+        /// </summary>
+        [MenuItem("Tools/AOP/Force Weave All Assemblies")]
+        public static void ForceWeaveAllAssemblies()
+        {
+            Debug.Log("[Unity AOP] Force weaving all assemblies...");
+            
+            // Clear cache
+            if (File.Exists(HashCachePath))
+            {
+                File.Delete(HashCachePath);
+            }
+
             var dllFiles = GetEditorAssembliesPaths();
             WeaveAssembliesAtPaths(dllFiles);
+            
+            Debug.Log("[Unity AOP] Force weave completed.");
+        }
+
+        /// <summary>
+        /// Clear the weaving cache
+        /// </summary>
+        [MenuItem("Tools/AOP/Clear Weaving Cache")]
+        public static void ClearWeavingCache()
+        {
+            if (File.Exists(HashCachePath))
+            {
+                File.Delete(HashCachePath);
+                Debug.Log("[Unity AOP] Weaving cache cleared.");
+            }
+            else
+            {
+                Debug.Log("[Unity AOP] No weaving cache found.");
+            }
         }
 
         /// <summary>

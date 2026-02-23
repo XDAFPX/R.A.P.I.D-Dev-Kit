@@ -133,7 +133,7 @@ namespace DAFP.TOOLS.ECS.BigData
             return stat.Value;
         }
 
+        public List<IStatBase> Children { get; } = new();
         public List<IStatBase> Owners { get; } = new List<IStatBase>();
-        public ISet<IOwnable<IStatBase>> Pets { get; } = new HashSet<IOwnable<IStatBase>>();
     }
 }

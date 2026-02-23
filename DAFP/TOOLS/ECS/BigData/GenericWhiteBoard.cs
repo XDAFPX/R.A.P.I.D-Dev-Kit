@@ -4,9 +4,14 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
+    [System.Serializable]
     public class GenericWhiteBoard<T> : WhiteBoard<T>
 
     {
+        // public GenericWhiteBoard(T val)
+        // {
+        //     Value = val;
+        // }
         public override bool SyncToBlackBoard => true;
         [field: SerializeField] public override T MaxValue { get; set; }
         [field: SerializeField] public override T MinValue { get; set; }
@@ -23,6 +28,11 @@ namespace DAFP.TOOLS.ECS.BigData
 
         protected override T ClampAndProcessValue(T value)
         {
+            var _min = MinValue;
+            var _max = MaxValue;
+            Utils.NormalizeMinMax(ref _min,ref _max);
+            MinValue = _min;
+            MaxValue = _max;
             return Utils.Clamp(value, MinValue, MaxValue);
         }
 
