@@ -6,7 +6,7 @@ using DAFP.TOOLS.Common;
 namespace RapidLib.DAFP.TOOLS.Common
 {
     public interface IPetOwnerTreeOf<TNode> : IOwnerOf<TNode>, IOwnedBy<TNode>
-        where TNode : IPetOwnerTreeOf<TNode>
+        where TNode : IOwnerOf<TNode>, IOwnedBy<TNode>
     {
         List<TNode> Children { get; }
 

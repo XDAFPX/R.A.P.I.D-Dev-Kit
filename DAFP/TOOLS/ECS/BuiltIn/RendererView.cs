@@ -31,7 +31,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             Clear();
 
-            ((IEntityPet)this).ChangeOwner(owner);
+            ((IPetOf<IEntity,IViewModel>)this).ChangeOwner(owner);
             owner.GetWorldRepresentation().transform.GetComponentsInRoot<Renderer>().ForEachComponent(Add);
             return this;
         }

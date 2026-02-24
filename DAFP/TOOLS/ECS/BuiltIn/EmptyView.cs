@@ -22,7 +22,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public IViewModel InitOwner(IEntity owner)
         {
-            ((IEntityPet)this).ChangeOwner(owner);
+            ((IPetOf<IEntity,IViewModel>)this).ChangeOwner(owner);
             return this;
         }
 

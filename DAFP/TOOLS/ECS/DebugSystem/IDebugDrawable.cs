@@ -4,7 +4,7 @@ using UGizmo;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
-    public interface IDebugDrawable : IOwnerOf<IDebugDrawable>, IDrawable
+    public interface IDebugDrawable : IOwnerOf<IDebugDrawable>, IDrawable,IOwnedBy<IDebugDrawable>
     {
         IDebugSys<IGlobalGizmos, IMessenger> DebugSystem { get; }
 

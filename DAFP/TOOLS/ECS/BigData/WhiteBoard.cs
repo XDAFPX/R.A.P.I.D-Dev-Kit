@@ -16,7 +16,7 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.BigData
 {
     [Serializable]
-    public abstract class WhiteBoard<T> : IStat<T>, IInitializable, ITickable, 
+    public abstract class WhiteBoard<T> : IStat<T>, IInitializable, ITickable, IPetOf<IEntity, IStatBase>
     {
         [SerializeField] protected List<SerializableInterface<IPegStatModifier<T>>> PegModifiers = new();
         [field: SerializeField] public string Name { get; set; }
@@ -28,7 +28,7 @@ namespace DAFP.TOOLS.ECS.BigData
         public abstract T MinValue { get; set; }
         public abstract T DefaultValue { get; set; }
 
-        protected IEntity Host => GetCurrentOwner();
+        protected IEntity Host => ((IPetOf<IEntity,IStatBase>)this).GetCurrentOwner();
 
 
 #if UNITY_EDITOR
@@ -39,7 +39,8 @@ namespace DAFP.TOOLS.ECS.BigData
 
         [SerializeField] protected List<SerializableInterface<IStatModifier<T>>> Modifiers = new();
 
-        public List<SerializableInterface<IStatBase>> Children = new List<SerializableInterface<IStatBase>>();
+        [FormerlySerializedAs("Children")]
+        public List<SerializableInterface<IStatBase>> ChildrenStats = new List<SerializableInterface<IStatBase>>();
 
 
         public delegate void ValueChangedCallBack(T newValue, T oldValue);
@@ -71,8 +72,8 @@ namespace DAFP.TOOLS.ECS.BigData
 
         private void configure_stat_owner()
         {
-            var children = Children.ToValues().ToArray();
-            foreach (var _statBase in children) 
+            var children = ChildrenStats.ToValues().ToArray();
+            foreach (var _statBase in children)
             {
                 _statBase.ChangeOwner(this);
                 if (_statBase is IInitializable _tickable)
@@ -132,6 +133,8 @@ namespace DAFP.TOOLS.ECS.BigData
 
 
         private List<IEntity> owners = new List<IEntity>();
+        private List<IStatBase> owners1;
+        private List<IEntity> owners2;
 
         public void AddModifier(StatModifier<T> modifier)
         {
@@ -203,30 +206,6 @@ namespace DAFP.TOOLS.ECS.BigData
         public abstract void Randomize(NRandom.IRandom rng, float margin01);
 
 
-        public List<IStatBase> Owners { get; } = new List<IStatBase>();
-
-        IEnumerable<IOwnedBy<IStatBase>> IOwnerOf<IStatBase>.Pets => (Children?.ToValues() ?? Array.Empty<IStatBase>()).Cast<IOwnedBy<IStatBase>>();
-        void IOwnerOf<IStatBase>.AddPet(IOwnedBy<IStatBase> ownedBy)
-        {
-            if (ownedBy == null) return;
-            if (Children == null)
-                Children = new List<SerializableInterface<IStatBase>>();
-            var _stat = (IStatBase)ownedBy;
-            if (Children.ToValues().FindByName(_stat.Name) != null)
-                return;
-            Children.Add(new SerializableInterface<IStatBase>(_stat));
-        }
-        bool IOwnerOf<IStatBase>.RemovePet(IOwnedBy<IStatBase> ownedBy)
-        {
-            if (ownedBy == null) return false;
-            if (Children == null) return false;
-            var _stat = (IStatBase)ownedBy;
-            var before = Children.Count;
-            Children.RemoveAll(@interface => @interface.Value.Name == _stat.Name);
-            return Children.Count < before;
-        }
-
-        List<IEntity> IPetOf<IEntity>.Owners => owners;
         public virtual void OnStart()
         {
         }
@@ -234,5 +213,26 @@ namespace DAFP.TOOLS.ECS.BigData
         public virtual void Tick()
         {
         }
+
+        public List<IStatBase> Children => ChildrenStats.ToValues().ToList();
+
+        public void AddPet(IStatBase pet)
+        {
+            if (pet == null) return;
+            if (Children.Contains(pet)) return;
+            ChildrenStats.Add(new SerializableInterface<IStatBase>(pet));
+        }
+
+        public bool RemovePet(IStatBase pet)
+        {
+            if (pet == null) return false;
+            if (!Children.Contains(pet)) return false;
+            ChildrenStats.Remove(new SerializableInterface<IStatBase>(pet));
+            return true;
+        }
+
+        List<IStatBase> IPetOwnerTreeOf<IStatBase>.Owners => owners1;
+
+        List<IEntity> IPetOf<IEntity, IStatBase>.Owners => owners2;
     }
 }

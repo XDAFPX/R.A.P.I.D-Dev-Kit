@@ -7,6 +7,7 @@ using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
 using PixelRouge.Colors;
+using RapidLib.DAFP.TOOLS.Common;
 using TMPro;
 using TripleA.Utils.Extensions;
 using UGizmo;
@@ -19,7 +20,7 @@ using Object = UnityEngine.Object;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class UniversalConsoleMessenger : IMessenger, ISwitchable, IPetOf<IDebugSys<IGlobalGizmos, IMessenger>>
+    public class UniversalConsoleMessenger : IMessenger, ISwitchable, IDebugSubSys, IPetOf<IDebugSys<IGlobalGizmos,IMessenger>,IDebugSubSys>
     {
         [Inject]
         public UniversalConsoleMessenger([Inject(Id = "ConsoleUnlocked")] bool unlocked,
@@ -51,7 +52,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         protected Transform SampleOutputLineContainer;
         protected readonly List<string> Inputs = new();
         protected int CurrentInputIndex;
-        private List<IDebugSys<IGlobalGizmos, IMessenger>> owners = new();
 
         public void Print(IMessage message)
         {
@@ -618,20 +618,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             Root.gameObject.SetActive(false);
         }
 
-        private readonly HashSet<IOwnedBy<ICommandInterpreter>> _pets = new();
-        IEnumerable<IOwnedBy<ICommandInterpreter>> IOwnerOf<ICommandInterpreter>.Pets => _pets;
-        void IOwnerOf<ICommandInterpreter>.AddPet(IOwnedBy<ICommandInterpreter> pet)
-        {
-            if (pet == null || ReferenceEquals(pet, this)) return;
-            _pets.Add(pet);
-        }
-        bool IOwnerOf<ICommandInterpreter>.RemovePet(IOwnedBy<ICommandInterpreter> pet)
-        {
-            if (pet == null || ReferenceEquals(pet, this)) return false;
-            return _pets.Remove(pet);
-        }
-        public List<ICommandInterpreter> Owners { get; } = new();
+        public List<ICommandInterpreter> Children { get; } = new List<ICommandInterpreter>();
 
-        List<IDebugSys<IGlobalGizmos, IMessenger>> IPetOf<IDebugSys<IGlobalGizmos, IMessenger>>.Owners => owners;
+        List<ICommandInterpreter> IPetOwnerTreeOf<ICommandInterpreter>.Owners { get; } = new();
+
+        List<IDebugSys<IGlobalGizmos, IMessenger>> IPetOf<IDebugSys<IGlobalGizmos, IMessenger>, IDebugSubSys>.Owners { get; } = new();
     }
 }

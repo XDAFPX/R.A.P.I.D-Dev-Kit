@@ -17,6 +17,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             this.draw = draw;
         }
 
+        public List<IDebugDrawable> Children { get; } = new();
         public List<IDebugDrawable> Owners { get; } = new();
         public DebugDrawLayer Layer { get; set; }
         protected IDebugSys<IGlobalGizmos, IMessenger> Sys;
@@ -31,5 +32,8 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         {
             draw?.Invoke(Sys.Gizmos);
         }
+
+
+        public IDebugSys<IGlobalGizmos, IMessenger> DebugSystem { get; }
     }
 }

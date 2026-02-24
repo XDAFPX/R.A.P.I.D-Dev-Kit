@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.Common.TextSys
 {
@@ -284,13 +285,21 @@ namespace DAFP.TOOLS.Common.TextSys
     }
 
 
-    public struct Span : IOwnerOf<Span>, IEquatable<Span>
+    public struct Span : IOwnerOf<IOwnedBy<Span>>, IEquatable<Span>
     {
         public Span(string text, ISet<IOwnedBy<Span>> pets = default, string separator = " ")
         {
             Text = text;
-            _pets = pets;
+            Children = new();
+            if (pets != null)
+                Children = pets.ToList();
             Separator = separator;
+
+
+            foreach (var _child in Children)
+            {
+                _child.ChangeOwner(this);
+            }
         }
 
         public string Text { get; set; }
@@ -298,9 +307,9 @@ namespace DAFP.TOOLS.Common.TextSys
 
         public string Eval()
         {
-            if (_pets == null)
+            if (Children == null)
                 return Text;
-            var l = _pets.OfType<CompStyle>().ToList();
+            var l = Children.OfType<CompStyle>().ToList();
             l.Sort();
             foreach (var _ownable in l)
             {
@@ -311,20 +320,10 @@ namespace DAFP.TOOLS.Common.TextSys
             return Text;
         }
 
-        private ISet<IOwnedBy<Span>> _pets { get; }
-        IEnumerable<IOwnedBy<Span>> IOwnerOf<Span>.Pets => _pets ?? Enumerable.Empty<IOwnedBy<Span>>();
-        void IOwnerOf<Span>.AddPet(IOwnedBy<Span> pet)
-        {
-            _pets?.Add(pet);
-        }
-        bool IOwnerOf<Span>.RemovePet(IOwnedBy<Span> pet)
-        {
-            return _pets != null && pet != null && _pets.Remove(pet);
-        }
 
         public bool Equals(Span other)
         {
-            return Text == other.Text && Separator == other.Separator && Equals(_pets, other._pets);
+            return Text == other.Text && Separator == other.Separator && Equals(Children, other.Children);
         }
 
         public override bool Equals(object obj)
@@ -344,14 +343,14 @@ namespace DAFP.TOOLS.Common.TextSys
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Text, Separator, _pets);
+            return HashCode.Combine(Text, Separator, Children);
         }
 
         public Span AddPass(CompStyle style)
         {
             if (style == null)
                 return this;
-            _pets?.Add(style);
+            Children?.Add(style);
             return this;
         }
 
@@ -359,7 +358,7 @@ namespace DAFP.TOOLS.Common.TextSys
         {
             if (style == null)
                 return this;
-            _pets?.Remove(style);
+            Children?.Remove(style);
             return this;
         }
 
@@ -421,6 +420,24 @@ namespace DAFP.TOOLS.Common.TextSys
         public Span Mk_RT(string hex)
         {
             return AddPass(new CompStyle.RichTextMark(hex));
+        }
+
+        private List<IOwnedBy<Span>> Children { get; }
+        public IEnumerable<IOwnedBy<Span>> Pets => Children;
+
+        public void AddPet(IOwnedBy<Span> pet)
+        {
+            if (pet == null) return;
+            if (Children.Contains(pet)) return;
+            Children.Add(pet);
+        }
+
+        public bool RemovePet(IOwnedBy<Span> pet)
+        {
+            if (pet == null) return false;
+            if (!Children.Contains(pet)) return false;
+            Children.Remove(pet);
+            return true;
         }
     }
 }

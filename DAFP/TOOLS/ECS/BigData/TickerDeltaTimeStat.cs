@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using DAFP.TOOLS.Common;
+using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
@@ -12,6 +13,8 @@ namespace DAFP.TOOLS.ECS.BigData
         }
 
         private readonly ITickerBase based;
+        private List<IStatBase> owners = new List<IStatBase>();
+        private List<IEntity> owners1 = new List<IEntity>();
 
         public TickerDeltaTimeStat(ITickerBase based)
         {
@@ -51,24 +54,17 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public void AddModifier(StatModifier<ITickerBase> modifier)
         {
+            
         }
 
         public void RemoveModifier(StatModifier<ITickerBase> modifier)
         {
         }
 
-        public List<IStatBase> Owners { get; } = new List<IStatBase>();
-        private readonly ISet<IOwnedBy<IStatBase>> _pets = new HashSet<IOwnedBy<IStatBase>>();
-        IEnumerable<IOwnedBy<IStatBase>> IOwnerOf<IStatBase>.Pets => _pets;
-        void IOwnerOf<IStatBase>.AddPet(IOwnedBy<IStatBase> pet)
-        {
-            if (pet == null || ReferenceEquals(pet, this)) return;
-            _pets.Add(pet);
-        }
-        bool IOwnerOf<IStatBase>.RemovePet(IOwnedBy<IStatBase> pet)
-        {
-            if (pet == null || ReferenceEquals(pet, this)) return false;
-            return _pets.Remove(pet);
-        }
+        public List<IStatBase> Children { get; } = new();
+
+        List<IStatBase> IPetOwnerTreeOf<IStatBase>.Owners => owners;
+
+        List<IEntity> IPetOf<IEntity, IStatBase>.Owners => owners1;
     }
 }

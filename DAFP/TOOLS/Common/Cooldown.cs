@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using Bdeshi.Helpers.Utility;
+using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BigData;
 
 namespace DAFP.TOOLS.Common
@@ -133,5 +134,8 @@ namespace DAFP.TOOLS.Common
 
         public List<IStatBase> Children { get; } = new();
         public List<IStatBase> Owners { get; } = new List<IStatBase>();
+
+        List<IEntity> IPetOf<IEntity, IStatBase>.Owners { get; } = new();
     }
+    
 }

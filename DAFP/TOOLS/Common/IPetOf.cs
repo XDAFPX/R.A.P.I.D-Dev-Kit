@@ -2,7 +2,7 @@
 
 namespace DAFP.TOOLS.Common
 {
-    public interface IPetOf<TOwner,TSelf> : IOwnedBy<TOwner> where TOwner : IOwnerOf<TSelf> where TSelf : IPetOf<TOwner,TSelf>
+    public interface IPetOf<TOwner,TSelf> : IOwnedBy<TOwner> where TOwner : IOwnerOf<TSelf> where TSelf : IOwnedBy<TOwner>
     {
         List<TOwner> Owners { get; }
 

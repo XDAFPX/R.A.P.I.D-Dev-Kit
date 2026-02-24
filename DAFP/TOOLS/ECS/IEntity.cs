@@ -6,6 +6,7 @@ using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.EventBus;
 using DAFP.TOOLS.ECS.Serialization;
@@ -22,7 +23,7 @@ using Zenject;
 namespace DAFP.TOOLS.ECS
 {
     public interface IEntity : ITickable, IGameObjectProvider, IAuthor, INameable, IPetOwnerTreeOf<IEntity>, ISavable,
-        IDebugDrawable, ISwitchable, IHaveGameplayTag
+        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>,IOwnerOf<IStatBase>,IOwnerOf<IStatModifierBase>,IOwnerOf<PegModifier>
     {
         public IThinker Brains { get; }
         public StatContainer Stats { get; }

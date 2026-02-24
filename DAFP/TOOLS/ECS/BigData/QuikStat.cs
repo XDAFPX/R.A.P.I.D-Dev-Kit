@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using DAFP.TOOLS.Common;
 using TNRD;
 using UnityEngine;
@@ -135,5 +136,8 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public List<IStatBase> Children { get; } = new();
         public List<IStatBase> Owners { get; } = new List<IStatBase>();
+
+        List<IEntity> IPetOf<IEntity, IStatBase>.Owners { get; } = new List<IEntity>();
     }
+
 }

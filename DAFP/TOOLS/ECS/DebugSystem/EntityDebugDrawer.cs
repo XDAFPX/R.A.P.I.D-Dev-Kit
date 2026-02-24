@@ -11,6 +11,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 {
     public abstract class EntityDebugDrawer : IDebugDrawer
     {
+        public List<IDebugDrawable> Children { get; } = new();
         public List<IDebugDrawable> Owners { get; } = new();
 
         public DebugDrawLayer Layer { get; set; }
@@ -72,5 +73,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
                 Sys.Gizmos.DrawPoint(Host.GetWorldRepresentation().transform.position, 0.14f, color);
             }
         }
+
+        public IDebugSys<IGlobalGizmos, IMessenger> DebugSystem => Sys;
     }
 }

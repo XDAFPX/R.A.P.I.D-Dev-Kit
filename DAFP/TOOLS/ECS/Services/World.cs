@@ -57,8 +57,6 @@ namespace DAFP.TOOLS.ECS.Services
             RegisterTicker(ticker);
             ticker.Subscribed.Add(ent);
             ENTITIES.Add(ent);
-            if (ent is IEntityOwnedBy _ownable)
-                AddPet(_ownable);
 
             Debug.Log(
                 $"Registered Entity... Name: {ent.GetType().Name} , WorldName: {(ent is Entity _entity ? _entity.name : "NoName")} ");
@@ -74,8 +72,6 @@ namespace DAFP.TOOLS.ECS.Services
                     if (_entityComponent.Value.EntityComponentTicker != ent.EntityTicker)
                         _entityComponent.Value.EntityComponentTicker.Remove(_entityComponent.Value);
 
-                if (ent is IEntityOwnedBy _ownable)
-                    RemovePet(_ownable);
             }
             catch (Exception e)
             {
@@ -158,21 +154,9 @@ namespace DAFP.TOOLS.ECS.Services
         public bool HasInitialized { get; set; }
 
 
-        protected HashSet<IEntityOwnedBy> Pets = new();
         private string id;
 
 
-        public virtual void AddPet(IEntityOwnedBy pet)
-        {
-            Pets.Add(pet);
-        }
-
-        public string ID => id;
-
-        public virtual void RemovePet(IEntityOwnedBy pet)
-        {
-            Pets.Remove(pet);
-        }
 
         [Inject] public IGlobalGameStateHandler GameState { get; set; }
         [Inject] public IGlobalCursorStateHandler CursorState { get; set; }

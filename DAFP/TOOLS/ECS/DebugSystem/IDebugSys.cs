@@ -7,8 +7,12 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
+    public interface IDebugSubSys : IOwnedBy<IDebugSys<IGlobalGizmos,IMessenger>>
+    {
+        
+    }
     public interface IDebugSys<out TGizmos, out TMessenger> : IDrawable, IOwnerOf<IDebugDrawable>,
-        Zenject.ITickable, IOwnerOf<IDebugSys<IGlobalGizmos, IMessenger>>
+        Zenject.ITickable,IOwnerOf<IDebugSubSys>
         where TGizmos : IGlobalGizmos where TMessenger : IMessenger
     {
         public TGizmos Gizmos { get; }
@@ -29,7 +33,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
                     drawable.Draw();
         }
 
-        void IOwnerOf<IDebugDrawable>.AddPet(IOwnedBy<IDebugDrawable> pet)
+        void IOwnerOf<IDebugDrawable>.AddPet(IDebugDrawable pet)
         {
             if (pet == this)
                 return;
@@ -38,7 +42,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             ((IOwnerOf<IDebugDrawable>)this).AddPet(pet);
         }
 
-        bool IOwnerOf<IDebugDrawable>.RemovePet(IOwnedBy<IDebugDrawable> pet)
+        bool IOwnerOf<IDebugDrawable>.RemovePet(IDebugDrawable pet)
         {
             // default interface helper cannot mutate enumerable; let concrete implementations handle removal
             return false;

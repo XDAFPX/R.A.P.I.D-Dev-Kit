@@ -10,6 +10,7 @@ using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.GlobalState;
@@ -68,13 +69,83 @@ namespace DAFP.TOOLS.ECS
         private readonly ISet<IDebugDrawable> debugDrawablePets = new HashSet<IDebugDrawable>();
         public List<IEntity> Children { get; } = new();
         IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawablePets;
+
+        private List<IDebugDrawable> owners;
+        private List<IViewModel> viewModels = new();
+        protected List<IStatBase> OwnedStats = new();
+        protected List<IStatModifierBase> OwnedModifiers = new();
+        private List<PegModifier> ownedPegs = new();
+
+        IEnumerable<IViewModel> IOwnerOf<IViewModel>.Pets => viewModels;
+
+        IEnumerable<IStatBase> IOwnerOf<IStatBase>.Pets => OwnedStats;
+
+        IEnumerable<IStatModifierBase> IOwnerOf<IStatModifierBase>.Pets => OwnedModifiers;
+
+        IEnumerable<PegModifier> IOwnerOf<PegModifier>.Pets => ownedPegs;
+
+        private bool remove_pet<T>(T pet, ref List<T> pets) where T : class
+        {
+            if (pet == null) return false;
+            if (!pets.Contains(pet)) return false;
+            pets.Remove(pet);
+            return true;
+        }
+
+        private void add_pet<T>(T pet, ref List<T> pets) where T : class
+        {
+            if (pet == null) return;
+            if (pets.Contains(pet)) return;
+            pets.Add(pet);
+        }
+
+        public void AddPet(PegModifier pet)
+        {
+            add_pet(pet,ref ownedPegs);
+        }
+
+        public bool RemovePet(PegModifier pet)
+        {
+            return remove_pet(pet, ref ownedPegs);
+        }
+
+        public void AddPet(IStatModifierBase pet)
+        {
+            add_pet(pet, ref OwnedModifiers);
+        }
+
+        public bool RemovePet(IStatModifierBase pet)
+        {
+            return remove_pet(pet, ref OwnedModifiers);
+        }
+
+        public void AddPet(IStatBase pet)
+        {
+            add_pet(pet,ref OwnedStats);
+        }
+
+        public bool RemovePet(IStatBase pet)
+        {
+            return remove_pet(pet, ref OwnedStats);
+        }
+
+        public void AddPet(IViewModel pet)
+        {
+            add_pet(pet, ref viewModels);
+        }
+
+        public bool RemovePet(IViewModel pet)
+        {
+            return remove_pet(pet, ref viewModels);
+        }
+
         public List<IEntity> Owners { get; } = new();
-        
+
         private IDebugDrawable owner;
+
         public IDebugDrawable GetCurrentOwner()
         {
             return owner;
-
         }
 
         public void ChangeOwner(IDebugDrawable newOwner)
@@ -93,6 +164,7 @@ namespace DAFP.TOOLS.ECS
             if (pet == null || ReferenceEquals(pet, this)) return false;
             return debugDrawablePets.Remove(pet);
         }
+
 
         // Public Properties & Events
         public string ID => id;
@@ -289,7 +361,6 @@ namespace DAFP.TOOLS.ECS
         }
 
         private int bounds_calc = 0;
-        private List<IDebugDrawable> owners;
         protected virtual int BoundsRefreshRate => 30;
         public void RecalculateBounds() => CalculateBounds();
 
@@ -340,7 +411,7 @@ namespace DAFP.TOOLS.ECS
             if (thinker.DIInjected)
             {
                 Injector.Inject(Brains);
-                foreach (var _ownable in ((IThinker)Brains).EnumeratePetsDeep())
+                foreach (var _ownable in Brains.AllPets())
                 {
                     if (_ownable is IThinker _brain)
                     {
@@ -528,6 +599,7 @@ namespace DAFP.TOOLS.ECS
         {
             get { return Tag.Value.GameplayTag; }
         }
+
 
         public IEnumerable<object> AbsolutePets =>
             Children.Cast<object>().Concat(((IOwnerOf<IDebugDrawable>)this).Pets.Cast<object>());

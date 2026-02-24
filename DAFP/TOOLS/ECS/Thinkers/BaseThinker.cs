@@ -9,6 +9,7 @@ using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using ModestTree;
+using RapidLib.DAFP.TOOLS.Common;
 using TNRD;
 using UGizmo;
 using UnityEngine;
@@ -18,23 +19,6 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.Thinkers
 {
-    public interface IThinker : IThinkerHierarchy, IPetOf<IDebugDrawable>, IDebugDrawable,
-        IOwnerOf<IThinker>,
-        IPetOf<IThinker>, IOwnedBy<IThinker>, ISubscriber
-    {
-        bool DIInjected { get; }
-        bool HasInitialized { get; }
-        void Initialize(IEntity host);
-        void Tick(IEntity host, ITickerBase ticker);
-        void Dispose(IEntity host);
-    }
-
-// Hierarchical structure
-    public interface IThinkerHierarchy
-    {
-        IThinker[] Children { get; }
-    }
-
     public abstract class BaseThinker : ScriptableObject, IThinker
     {
         // -- Dependencies
@@ -49,19 +33,11 @@ namespace DAFP.TOOLS.ECS.Thinkers
 #if UNITY_EDITOR
         [field: SerializeField] public bool EditMode { get; set; }
 #endif
-        [SerializeField] private SerializableInterface<IThinker>[] ChildThinkers;
+        [SerializeField] private List<SerializableInterface<IThinker>> ChildThinkers;
 
-        private IThinker[] childCache
-        {
-            get
-            {
-                _childCache ??= ChildThinkers.Select((@interface => @interface.Value)).ToArray();
-                return _childCache;
-            }
-        }
-
-        private IThinker[] _childCache;
         private List<IThinker> owners = new();
+        private List<IDebugDrawable> owners1;
+        private List<IThinker> owners2;
 
         /*[field: SerializeField]*/
         public bool DIInjected => DebugSystem == null;
@@ -102,9 +78,9 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         private void de_init_debug_drawers()
         {
-            if (DebugPets == null || DebugPets.IsEmpty())
+            if (debugDrawPets == null || debugDrawPets.IsEmpty())
                 return;
-            DebugPets.Clear();
+            debugDrawPets.Clear();
             DebugSystem.RemovePet(this);
         }
 
@@ -115,8 +91,8 @@ namespace DAFP.TOOLS.ECS.Thinkers
             var _debugDrawers = pets as IDebugDrawer[] ?? pets.ToArray();
             if (_debugDrawers.IsEmpty())
                 return;
-            DebugPets.UnionWith(_debugDrawers);
-            var petsSnapshot = DebugPets.ToArray();
+            debugDrawPets = debugDrawPets.Union<IDebugDrawable>(_debugDrawers).ToList();
+            var petsSnapshot = debugDrawPets.ToArray();
 
             foreach (var _ownable in petsSnapshot)
             {
@@ -150,34 +126,52 @@ namespace DAFP.TOOLS.ECS.Thinkers
         {
             foreach (var _child in ChildThinkers)
             {
-                ((IPetOf<IThinker>)_child.Value).ChangeOwner(this);
+                (_child.Value).ChangeOwner((IThinker)this);
                 _child.Value.Initialize(host);
             }
         }
 
-        private readonly ISet<IOwnedBy<IDebugDrawable>> DebugPets = new HashSet<IOwnedBy<IDebugDrawable>>();
-        public List<IDebugDrawable> Owners { get; } = new();
 
-        IEnumerable<IOwnedBy<IDebugDrawable>> IOwnerOf<IDebugDrawable>.Pets => DebugPets;
-        void IOwnerOf<IDebugDrawable>.AddPet(IOwnedBy<IDebugDrawable> pet)
+        List<IDebugDrawable> IPetOf<IDebugDrawable, IDebugDrawable>.Owners => owners1;
+
+        private List<IDebugDrawable> debugDrawPets = new();
+        public List<IThinker> Children => ((IOwnerOf<IThinker>)this).Pets.ToList();
+
+        IEnumerable<IThinker> IOwnerOf<IThinker>.Pets => ChildThinkers.ToValues();
+
+        public void AddPet(IThinker pet)
         {
-            if (pet == null || ReferenceEquals(pet, this)) return;
-            DebugPets.Add(pet);
+            if (pet == null) return;
+            if (ChildThinkers.ToValues().Contains(pet)) return;
+            ChildThinkers.Add(new SerializableInterface<IThinker>(pet));
         }
-        bool IOwnerOf<IDebugDrawable>.RemovePet(IOwnedBy<IDebugDrawable> pet)
+
+        public bool RemovePet(IThinker pet)
         {
-            if (pet == null || ReferenceEquals(pet, this)) return false;
-            return DebugPets.Remove(pet);
+            if (pet == null) return false;
+            if (!ChildThinkers.ToValues().Contains(pet)) return false;
+            ChildThinkers.Remove(new SerializableInterface<IThinker>(pet));
+            return true;
         }
 
-        IEnumerable<IOwnedBy<IThinker>> IOwnerOf<IThinker>.Pets => childCache.Cast<IOwnedBy<IThinker>>();
-        void IOwnerOf<IThinker>.AddPet(IOwnedBy<IThinker> pet) { /* no-op: children are defined via ChildThinkers */ }
-        bool IOwnerOf<IThinker>.RemovePet(IOwnedBy<IThinker> pet) { return false; }
+        public IEnumerable<IDebugDrawable> Pets => debugDrawPets;
 
-        List<IThinker> IPetOf<IThinker>.Owners => owners;
+        List<IThinker> IPetOwnerTreeOf<IThinker>.Owners => owners2;
 
+        IEnumerable<object> IOwnerBase.AbsolutePets => debugDrawPets.Union(ChildThinkers.ToValues());
+        public void AddPet(IDebugDrawable pet)
+        {
+            if (pet == null) return;
+            if (Pets.Contains(pet)) return;
+            debugDrawPets.Add(pet);
+        }
 
-        // -- Generic implementations
-        public IThinker[] Children => childCache;
+        public bool RemovePet(IDebugDrawable pet)
+        {
+            if (pet == null) return false;
+            if (!Pets.Contains(pet)) return false;
+            debugDrawPets.Remove(pet);
+            return true;
+        }
     }
 }

@@ -8,6 +8,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 {
     public abstract class GenericDebugDrawer<T> : IDebugDrawer where T : class, IDebugDrawable
     {
+        public List<IDebugDrawable> Children { get; } = new();
         public List<IDebugDrawable> Owners { get; } = new();
 
         public DebugDrawLayer Layer { get; set; }
@@ -23,5 +24,6 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
         protected abstract string GetLayerName();
         public abstract void DrawInternal();
+        public IDebugSys<IGlobalGizmos, IMessenger> DebugSystem => Sys;
     }
 }

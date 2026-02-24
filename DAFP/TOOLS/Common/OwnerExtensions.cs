@@ -105,6 +105,22 @@ namespace DAFP.TOOLS.Common
             return ownerOf as TOwner; // best-effort cast; typical implementation matches TOwner
         }
 
+        public static IEnumerable<object> AllPets(this IOwnerBase owner)
+        {
+            foreach (var pet in owner.AbsolutePets)
+            {
+                yield return pet;
+
+                if (pet is IOwnerBase nestedOwner)
+                {
+                    foreach (var nestedPet in nestedOwner.AllPets())
+                    {
+                        yield return nestedPet;
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Enumerates all pets in the subtree (DFS), starting from immediate pets.
         /// Includes nested pets for pets that are also owners.

@@ -2,7 +2,7 @@
 
 namespace DAFP.TOOLS.ECS.ViewModel
 {
-    public interface IViewModel : IEntityPet, INameable, ISwitchable
+    public interface IViewModel : IPetOf<IEntity,IViewModel>, INameable, ISwitchable
     {
         public IViewModel InitOwner(IEntity owner);
         public interface IViewDoHurt :IViewModel

@@ -6,7 +6,7 @@ using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
-    public interface IStatBase : IResetable, INameable, IPetOwnerTreeOf<IStatBase>
+    public interface IStatBase : IResetable, INameable, IPetOwnerTreeOf<IStatBase>,IPetOf<IEntity,IStatBase>
     {
         public bool SyncToBlackBoard { get; }
         public object GetAbsoluteValue();
