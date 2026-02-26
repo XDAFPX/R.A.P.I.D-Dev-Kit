@@ -5,7 +5,7 @@ using UnityEngine.Pool;
 
 namespace DAFP.GAME.Assets
 {
-    public interface IAssetPool<T,TP> : IAssetPoolBase where TP : Component,IGameGamePoolable<TP>  where T : IGameGamePoolable<TP> 
+    public interface IAssetPool<T,TP> : IAssetPoolBase where TP : Component,IGamePoolable<TP>  where T : IGamePoolable<TP> 
     {
         int Count { get; }
 

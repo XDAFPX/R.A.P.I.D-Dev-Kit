@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using DAFP.TOOLS.ECS.GlobalState;
 using UnityEngine;
 using Zenject;
@@ -7,10 +8,10 @@ namespace DAFP.TOOLS.ECS
 {
     public class FixedUpdateTicker<T> : BlackListedTicker<T> where T : ITickable
     {
-
         public override void Tick()
         {
-            foreach (var _tickable in Subscribed) _tickable.Tick();
+            var l = Subscribed.ToList();
+            foreach (var _tickable in l) _tickable.Tick();
         }
 
 

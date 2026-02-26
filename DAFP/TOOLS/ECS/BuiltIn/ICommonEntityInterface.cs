@@ -82,6 +82,17 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         //     public IVectorBase Direction { get; init; }
         //     public IEntity Host { get; init; }
         // }
+
+        public struct EntitySpawnFromAssetsEvent : ICommonEntityEvent
+        {
+            public EntitySpawnFromAssetsEvent(IEntity host)
+            {
+                Host = host;
+            }
+
+            public IEntity Host { get; }
+        }
+
         public struct EntityDieEvent : ICommonEntityEvent
         {
             public EntityDieEvent(IEntity host, IDamage lethal)

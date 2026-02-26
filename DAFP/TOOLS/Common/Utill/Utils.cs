@@ -371,7 +371,7 @@ namespace DAFP.TOOLS.Common.Utill
             where T : IOwnedBy<T>, IOwnerOf<T>
         {
             var _visited = new HashSet<T>(nodes);
-            
+
             foreach (var _ in nodes)
             {
                 _visited = _visited.Union(_.AllPets().OfType<T>()).ToHashSet();
@@ -512,38 +512,84 @@ namespace DAFP.TOOLS.Common.Utill
             {
                 var _v = _f.GetValue(original);
 
-                // single reference
+                // single ScriptableObject
                 if (_v is ScriptableObject _so)
                 {
                     _f.SetValue(_clone, ScriptableObject.Instantiate(_so));
                     continue;
                 }
 
-                // array
-                if (_v is Array _arr && _arr.Length > 0 && _arr.GetValue(0) is ScriptableObject)
+                // single wrapper (e.g. SerializableInterface<T>)
+                if (_v != null && _v is not IList)
                 {
-                    var _elementType = _arr.GetType().GetElementType();
-                    var _newArr = Array.CreateInstance(_elementType, _arr.Length);
-
-                    for (int _i = 0; _i < _arr.Length; _i++)
-                        _newArr.SetValue(
-                            _arr.GetValue(_i) is ScriptableObject _soElem
-                                ? ScriptableObject.Instantiate(_soElem)
-                                : _arr.GetValue(_i), _i);
-
-                    _f.SetValue(_clone, _newArr);
-                    continue;
+                    var _valueProp = _v.GetType().GetProperty("Value",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (_valueProp != null && _valueProp.GetValue(_v) is ScriptableObject _soWrapped)
+                    {
+                        var _clonedSO = ScriptableObject.Instantiate(_soWrapped);
+                        var _newWrapper = Activator.CreateInstance(_v.GetType(), _clonedSO);
+                        _f.SetValue(_clone, _newWrapper);
+                        continue;
+                    }
                 }
 
-                // list
-                if (_v is IList _list && _list.Count > 0 && _list[0] is ScriptableObject)
+                // array or list (unified)
+                if (_v is IList _list && _list.Count > 0)
                 {
-                    var _newList = (IList)Activator.CreateInstance(_list.GetType());
+                    bool _handled = false;
+                    IList _newList;
+
+                    if (_v is Array _arrList)
+                    {
+                        var _elementType = _arrList.GetType().GetElementType();
+                        _newList = Array.CreateInstance(_elementType, _arrList.Length);
+                    }
+                    else
+                    {
+                        _newList = (IList)Activator.CreateInstance(_list.GetType());
+                    }
+
+                    int _index = 0;
                     foreach (var _item in _list)
-                        _newList.Add(_item is ScriptableObject _soItem
-                            ? ScriptableObject.Instantiate(_soItem)
-                            : _item);
-                    _f.SetValue(_clone, _newList);
+                    {
+                        if (_item is ScriptableObject _soItem)
+                        {
+                            if (_newList is Array _a) _a.SetValue(ScriptableObject.Instantiate(_soItem), _index);
+                            else _newList.Add(ScriptableObject.Instantiate(_soItem));
+                            _handled = true;
+                        }
+                        else if (_item != null)
+                        {
+                            var _valueProp = _item.GetType().GetProperty("Value",
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                            if (_valueProp != null && _valueProp.GetValue(_item) is ScriptableObject _soWrapped)
+                            {
+                                var _clonedSO = ScriptableObject.Instantiate(_soWrapped);
+                                var _newWrapper = Activator.CreateInstance(_item.GetType(), _clonedSO);
+                                if (_newList is Array _a) _a.SetValue(_newWrapper, _index);
+                                else _newList.Add(_newWrapper);
+                                _handled = true;
+                            }
+                            else
+                            {
+                                if (_newList is Array _a) _a.SetValue(_item, _index);
+                                else _newList.Add(_item);
+                            }
+                        }
+                        else
+                        {
+                            if (_newList is Array _a) _a.SetValue(null, _index);
+                            else _newList.Add(null);
+                        }
+
+                        _index++;
+                    }
+
+                    if (_handled)
+                    {
+                        _f.SetValue(_clone, _newList);
+                        continue;
+                    }
                 }
             }
 
@@ -940,9 +986,16 @@ namespace DAFP.TOOLS.Common.Utill
             return !stat.Dead();
         }
 
+
+        // public static T Heal<T>(this T stat, IDamage damage) where T : IStat<uint>
+        // {
+        //     stat.Value += damage.Info.Damage.Value;
+        //     return stat;
+        // }
+
         public static T TakeDamage<T>(this T stat, IDamage damage) where T : IStat<uint>
         {
-            stat.Value -= damage.Info.Damage.Value;
+            stat.Value = stat.Value.SafeSubtract(damage.Info.Damage.Value);
             return stat;
         }
 

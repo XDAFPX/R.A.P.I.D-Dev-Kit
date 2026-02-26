@@ -65,6 +65,7 @@ namespace DAFP.TOOLS.Injection
                 new(DebugDrawLayer.DefaultDebugLayers.NAMES, Application.isEditor),
                 new(DebugDrawLayer.DefaultDebugLayers.VIEW_MODELS, Application.isEditor),
                 new(DebugDrawLayer.DefaultDebugLayers.THINKERS, Application.isEditor),
+                new(DebugDrawLayer.DefaultDebugLayers.MISC, Application.isEditor),
             };
         }
 
@@ -109,10 +110,13 @@ namespace DAFP.TOOLS.Injection
         protected virtual void InstallTickers()
         {
             Container.Bind<ITickerBase>().WithId("DefaultPhysicsComponentGameplayTicker")
-                .FromMethod(_ => new FixedUpdateTicker<IEntityComponent>(new HashSet<IGlobalGameState>())).AsCached();
+                .FromMethod(_ => new FixedUpdateTicker<IEntityComponent>(new HashSet<IGlobalGameState>())).AsTransient()
+                .Lazy();
 
+            Container.Bind<ITicker<IEntity>>().WithId("DefaultEffectsEntityGameplayTicker")
+                .FromMethod(_ => new FixedUpdateTicker<IEntity>(new HashSet<IGlobalGameState>())).AsTransient().Lazy();
             Container.Bind<ITicker<IEntity>>().WithId("DefaultUpdateEntityGameplayTicker")
-                .FromMethod(_ => new UpdateTicker<IEntity>(new HashSet<IGlobalGameState>())).AsSingle().Lazy();
+                .FromMethod(_ => new UpdateTicker<IEntity>(new HashSet<IGlobalGameState>())).AsTransient().Lazy();
         }
 
         protected abstract void InstallAdditional();
@@ -274,5 +278,4 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<IInitializable>().To<TAssetManager>().FromResolve();
         }
     }
-
 }

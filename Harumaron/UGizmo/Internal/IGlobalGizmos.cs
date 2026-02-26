@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using RapidLib.Harumaron.UGizmo.Internal;
+using UnityEditor.Graphs;
+using UnityEngine;
 
 namespace UGizmo
 {
@@ -37,5 +39,12 @@ namespace UGizmo
 
         // Lines
         void DrawLine(Vector3 from, Vector3 to, Color color, float duration = 0f);
+
+        public static void DrawText(Vector3 worldPos, string text, float duration=1, Color color=default, int size=14)
+        {
+            if(color==default)
+                color = Color.sandyBrown;
+            NonGizmoTextDrawer.Draw(worldPos,text,duration,color,size);
+        }
     }
 }

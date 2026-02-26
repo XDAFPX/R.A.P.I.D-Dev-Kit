@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace DAFP.GAME.Assets
 {
-    public interface IGameGamePoolable<TY> : IDisposable, IGamePoolableBase where TY : Component
+    public interface IGamePoolable<TY> : IDisposable, IGamePoolableBase where TY : Component
     {
         TY ResetObj();
         TY Get();

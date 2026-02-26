@@ -533,13 +533,6 @@ namespace DAFP.TOOLS.ECS
 
         private void OnDestroy()
         {
-            DeInitializeBrains(Brains);
-            cleanup_brains();
-            DebugSystem.RemovePet(this);
-            SaveSystem.Bus.UnSubscribe(this);
-            GlobalStateBus.UnSubscribe(this);
-            GameEventsBus.UnSubscribe(this);
-            World.RemoveEntity(this);
             OnDispose();
         }
 
@@ -556,6 +549,13 @@ namespace DAFP.TOOLS.ECS
 
         protected virtual void OnDispose()
         {
+            DeInitializeBrains(Brains);
+            cleanup_brains();
+            DebugSystem.RemovePet(this);
+            SaveSystem.Bus.UnSubscribe(this);
+            GlobalStateBus.UnSubscribe(this);
+            GameEventsBus.UnSubscribe(this);
+            World.RemoveEntity(this);
         }
 
         private void OnDrawGizmos()
@@ -598,7 +598,10 @@ namespace DAFP.TOOLS.ECS
 
         public GameplayTagContainer GameplayTag
         {
-            get { return Tag.Value.GameplayTag; }
+            get
+            {
+                return Tag?.Value==null ? GameplayTagContainer.Empty : Tag.Value.GameplayTag;
+            }
         }
 
 

@@ -82,7 +82,7 @@ namespace DAFP.TOOLS.ECS.Environment
                     return @interface.Value.Evaluate(target);
                 })))
                 return;
-            Actions.ForEach((@interface => @interface.Value.Act(@event, target)));
+            Actions.ForEach((@interface => @interface.Value.Act(new TriggerContext(@event, target))));
         }
 
         public TriggerEntity AddAction(ITriggerAction filter)

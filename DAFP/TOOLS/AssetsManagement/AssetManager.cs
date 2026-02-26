@@ -68,6 +68,7 @@ namespace DAFP.GAME.Assets
 
                     if (_result is T _typedObj)
                     {
+                        _result.OnSpawn();
                         onComplete?.Invoke(_typedObj);
                         break;
                     }

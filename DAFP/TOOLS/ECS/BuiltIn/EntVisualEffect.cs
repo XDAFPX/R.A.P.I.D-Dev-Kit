@@ -1,24 +1,33 @@
 ﻿using System.Runtime.CompilerServices;
+using Archon.SwissArmyLib.Utils.Editor;
 using DAFP.GAME.Assets;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.ViewModel;
+using RapidLib.DAFP.TOOLS.Aspects;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityGetComponentCache;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class EntVisualEffect : Entity, IGameGamePoolable<EntVisualEffect>, ISwitchable
+    public class EntVisualEffect : Entity, IGamePoolable<EntVisualEffect>, ISwitchable
     {
         [SerializeField] private string uName;
+
+        [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]
+        private bool DoTick;
 
         public override NonEmptyList<IViewModel> SetupView()
         {
             return GetDefaultView();
         }
 
-        public override ITicker<IEntity> EntityTicker => Services.World.EMPTY_TICKER;
+        public override ITicker<IEntity> EntityTicker => DoTick ? realTicker : World.EmptyTicker;
+
+        [Inject(Id = "DefaultEffectsEntityGameplayTicker")]
+        private ITicker<IEntity> realTicker;
 
         protected ParticleSystem ParticleSystem;
         protected Animator Animator;
@@ -63,6 +72,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 ParticleSystem = _system;
             if (TryGetComponent(out Animator _animator))
                 Animator = _animator;
+            StartEffect();
         }
 
         protected override void TickInternal()
@@ -76,9 +86,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             return this;
         }
-
+        [EntNotifyAspect]
         public void OnSpawn()
         {
+            StartEffect();
         }
 
 
@@ -92,10 +103,16 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return this;
         }
 
+
         protected override void OnDispose()
         {
-            base.OnDispose();
+            // base.OnDispose();
             AssetManager.ReleaseIGamePoolable(this);
+        }
+
+        public override void Remove(EntityRemovalReason removalReason)
+        {
+            OnDispose();
         }
     }
 }

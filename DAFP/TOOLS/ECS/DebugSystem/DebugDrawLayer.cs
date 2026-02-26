@@ -36,6 +36,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             public const string NAMES = "Names";
             public const string VIEW_MODELS = "ViewModels";
             public const string THINKERS = "Thinkers";
+            public const string MISC = "Misc";
         }
     }
 }

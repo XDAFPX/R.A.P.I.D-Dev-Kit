@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using DAFP.GAME.Assets;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
@@ -11,45 +12,58 @@ using UnityEngine;
 
 namespace RapidLib.DAFP.TOOLS.Aspects
 {
-    public class EntNotifyAspect : Attribute,IMethodEnterAspect
+    public class EntNotifyAspect : Attribute, IMethodEnterAspect
     {
         public void OnMethodEnter(MethodExecutionArguments args)
         {
             // Debug.Log("adad");
             if (args.source is not IEntity _ent)
                 return;
-        
+
             var _method = args.rootMethod.Name;
             switch (_method)
             {
+                case nameof(IGamePoolableBase.OnSpawn):
+                    process_entity_spawn(args, _ent);
+                    break;
                 case nameof(ICommonEntityInterface.IDieable.Die):
                     if (_ent is ICommonEntityInterface.IDieable _dieable)
                     {
                         process_entity_death(args, _ent, _dieable);
                     }
+
                     break;
                 case nameof(IDamageable.TakeDamage):
                     if (_ent is IDamageable _dmg)
                     {
                         process_damage_event(args, _ent, _dmg);
                     }
+
                     break;
             }
         }
-        
-        private static void process_entity_death(MethodExecutionArguments args, IEntity ent, ICommonEntityInterface.IDieable dieable)
+
+        private void process_entity_spawn(MethodExecutionArguments args, IEntity ent)
+        {
+            var _event = new ICommonEntityEvent.EntitySpawnFromAssetsEvent(ent);
+            // InvokeEvent(, nameof(ICommonEntityInterface.IDieable.OnDie), dieable, _event);
+            ent.BroadcastEvent(_event);
+        }
+
+        private static void process_entity_death(MethodExecutionArguments args, IEntity ent,
+            ICommonEntityInterface.IDieable dieable)
         {
             var _val = args.arguments[0].value as IDamage;
             var _event = new ICommonEntityEvent.EntityDieEvent(ent, _val);
             InvokeEvent(dieable, nameof(ICommonEntityInterface.IDieable.OnDie), dieable, _event);
             ent.BroadcastEvent(_event);
         }
-        
+
         private static void process_damage_event(MethodExecutionArguments args, IEntity ent, IDamageable dmg)
         {
             var _val = args.arguments[0].value as IDamage;
             var _event = new ICommonEntityEvent.EntityTakeDamageEvent(ent, _val);
-            InvokeEvent(dmg, nameof(IDamageable.OnTakeDamage),  _event);
+            InvokeEvent(dmg, nameof(IDamageable.OnTakeDamage), _event);
             ent.BroadcastEvent(_event);
         }
 

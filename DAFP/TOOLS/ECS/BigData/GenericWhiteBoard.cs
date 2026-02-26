@@ -28,12 +28,35 @@ namespace DAFP.TOOLS.ECS.BigData
 
         protected override T ClampAndProcessValue(T value)
         {
+            if (underflow_fix(value, out var _value)) return _value;
+
+
+            // InternalValue is the original
             var _min = MinValue;
             var _max = MaxValue;
-            Utils.NormalizeMinMax(ref _min,ref _max);
+            Utils.NormalizeMinMax(ref _min, ref _max);
             MinValue = _min;
             MaxValue = _max;
+
+
             return Utils.Clamp(value, MinValue, MaxValue);
+        }
+
+        private bool underflow_fix(T value, out T clampAndProcessValue)
+        {
+            if (value is uint _newUint && InternalValue is uint _oldUint)
+            {
+                bool _greaterThanBefore = _newUint > _oldUint;
+                bool _suspiciouslyHuge = _newUint > (uint.MaxValue / 2);
+                if (_greaterThanBefore && _suspiciouslyHuge)
+                {
+                    clampAndProcessValue = MinValue;
+                    return true;
+                }
+            }
+
+            clampAndProcessValue = default;
+            return false;
         }
 
         public override void SetToMax()
@@ -53,7 +76,6 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public override void Randomize(IRandom rng, float margin01)
         {
-            
         }
     }
 }

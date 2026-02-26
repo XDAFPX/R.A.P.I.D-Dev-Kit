@@ -1,4 +1,5 @@
 ﻿using System;
+using BandoWare.GameplayTags;
 using BDeshi.BTSM;
 using Bdeshi.Helpers.Utility;
 using DAFP.TOOLS.Common;
@@ -40,7 +41,7 @@ namespace DAFP.TOOLS.BTs
             private readonly Action action;
             private readonly Action @out;
 
-            public ActionNode(Action action,Action Out)
+            public ActionNode(Action action, Action Out)
             {
                 Out = default;
                 this.action = action;
@@ -59,7 +60,6 @@ namespace DAFP.TOOLS.BTs
             public override void Exit()
             {
                 @out?.Invoke();
-                
             }
 
             public override BtStatus InternalTick()
@@ -805,6 +805,195 @@ namespace DAFP.TOOLS.BTs
 
                 return BtStatus.Success;
             }
+        }
+    }
+
+    public abstract class ModifierNodeBase<T> : BtNodeBase
+    {
+        protected readonly IStat<T> stat;
+        protected readonly StatModifier<T>[] mods;
+
+        public ModifierNodeBase(IStat<T> stat, params StatModifier<T>[] mods)
+        {
+            this.stat = stat;
+            this.mods = mods;
+        }
+
+        public sealed override void Enter()
+        {
+        }
+
+        public sealed override void Exit()
+        {
+        }
+    }
+
+    public class RemoveModifierNode<T> : ModifierNodeBase<T>
+    {
+        public RemoveModifierNode(IStat<T> stat, params StatModifier<T>[] mods) : base(stat, mods)
+        {
+        }
+
+        public override BtStatus InternalTick()
+        {
+            try
+            {
+                foreach (var mod in mods)
+                {
+                    stat.RemoveModifier(mod);
+                }
+            }
+            catch (Exception e)
+            {
+                return BtStatus.Failure;
+            }
+
+            return BtStatus.Success;
+        }
+    }
+
+    public class AddModifierNode<T> : ModifierNodeBase<T>
+    {
+        public AddModifierNode(IStat<T> stat, params StatModifier<T>[] mods) : base(stat, mods)
+        {
+        }
+
+        public override BtStatus InternalTick()
+        {
+            try
+            {
+                foreach (var mod in mods)
+                {
+                    stat.AddModifier(mod);
+                }
+            }
+            catch (Exception e)
+            {
+                return BtStatus.Failure;
+            }
+
+            return BtStatus.Success;
+        }
+    }
+
+    public abstract class GTagNodeBase : EntNode
+    {
+        protected readonly IEntity ent;
+        protected readonly GameplayTag[] tags;
+        protected readonly GameplayTagContainer container;
+
+        protected GTagNodeBase(IEntity ent, IHaveGameplayTag ct) : base(ent.Memory)
+        {
+            container = ct.GameplayTag;
+            this.ent = ent;
+        }
+
+        protected GTagNodeBase(IEntity ent, GameplayTag tag) : base(ent.Memory)
+        {
+            this.ent = ent;
+            this.tags = new[] { tag };
+        }
+
+        protected GTagNodeBase(IEntity ent, params GameplayTag[] tags) : base(ent.Memory)
+        {
+            this.ent = ent;
+            this.tags = tags;
+        }
+
+        protected GTagNodeBase(BlackBoard bb, GameplayTag tag) : base(bb)
+        {
+            this.tags = new[] { tag };
+            ent = bb.GetSelf();
+        }
+
+        public override void Enter()
+        {
+        }
+
+        public override void Exit()
+        {
+        }
+
+        internal override bool HasRequiredMemory() => true;
+    }
+
+    public class AddGTagNode : GTagNodeBase
+    {
+        public AddGTagNode(IEntity ent, IHaveGameplayTag ct) : base(ent, ct)
+        {
+        }
+
+        public AddGTagNode(IEntity ent, GameplayTag tag) : base(ent, tag)
+        {
+        }
+
+        public AddGTagNode(IEntity ent, params GameplayTag[] tags) : base(ent, tags)
+        {
+        }
+
+        public AddGTagNode(BlackBoard bb, GameplayTag tag) : base(bb, tag)
+        {
+        }
+
+        public override BtStatus InternalTick()
+        {
+            try
+            {
+                foreach (var _gameplayTag in tags)
+                {
+                    if (_gameplayTag != null && _gameplayTag.IsValid)
+                        ent.GameplayTag.Add(_gameplayTag);
+                }
+
+                if (container is { IsEmpty: false })
+                    ent.GameplayTag.AddTags(container);
+            }
+            catch (Exception e)
+            {
+                return BtStatus.Failure;
+            }
+
+            return BtStatus.Success;
+        }
+    }
+
+    public class RemoveGTagNode : GTagNodeBase
+    {
+        public RemoveGTagNode(IEntity ent, IHaveGameplayTag ct) : base(ent, ct)
+        {
+        }
+
+        public RemoveGTagNode(IEntity ent, GameplayTag tag) : base(ent, tag)
+        {
+        }
+
+        public RemoveGTagNode(IEntity ent, params GameplayTag[] tags) : base(ent, tags)
+        {
+        }
+
+        public RemoveGTagNode(BlackBoard bb, GameplayTag tag) : base(bb, tag)
+        {
+        }
+
+        public override BtStatus InternalTick()
+        {
+            try
+            {
+                foreach (var _gameplayTag in tags)
+                {
+                    if (_gameplayTag != null && _gameplayTag.IsValid)
+                        ent.GameplayTag.RemoveTag(_gameplayTag);
+                }
+
+                if (container is { IsEmpty: false })
+                    ent.GameplayTag.RemoveTags(container);
+            }
+            catch (Exception e)
+            {
+                return BtStatus.Failure;
+            }
+
+            return BtStatus.Success;
         }
     }
 }

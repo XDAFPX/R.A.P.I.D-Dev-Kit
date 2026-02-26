@@ -12,7 +12,7 @@ using UnityEngine.ResourceManagement.ResourceProviders;
 namespace DAFP.GAME.Assets
 {
     public class AssetPool<T, TP> : IDisposable, IAssetPool<T, TP>
-        where T : IGameGamePoolable<TP> where TP : Component, IGameGamePoolable<TP>
+        where T : IGamePoolable<TP> where TP : Component, IGamePoolable<TP>
     {
         public Type GetPoolType()
         {
