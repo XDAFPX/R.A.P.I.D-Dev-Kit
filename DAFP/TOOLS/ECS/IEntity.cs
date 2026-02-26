@@ -23,7 +23,7 @@ using Zenject;
 namespace DAFP.TOOLS.ECS
 {
     public interface IEntity : ITickable, IGameObjectProvider, IAuthor, INameable, IPetOwnerTreeOf<IEntity>, ISavable,
-        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>,IOwnerOf<IStatBase>,IOwnerOf<IStatModifierBase>,IOwnerOf<PegModifier>
+        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>,IOwnerOf<IStatBase>,IOwnerOf<IStatModifierBase>,IOwnerOf<PegModifier>,IOwnerOf<IEntityAccessory>
     {
         public IThinker Brains { get; }
         public StatContainer Stats { get; }

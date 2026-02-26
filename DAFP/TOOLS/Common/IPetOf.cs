@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace DAFP.TOOLS.Common
 {
@@ -13,6 +15,8 @@ namespace DAFP.TOOLS.Common
 
         TOwner IOwnedBy<TOwner>.GetCurrentOwner()
         {
+            if (Owners == null)
+                throw new Exception($"You forgot to initialize the Owners<{typeof(TOwner).Name}> list in {GetType()}");
             return Owners.Count > 0 ? Owners[^1] : default;
         }
 

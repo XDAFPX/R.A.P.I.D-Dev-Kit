@@ -1,5 +1,6 @@
 ﻿using System;
 using DAFP.TOOLS.Common.Maths;
+using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.Filters;
 using Optional;
@@ -10,7 +11,23 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     {
         public interface IVelocityProvider : ICommonEntityInterface
         {
-            public IVectorBase Velocity { get; }
+            public IVelocityStat Velocity { get; }
+
+            public interface IVelocityStat : IStatBase
+            {
+                public IVectorBase Value { get; }
+            }
+        }
+
+        public interface IMovementProvider : ICommonEntityInterface
+        {
+            public IMovingStat MovingState { get; }
+
+            public interface IMovingStat : IStatBase
+            {
+                public bool IsMoving { get; }
+                public bool IsStanding => !IsMoving;
+            }
         }
 
         public interface IEntMeleeAttackInputable : ICommonEntityInterface
@@ -73,8 +90,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 Lethal = lethal;
             }
 
-            public IEntity Host { get;  }
-            public IDamage Lethal { get;  }
+            public IEntity Host { get; }
+            public IDamage Lethal { get; }
         }
 
         public struct EntityTakeDamageEvent : ICommonEntityEvent
@@ -85,8 +102,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 Damage = damage;
             }
 
-            public IEntity Host { get;  }
-            public IDamage Damage { get;  }
+            public IEntity Host { get; }
+            public IDamage Damage { get; }
         }
     }
 }

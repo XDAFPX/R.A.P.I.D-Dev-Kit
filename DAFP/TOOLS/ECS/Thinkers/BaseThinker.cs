@@ -35,9 +35,8 @@ namespace DAFP.TOOLS.ECS.Thinkers
 #endif
         [SerializeField] private List<SerializableInterface<IThinker>> ChildThinkers;
 
-        private List<IThinker> owners = new();
-        private List<IDebugDrawable> owners1;
-        private List<IThinker> owners2;
+        private List<IDebugDrawable> debugDrawOwners = new();
+        protected List<IThinker> ParentThinkers = new();
 
         /*[field: SerializeField]*/
         public bool DIInjected => DebugSystem == null;
@@ -98,7 +97,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
             {
                 _ownable.ChangeOwner(this);
                 if (_ownable is IDebugDrawer _drawer)
-                    _drawer.Initilize(DebugSystem);
+                    _drawer.InitilizeDebugDrawer(DebugSystem);
             }
 
             DebugSystem.AddPet(this);
@@ -132,7 +131,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
         }
 
 
-        List<IDebugDrawable> IPetOf<IDebugDrawable, IDebugDrawable>.Owners => owners1;
+        List<IDebugDrawable> IPetOf<IDebugDrawable, IDebugDrawable>.Owners => debugDrawOwners;
 
         private List<IDebugDrawable> debugDrawPets = new();
         public List<IThinker> Children => ((IOwnerOf<IThinker>)this).Pets.ToList();
@@ -156,7 +155,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         public IEnumerable<IDebugDrawable> Pets => debugDrawPets;
 
-        List<IThinker> IPetOwnerTreeOf<IThinker>.Owners => owners2;
+        List<IThinker> IPetOwnerTreeOf<IThinker>.Owners => ParentThinkers;
 
         IEnumerable<object> IOwnerBase.AbsolutePets => debugDrawPets.Union(ChildThinkers.ToValues());
         public void AddPet(IDebugDrawable pet)

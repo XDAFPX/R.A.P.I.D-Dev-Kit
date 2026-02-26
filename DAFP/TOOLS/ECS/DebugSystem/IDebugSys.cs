@@ -29,23 +29,8 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         void IDrawable.Draw()
         {
             foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
-                if (_ownable is IDrawable drawable)
-                    drawable.Draw();
+                    _ownable.Draw();
         }
 
-        void IOwnerOf<IDebugDrawable>.AddPet(IDebugDrawable pet)
-        {
-            if (pet == this)
-                return;
-            if (pet == null)
-                return;
-            ((IOwnerOf<IDebugDrawable>)this).AddPet(pet);
-        }
-
-        bool IOwnerOf<IDebugDrawable>.RemovePet(IDebugDrawable pet)
-        {
-            // default interface helper cannot mutate enumerable; let concrete implementations handle removal
-            return false;
-        }
     }
 }

@@ -132,9 +132,8 @@ namespace DAFP.TOOLS.ECS.BigData
         public abstract void SetToMin();
 
 
-        private List<IEntity> owners = new List<IEntity>();
-        private List<IStatBase> owners1;
-        private List<IEntity> owners2;
+        private List<IStatBase> statParents = new();
+        private List<IEntity> owners = new();
 
         public void AddModifier(StatModifier<T> modifier)
         {
@@ -231,8 +230,13 @@ namespace DAFP.TOOLS.ECS.BigData
             return true;
         }
 
-        List<IStatBase> IPetOwnerTreeOf<IStatBase>.Owners => owners1;
+        // public void ChangeOwner(IEntity newOwner)
+        // {
+        //     Debug.Log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        // }
 
-        List<IEntity> IPetOf<IEntity, IStatBase>.Owners => owners2;
+        List<IStatBase> IPetOwnerTreeOf<IStatBase>.Owners => statParents;
+
+        List<IEntity> IPetOf<IEntity, IStatBase>.Owners => owners;
     }
 }

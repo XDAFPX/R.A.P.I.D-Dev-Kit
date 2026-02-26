@@ -42,10 +42,10 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public StatContainer Construct(IEntity parent)
         {
+
             foreach (var _statBase in get_nodes())
             {
-                if (_statBase is IOwnedBy<IEntity> _pet)
-                    _pet.ChangeOwner(parent);
+                _statBase.ChangeOwner(parent);
             }
 
             foreach (var _statBase in Stats.ToValues())

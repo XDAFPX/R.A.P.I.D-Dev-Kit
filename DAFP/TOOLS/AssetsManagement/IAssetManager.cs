@@ -28,7 +28,8 @@ namespace DAFP.GAME.Assets
             {
                 var t = obj.transform;
                 t.position = position;
-                onComplete(obj);
+                if (onComplete != null)
+                    onComplete(obj);
             });
         }
 

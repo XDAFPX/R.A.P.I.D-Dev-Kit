@@ -20,7 +20,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         protected IEntity Host => ((IOwnedBy<IDebugDrawable>)this).GetCurrentOwner() as IEntity;
         protected abstract string GetLayerName();
 
-        public void Initilize(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
+        public void InitilizeDebugDrawer(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
         {
             Sys = debugSys;
             Layer = Sys.Layers.FindByName(GetLayerName()) as DebugDrawLayer ?? Sys.GetSharedLayer;

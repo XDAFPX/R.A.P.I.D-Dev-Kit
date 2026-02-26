@@ -16,7 +16,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         protected IDebugSys<IGlobalGizmos, IMessenger> Sys;
         protected T Host => ((IOwnedBy<IDebugDrawable>)this).GetCurrentOwner() as T;
 
-        public void Initilize(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
+        public void InitilizeDebugDrawer(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
         {
             Sys = debugSys;
             Layer = Sys.Layers.FindByName(GetLayerName()) as DebugDrawLayer ?? Sys.GetSharedLayer;

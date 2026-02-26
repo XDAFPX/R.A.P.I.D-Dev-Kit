@@ -38,6 +38,7 @@ namespace RapidLib.DAFP.TOOLS.Common
 
         TNode IOwnedBy<TNode>.GetCurrentOwner()
         {
+            if (Owners==null) throw new Exception($"You forgot to initialize the Owners<{typeof(TNode).Name}> list in {GetType()}");
             return Owners.Count > 0 ? Owners[^1] : default;
         }
 

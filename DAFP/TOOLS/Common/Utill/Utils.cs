@@ -30,6 +30,21 @@ namespace DAFP.TOOLS.Common.Utill
 {
     public static class Utils
     {
+        public static bool RemovePet<T>(T pet, ref List<T> pets) where T : class
+        {
+            if (pet == null) return false;
+            if (!pets.Contains(pet)) return false;
+            pets.Remove(pet);
+            return true;
+        }
+
+        public static void AddPet<T>(T pet, ref List<T> pets) where T : class
+        {
+            if (pet == null) return;
+            if (pets.Contains(pet)) return;
+            pets.Add(pet);
+        }
+
         public static Vector3 Randomize(this Vector3 vector3, float margin01)
         {
             vector3 += new Vector3(Random.Range(vector3.x * -margin01, vector3.x * margin01),
@@ -352,43 +367,19 @@ namespace DAFP.TOOLS.Common.Utill
         }
 
 
-        public static IEnumerable<T> GetAllNodes<T>(this IEnumerable<T> nodes) where T : IOwnedBy<T>, IOwnerOf<T>
+        public static IEnumerable<T> GetAllNodes<T>(this IEnumerable<T> nodes)
+            where T : IOwnedBy<T>, IOwnerOf<T>
         {
-            HashSet<T> _all = new HashSet<T>();
-            foreach (var _ownable in nodes)
+            var _visited = new HashSet<T>(nodes);
+            
+            foreach (var _ in nodes)
             {
-                _all.UnionWith(_ownable.GetAllNodes());
+                _visited = _visited.Union(_.AllPets().OfType<T>()).ToHashSet();
             }
 
-            return _all;
+            return _visited;
         }
 
-        public static IEnumerable<T> GetAllNodes<T>(this T node) where T : IOwnedBy<T>, IOwnerOf<T>
-        {
-            if (node == null)
-                yield break;
-
-            var _visited = new HashSet<T>();
-            var _stack = new Stack<T>();
-            _stack.Push(node);
-
-            while (_stack.Count > 0)
-            {
-                var _current = _stack.Pop();
-
-                if (_current == null || !_visited.Add(_current))
-                    continue;
-
-                yield return _current;
-
-                // Traverse children (pets)
-                foreach (var _pet in _current.Pets.OfType<T>())
-                {
-                    if (!_visited.Contains(_pet))
-                        _stack.Push(_pet);
-                }
-            }
-        }
 
         public static TMax MaxBy<T, TMax>(this IEnumerable<T> source, Func<T, TMax> selector)
             where TMax : IComparable<TMax>

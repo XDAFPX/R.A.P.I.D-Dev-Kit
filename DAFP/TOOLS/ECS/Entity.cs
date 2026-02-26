@@ -66,16 +66,20 @@ namespace DAFP.TOOLS.ECS
         public BlackBoard Memory { get; set; }
 
         // Pets & Ownership
-        private readonly ISet<IDebugDrawable> debugDrawablePets = new HashSet<IDebugDrawable>();
-        public List<IEntity> Children { get; } = new();
-        IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawablePets;
 
         private List<IDebugDrawable> owners;
         private List<IViewModel> viewModels = new();
         protected List<IStatBase> OwnedStats = new();
         protected List<IStatModifierBase> OwnedModifiers = new();
         private List<PegModifier> ownedPegs = new();
+        protected List<IEntityAccessory> Accessories = new();
 
+        public List<IEntity> Children { get; } = new();
+
+        private ISet<IDebugDrawable> debugDrawablePets = new HashSet<IDebugDrawable>();
+
+        //-------------------------------------------
+        IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawablePets;
         IEnumerable<IViewModel> IOwnerOf<IViewModel>.Pets => viewModels;
 
         IEnumerable<IStatBase> IOwnerOf<IStatBase>.Pets => OwnedStats;
@@ -84,59 +88,56 @@ namespace DAFP.TOOLS.ECS
 
         IEnumerable<PegModifier> IOwnerOf<PegModifier>.Pets => ownedPegs;
 
-        private bool remove_pet<T>(T pet, ref List<T> pets) where T : class
+        public IEnumerable<IEntityAccessory> Pets => Accessories;
+
+        public void AddPet(IEntityAccessory pet)
         {
-            if (pet == null) return false;
-            if (!pets.Contains(pet)) return false;
-            pets.Remove(pet);
-            return true;
+            Utils.AddPet(pet, ref Accessories);
         }
 
-        private void add_pet<T>(T pet, ref List<T> pets) where T : class
+        public bool RemovePet(IEntityAccessory pet)
         {
-            if (pet == null) return;
-            if (pets.Contains(pet)) return;
-            pets.Add(pet);
+            return Utils.RemovePet(pet, ref Accessories);
         }
 
         public void AddPet(PegModifier pet)
         {
-            add_pet(pet,ref ownedPegs);
+            Utils.AddPet(pet, ref ownedPegs);
         }
 
         public bool RemovePet(PegModifier pet)
         {
-            return remove_pet(pet, ref ownedPegs);
+            return Utils.RemovePet(pet, ref ownedPegs);
         }
 
         public void AddPet(IStatModifierBase pet)
         {
-            add_pet(pet, ref OwnedModifiers);
+            Utils.AddPet(pet, ref OwnedModifiers);
         }
 
         public bool RemovePet(IStatModifierBase pet)
         {
-            return remove_pet(pet, ref OwnedModifiers);
+            return Utils.RemovePet(pet, ref OwnedModifiers);
         }
 
         public void AddPet(IStatBase pet)
         {
-            add_pet(pet,ref OwnedStats);
+            Utils.AddPet(pet, ref OwnedStats);
         }
 
         public bool RemovePet(IStatBase pet)
         {
-            return remove_pet(pet, ref OwnedStats);
+            return Utils.RemovePet(pet, ref OwnedStats);
         }
 
         public void AddPet(IViewModel pet)
         {
-            add_pet(pet, ref viewModels);
+            Utils.AddPet(pet, ref viewModels);
         }
 
         public bool RemovePet(IViewModel pet)
         {
-            return remove_pet(pet, ref viewModels);
+            return Utils.RemovePet(pet, ref viewModels);
         }
 
         public List<IEntity> Owners { get; } = new();
@@ -470,7 +471,7 @@ namespace DAFP.TOOLS.ECS
             foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
             {
                 _ownable.ChangeOwner(this);
-                if (_ownable is IDebugDrawer _drawer) _drawer.Initilize(DebugSystem);
+                if (_ownable is IDebugDrawer _drawer) _drawer.InitilizeDebugDrawer(DebugSystem);
             }
 
             DebugSystem.AddPet(this);
@@ -601,7 +602,7 @@ namespace DAFP.TOOLS.ECS
         }
 
 
-        public IEnumerable<object> AbsolutePets =>
-            Children.Cast<object>().Concat(((IOwnerOf<IDebugDrawable>)this).Pets.Cast<object>());
+        public IEnumerable<object> AbsolutePets => Children.Union<object>(debugDrawablePets).Union(Accessories)
+            .Union(OwnedModifiers).Union(ownedPegs).Union(viewModels);
     }
 }

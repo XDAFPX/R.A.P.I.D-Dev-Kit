@@ -2,6 +2,7 @@
 using System.Linq;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.TextSys;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
 using UGizmo;
 using Zenject;
@@ -13,8 +14,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         where TMessenger :
         IMessenger
     {
-        private List<IDebugDrawable> pets = new List<IDebugDrawable>();
-        private List<IDebugSubSys> pets1 = new();
+        private List<IDebugDrawable> debugDrawers = new List<IDebugDrawable>();
+        private List<IDebugSubSys> subSystems = new();
 
         [Inject]
         public UniversalDebugSystem(TMessenger messenger, TGizmos gizmos, IList<DebugDrawLayer> layers)
@@ -32,25 +33,35 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public DebugDrawLayer GetSharedLayer { get; }
 
 
-        IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => pets;
+        IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawers;
+
+        public void AddPet(IDebugDrawable pet)
+        {
+            Utils.AddPet(pet, ref debugDrawers);
+        }
+
+        public bool RemovePet(IDebugDrawable pet)
+        {
+            return Utils.RemovePet(pet, ref debugDrawers);
+        }
 
         public void AddPet(IDebugSubSys pet)
         {
             if (pet == null) return;
-            if (pets1.Contains(pet)) return;
-            pets1.Add(pet);
+            if (subSystems.Contains(pet)) return;
+            subSystems.Add(pet);
         }
 
         public bool RemovePet(IDebugSubSys pet)
         {
             if (pet == null) return false;
-            if (!pets1.Contains(pet)) return false;
-            pets1.Remove(pet);
+            if (!subSystems.Contains(pet)) return false;
+            subSystems.Remove(pet);
             return true;
         }
 
-        IEnumerable<IDebugSubSys> IOwnerOf<IDebugSubSys>.Pets => pets1;
+        IEnumerable<IDebugSubSys> IOwnerOf<IDebugSubSys>.Pets => subSystems;
 
-        public IEnumerable<object> AbsolutePets => pets.Union<object>(pets1);
+        public IEnumerable<object> AbsolutePets => debugDrawers.Union<object>(subSystems);
     }
 }

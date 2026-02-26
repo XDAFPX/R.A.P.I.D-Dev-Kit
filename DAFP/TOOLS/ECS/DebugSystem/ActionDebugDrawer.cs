@@ -22,7 +22,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         public DebugDrawLayer Layer { get; set; }
         protected IDebugSys<IGlobalGizmos, IMessenger> Sys;
 
-        public void Initilize(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
+        public void InitilizeDebugDrawer(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
         {
             Sys = debugSys;
             Layer = Sys.Layers.FindByName(layerName) as DebugDrawLayer ?? Sys.GetSharedLayer;

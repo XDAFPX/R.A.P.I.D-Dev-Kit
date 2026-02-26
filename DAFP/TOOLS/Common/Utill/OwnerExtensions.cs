@@ -20,20 +20,20 @@ namespace DAFP.TOOLS.Common
         {
             if (ownedBy == null) return null;
 
-            var current = ownedBy.GetCurrentOwner();
-            if (current == null) return null;
+            var _current = ownedBy.GetCurrentOwner();
+            if (_current == null) return null;
 
             // climb while the current owner is also an ownable of the same owner type
-            var guard = 0; // minimal cycle guard for pathological cases
-            while (current is IOwnedBy<TOwner> up && up.GetCurrentOwner() != null)
+            var _guard = 0; // minimal cycle guard for pathological cases
+            while (_current is IOwnedBy<TOwner> _up && _up.GetCurrentOwner() != null)
             {
-                var next = up.GetCurrentOwner();
-                if (ReferenceEquals(next, current)) break; // self-cycle defense
-                current = next;
-                if (++guard > 1_000_000) break; // hard guard to avoid infinite loops in corrupted graphs
+                var _next = _up.GetCurrentOwner();
+                if (ReferenceEquals(_next, _current)) break; // self-cycle defense
+                _current = _next;
+                if (++_guard > 1_000_000) break; // hard guard to avoid infinite loops in corrupted graphs
             }
 
-            return current;
+            return _current;
         }
 
         /// <summary>
@@ -43,15 +43,15 @@ namespace DAFP.TOOLS.Common
             where TOwner : class, IOwnerOf<TOwner>
         {
             if (ownedBy == null) yield break;
-            var current = ownedBy.GetCurrentOwner();
-            while (current != null)
+            var _current = ownedBy.GetCurrentOwner();
+            while (_current != null)
             {
-                yield return current;
-                if (current is IOwnedBy<TOwner> up)
+                yield return _current;
+                if (_current is IOwnedBy<TOwner> _up)
                 {
-                    var next = up.GetCurrentOwner();
-                    if (ReferenceEquals(next, current)) yield break; // self-cycle defense
-                    current = next;
+                    var _next = _up.GetCurrentOwner();
+                    if (ReferenceEquals(_next, _current)) yield break; // self-cycle defense
+                    _current = _next;
                 }
                 else
                 {
@@ -67,9 +67,9 @@ namespace DAFP.TOOLS.Common
             where TOwner : class, IOwnerOf<TOwner>
         {
             if (predicate == null) throw new ArgumentNullException(nameof(predicate));
-            foreach (var owner in EnumerateOwnersUp(ownedBy))
+            foreach (var _owner in EnumerateOwnersUp(ownedBy))
             {
-                if (predicate(owner)) return owner;
+                if (predicate(_owner)) return _owner;
             }
 
             return null;
@@ -82,9 +82,9 @@ namespace DAFP.TOOLS.Common
             where TOwner : class, IOwnerOf<TOwner>
             where TTarget : class, TOwner
         {
-            foreach (var owner in EnumerateOwnersUp(ownedBy))
+            foreach (var _owner in EnumerateOwnersUp(ownedBy))
             {
-                if (owner is TTarget t) return t;
+                if (_owner is TTarget _t) return _t;
             }
 
             return null;
@@ -100,22 +100,22 @@ namespace DAFP.TOOLS.Common
             where TOwner : class, IOwnerOf<TOwner>
         {
             if (ownerOf == null) return null;
-            if (ownerOf is IOwnedBy<TOwner> ownable)
-                return ownable.GetRootOwner();
+            if (ownerOf is IOwnedBy<TOwner> _ownable)
+                return _ownable.GetRootOwner();
             return ownerOf as TOwner; // best-effort cast; typical implementation matches TOwner
         }
 
-        public static IEnumerable<object> AllPets(this IOwnerBase owner)
+        public static IEnumerable<object> AllPets<T>(this T owner) where T : IOwnerBase
         {
-            foreach (var pet in owner.AbsolutePets)
+            foreach (var _pet in owner.AbsolutePets)
             {
-                yield return pet;
+                yield return _pet;
 
-                if (pet is IOwnerBase nestedOwner)
+                if (_pet is IOwnerBase _nestedOwner)
                 {
-                    foreach (var nestedPet in nestedOwner.AllPets())
+                    foreach (var _nestedPet in _nestedOwner.AllPets())
                     {
-                        yield return nestedPet;
+                        yield return _nestedPet;
                     }
                 }
             }
@@ -130,32 +130,32 @@ namespace DAFP.TOOLS.Common
         {
             if (ownerOf == null) yield break;
 
-            var stack = new Stack<IOwnerOf<IOwnedBy<TOwner>>>();
-            var visitedOwners = new HashSet<object>();
+            var _stack = new Stack<IOwnerOf<IOwnedBy<TOwner>>>();
+            var _visitedOwners = new HashSet<object>();
 
-            void PushOwner(IOwnerOf<IOwnedBy<TOwner>> o)
+            void push_owner(IOwnerOf<IOwnedBy<TOwner>> o)
             {
                 if (o == null) return;
-                if (visitedOwners.Add(o)) stack.Push(o);
+                if (_visitedOwners.Add(o)) _stack.Push(o);
             }
 
-            PushOwner(ownerOf);
+            push_owner(ownerOf);
 
-            while (stack.Count > 0)
+            while (_stack.Count > 0)
             {
-                var currentOwner = stack.Pop();
-                var pets = currentOwner?.Pets;
-                if (pets == null) continue;
+                var _currentOwner = _stack.Pop();
+                var _pets = _currentOwner?.Pets;
+                if (_pets == null) continue;
 
-                foreach (var pet in pets)
+                foreach (var _pet in _pets)
                 {
-                    if (pet == null) continue;
-                    yield return pet;
+                    if (_pet == null) continue;
+                    yield return _pet;
 
                     // If the pet is itself an owner of this pet type, explore recursively
-                    if (pet is IOwnerOf<IOwnedBy<TOwner>> petAsOwner)
+                    if (_pet is IOwnerOf<IOwnedBy<TOwner>> _petAsOwner)
                     {
-                        PushOwner(petAsOwner);
+                        push_owner(_petAsOwner);
                     }
                 }
             }
@@ -165,10 +165,10 @@ namespace DAFP.TOOLS.Common
             where TOwner : class
             where TPet : class, IOwnedBy<TOwner>
         {
-            foreach (var pet in ownerOf.EnumeratePetsDeep()) // calls the DFS for IOwnable<TOwner>
+            foreach (var _pet in ownerOf.EnumeratePetsDeep()) // calls the DFS for IOwnable<TOwner>
             {
-                if (pet is TPet t)
-                    yield return t;
+                if (_pet is TPet _t)
+                    yield return _t;
             }
         }
     }

@@ -18,6 +18,7 @@ namespace RapidLib.DAFP.TOOLS.Editor
     {
         private readonly Dictionary<string, ReorderableList> lists = new Dictionary<string, ReorderableList>();
 
+        private string ChildrenListName => nameof(WhiteBoard<uint>.ChildrenStats);
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             // Begin property scope
@@ -58,7 +59,7 @@ namespace RapidLib.DAFP.TOOLS.Editor
                 while (_hasChild && !SerializedProperty.EqualContents(_iterator, _end))
                 {
                     // Only draw direct children of this property
-                    if (_iterator.depth == property.depth + 1 && _iterator.name != "Children" &&
+                    if (_iterator.depth == property.depth + 1 && _iterator.name != ChildrenListName &&
                         _iterator.name != "PegModifiers")
                     {
                         float _h = EditorGUI.GetPropertyHeight(_iterator, includeChildren: true);
@@ -75,7 +76,7 @@ namespace RapidLib.DAFP.TOOLS.Editor
                 enforce_numeric_constraints(property);
 
                 // Draw Children list at the end
-                var _childrenProp = property.FindPropertyRelative("Children");
+                var _childrenProp = property.FindPropertyRelative(ChildrenListName);
                 float _listHeight = draw_children_list(new Rect(_x, _y, _width, 0), property, _childrenProp);
                 _y += _listHeight + EditorGUIUtility.standardVerticalSpacing;
 
@@ -100,7 +101,7 @@ namespace RapidLib.DAFP.TOOLS.Editor
         {
             // Check if the property path contains ".Children.Array.data["
             // This indicates it's an element within a Children list
-            return property.propertyPath.Contains(".Children.Array.data[");
+            return property.propertyPath.Contains($".{ChildrenListName}.Array.data[");
         }
 
         /// <summary>
@@ -429,7 +430,7 @@ namespace RapidLib.DAFP.TOOLS.Editor
             bool _hasChild = _iterator.NextVisible(true);
             while (_hasChild && !SerializedProperty.EqualContents(_iterator, _end))
             {
-                if (_iterator.depth == property.depth + 1 && _iterator.name != "Children")
+                if (_iterator.depth == property.depth + 1 && _iterator.name != ChildrenListName)
                 {
                     _height += EditorGUI.GetPropertyHeight(_iterator, includeChildren: true) +
                                EditorGUIUtility.standardVerticalSpacing;
@@ -445,7 +446,7 @@ namespace RapidLib.DAFP.TOOLS.Editor
             }
 
             // Add Children list height
-            var _childrenProp = property.FindPropertyRelative("Children");
+            var _childrenProp = property.FindPropertyRelative(ChildrenListName);
             _height += get_children_list_height(property, _childrenProp) + EditorGUIUtility.standardVerticalSpacing;
 
             return _height;
@@ -497,7 +498,7 @@ namespace RapidLib.DAFP.TOOLS.Editor
 
         private ReorderableList get_or_create_list(SerializedProperty ownerProperty, SerializedProperty childrenProp)
         {
-            string _key = ownerProperty.propertyPath + ".Children";
+            string _key = ownerProperty.propertyPath + $".{ChildrenListName}";
             if (lists.TryGetValue(_key, out var _existing))
                 return _existing;
 
