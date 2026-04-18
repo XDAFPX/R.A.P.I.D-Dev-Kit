@@ -35,6 +35,11 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
 
         public bool Evaluate(IEntity go)
         {
+            if (myself == null && myself2 == null)
+                Debug.LogWarning(
+                    $"Warning an ExcludeSelf filter doesnt reference self (myself==null &&myself2==null) go={go}");
+
+
             if (myself2 != null)
                 return go.GetWorldRepresentation() != myself2.GetWorldRepresentation();
             if (myself != null)
@@ -44,6 +49,11 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
 
         public bool Evaluate(GameObject go)
         {
+            if (myself == null && myself2 == null)
+                Debug.LogWarning(
+                    $"Warning an ExcludeSelf filter doesnt reference self (myself==null &&myself2==null) go={go}");
+            
+            
             if (myself != null)
                 return go != myself;
             return false;

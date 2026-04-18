@@ -2,6 +2,7 @@
 using System.Linq;
 using DAFP.TOOLS.ECS.Environment;
 using DAFP.TOOLS.ECS.Environment.Filters;
+using DAFP.TOOLS.ECS.Environment.TriggerSys;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditorInternal;

@@ -7,18 +7,32 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
-    public interface IDebugSubSys : IOwnedBy<IDebugSys<IGlobalGizmos,IMessenger>>
+    public interface IDebugSubSys : IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>>
     {
-        
     }
+
     public interface IDebugSys<out TGizmos, out TMessenger> : IDrawable, IOwnerOf<IDebugDrawable>,
-        Zenject.ITickable,IOwnerOf<IDebugSubSys>
+        Zenject.ITickable, IOwnerOf<IDebugSubSys>
         where TGizmos : IGlobalGizmos where TMessenger : IMessenger
     {
         public TGizmos Gizmos { get; }
         public TMessenger Messenger { get; }
         public IList<DebugDrawLayer> Layers { get; }
         public DebugDrawLayer GetSharedLayer { get; }
+
+        public void Log(INameable system, object message)
+        {
+            var systemname = system != null ? system.Name : "0";
+            var fullmessage = $"[{systemname}]: {message}";
+            
+            if (system == null)
+                Debug.LogWarning(fullmessage);
+            else
+                Debug.Log(fullmessage);
+
+            Messenger.Print(CompText.Literal(fullmessage));
+        }
+
 
         void Zenject.ITickable.Tick()
         {
@@ -29,8 +43,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         void IDrawable.Draw()
         {
             foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
-                    _ownable.Draw();
+                _ownable.Draw();
         }
-
     }
 }

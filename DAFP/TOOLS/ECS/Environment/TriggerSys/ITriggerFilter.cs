@@ -1,15 +1,15 @@
 ﻿using DAFP.TOOLS.ECS.Environment.Filters;
 using UnityEngine;
 
-namespace DAFP.TOOLS.ECS.Environment
+namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 {
-    public interface ITriggerFilter : IFilter<TriggerCollider>,IFilter<GameObject>
+    public interface ITriggerFilter : IFilter<TriggerContext>,IFilter<GameObject>
     {
         public TriggerEntity.TriggerEvent Event { get; set; }
 
-        bool IFilter<TriggerCollider>.Evaluate(TriggerCollider go)
+        bool IFilter<TriggerContext>.Evaluate(TriggerContext go)
         {
-            var _val = Evaluate(go.GameObject);
+            var _val = Evaluate(go.Target.GameObject);
             LastStatus = _val;
             return _val;
 

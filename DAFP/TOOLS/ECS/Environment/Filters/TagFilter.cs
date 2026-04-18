@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using DAFP.TOOLS.ECS.BuiltIn;
+using DAFP.TOOLS.ECS.Environment.TriggerSys;
 using UnityEditor;
 using UnityEngine;
 

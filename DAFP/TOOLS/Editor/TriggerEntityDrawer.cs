@@ -1,4 +1,5 @@
 ﻿using DAFP.TOOLS.ECS.Environment;
+using DAFP.TOOLS.ECS.Environment.TriggerSys;
 using PixelRouge.Inspector;
 using TNRD;
 

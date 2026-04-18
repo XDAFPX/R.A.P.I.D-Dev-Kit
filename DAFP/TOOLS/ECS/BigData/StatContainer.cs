@@ -11,7 +11,7 @@ namespace DAFP.TOOLS.ECS.BigData
 {
     [Serializable]
     [CreateAssetMenu(fileName = "Stats", menuName = "R.A.P.I.D/StatContainer")]
-    public class StatContainer : ScriptableObject, ITickable
+    public class StatContainer : ScriptableObject, ITickable, IStatContainer
     {
         [SerializeField] private List<SerializableInterface<IStatBase>> Stats;
 
@@ -29,20 +29,19 @@ namespace DAFP.TOOLS.ECS.BigData
             return cachedNodes;
         }
 
-        public StatContainer MarkAsDirty()
+        public IStatContainer MarkAsDirty()
         {
             return InvalidateCache();
         }
 
-        public StatContainer InvalidateCache()
+        public IStatContainer InvalidateCache()
         {
             isDirty = true;
             return this;
         }
 
-        public StatContainer Construct(IEntity parent)
+        public IStatContainer Construct(IEntity parent)
         {
-
             foreach (var _statBase in get_nodes())
             {
                 _statBase.ChangeOwner(parent);
@@ -73,16 +72,59 @@ namespace DAFP.TOOLS.ECS.BigData
 
         private IStat<T> get<T>(string name)
         {
-            var _stat = get_nodes().FindByName(name);
-            if (_stat is IStat<T> _found)
-                return _found;
-            throw new Exception(
-                $"The stat you had searched for is either an incorrect type ({typeof(T).Name}) or null ");
+            IStatBase _statBase = null;
+            var _pathBuilder = new StatInjector.PathBuilder(name);
+
+            IStatBase _current = Stats.ToValues().FindByName(_pathBuilder.GetRoot());
+            if (_current == null)
+                throw_if_stat_invalid();
+
+            // If only root exists, we found it and also it should be the type expected
+            _statBase = _current;
+            if (_pathBuilder.GetTotalDepth() == 0 && type_check(out var _stat1)) return _stat1;
+
+
+            // Traverse down the tree, skipping the root (already found)
+            foreach (var _segment in _pathBuilder.IterateRootToLeaf().Skip(1))
+            {
+                _current = _current.Pets.Cast<IStatBase>().FindByName(_segment);
+                if (_current == null)
+                    throw_if_stat_invalid();
+            }
+
+            _statBase = _current;
+            if (type_check(out var _stat)) return _stat;
+
+            throw_if_stat_invalid();
+            return null;
+            
+            
+            
+            void throw_if_stat_invalid()
+            {
+                throw new Exception(
+                    $"The stat you had searched for is either an incorrect type ({typeof(T).Name}) or null ");
+            }
+
+
+            bool type_check(out IStat<T> stat)
+            {
+                if (_statBase is IStat<T> _found)
+                {
+                    stat = _found;
+                    return true;
+                }
+
+                stat = null;
+                return false;
+            }
         }
 
         public bool Has(string statName, out IStatBase stat)
         {
-            stat = (IStatBase)get_nodes().FindByName(statName);
+            stat = null;
+            if (Has(new StatInjector.PathBuilder(statName), out var _base))
+                stat = _base;
             return stat != null;
         }
 
@@ -121,11 +163,10 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public bool Has(string statName)
         {
-            var _stat = get_nodes().FindByName(statName);
-            return _stat != null;
+            return Has(new StatInjector.PathBuilder(statName));
         }
 
-        public StatContainer Add(IStatBase stat)
+        public IStatContainer Add(IStatBase stat)
         {
             Stats.Add(new SerializableInterface<IStatBase>(stat));
             InvalidateCache();

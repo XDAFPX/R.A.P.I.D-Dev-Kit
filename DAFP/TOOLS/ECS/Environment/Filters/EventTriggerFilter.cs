@@ -1,5 +1,6 @@
 ﻿using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Environment.Filters;
+using DAFP.TOOLS.ECS.Environment.TriggerSys;
 using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Environment

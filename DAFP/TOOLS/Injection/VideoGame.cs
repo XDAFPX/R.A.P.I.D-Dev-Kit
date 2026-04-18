@@ -1,17 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using Archon.SwissArmyLib.Utils.Editor;
 using DAFP.GAME.Assets;
 using DAFP.TOOLS.Common.TextSys;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.Audio;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
+using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.UI;
 using NRandom;
 using NRandom.Unity;
 using PixelRouge.Direction;
+using TNRD;
 using UGizmo;
 using UnityEngine;
 using UnityEventBus;
@@ -24,7 +29,7 @@ namespace DAFP.TOOLS.Injection
     public abstract class
         VideoGame<TGameStateService, TCursorService, TSaveService, TConfigService, TSettingsSaveService,
             TAudioService, TRandomService, TConsoleService, TGizmosService, TDebugService,
-            TConsoleInterpriter, TAssetManager> : MonoInstaller
+            TConsoleInterpriter, TAssetManager, TModManager> : MonoInstaller
         where TGameStateService : IGlobalGameStateHandler
         where TCursorService : IGlobalCursorStateHandler
         where TSaveService : ISaveSystem
@@ -37,9 +42,13 @@ namespace DAFP.TOOLS.Injection
         where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IMessenger>
         where TConsoleInterpriter : ICommandInterpreter
         where TAssetManager : IAssetManager
+        where TModManager : IModManager
 
     {
         [SerializeField] private GameObject[] UISystemPrefabs;
+
+        [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]
+        private SerializableInterface<IMod>[] Mods;
 
         protected abstract Dictionary<Type, Type> GetServices();
         protected abstract string GetGameDefaultGameState(InjectContext arg);
@@ -63,6 +72,7 @@ namespace DAFP.TOOLS.Injection
                 new(DebugDrawLayer.DefaultDebugLayers.EYE_VECTORS, Application.isEditor),
                 new(DebugDrawLayer.DefaultDebugLayers.VELOCITIES, Application.isEditor),
                 new(DebugDrawLayer.DefaultDebugLayers.NAMES, Application.isEditor),
+                new(DebugDrawLayer.DefaultDebugLayers.ENT_INFO, Application.isEditor),
                 new(DebugDrawLayer.DefaultDebugLayers.VIEW_MODELS, Application.isEditor),
                 new(DebugDrawLayer.DefaultDebugLayers.THINKERS, Application.isEditor),
                 new(DebugDrawLayer.DefaultDebugLayers.MISC, Application.isEditor),
@@ -125,6 +135,7 @@ namespace DAFP.TOOLS.Injection
         {
             bind_default_strings();
             bind_asset_manager();
+            bind_input_manager();
             bind_debug_systems();
             bind_random_systems();
             bind_cursor_systems();
@@ -137,6 +148,7 @@ namespace DAFP.TOOLS.Injection
             bind_save_systems();
             bind_ui_systems();
             bind_console();
+            bind_mod_manager();
             InstallAdditional();
         }
 
@@ -156,6 +168,12 @@ namespace DAFP.TOOLS.Injection
 
             Container.Bind<IEventBus>().WithId("GlobalGameEventsBus")
                 .FromMethod(_ => new GlobalStateBus()).AsCached().NonLazy();
+        }
+
+
+        private void bind_input_manager()
+        {
+            Container.Bind<UniversalInputControllerManager>().AsSingle().NonLazy();
         }
 
         private void bind_debug_systems()
@@ -276,6 +294,13 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<TAssetManager>().AsSingle().NonLazy();
             Container.Bind<IAssetManager>().To<TAssetManager>().FromResolve();
             Container.Bind<IInitializable>().To<TAssetManager>().FromResolve();
+        }
+
+        private void bind_mod_manager()
+        {
+            Container.Bind<TModManager>().AsSingle().NonLazy();
+            Container.Bind<IMod[]>().FromMethod((context => Mods.ToValues().ToArray())).AsCached();
+            Container.Bind<IModManager>().To<TModManager>().FromResolve();
         }
     }
 }

@@ -6,15 +6,10 @@ namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput
 {
     public class InputController : IInputController
     {
-        private readonly InputActionAsset actions;
+        private InputActionAsset actions;
         private readonly Dictionary<string, Action<InputAction.CallbackContext>> callbacks = new();
 
-        public InputController(string name, InputActionAsset actions)
-        {
-            Name = name;
-            this.actions = actions;
-        }
-
+        internal InputController(){}
         public void Bind(string actionName, Action<InputAction.CallbackContext> callback)
         {
             var _action = actions.FindAction(actionName, true);
@@ -22,6 +17,12 @@ namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput
 
             if (Enabled)
                 subscribe(_action, callback);
+        }
+
+        public void Init(string name, InputActionAsset actions)
+        {
+            Name = name;
+            this.actions = actions;
         }
 
 

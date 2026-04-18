@@ -23,10 +23,13 @@ using Zenject;
 namespace DAFP.TOOLS.ECS
 {
     public interface IEntity : ITickable, IGameObjectProvider, IAuthor, INameable, IPetOwnerTreeOf<IEntity>, ISavable,
-        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>,IOwnerOf<IStatBase>,IOwnerOf<IStatModifierBase>,IOwnerOf<PegModifier>,IOwnerOf<IEntityAccessory>
+        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>, IOwnerOf<IStatBase>,
+        IOwnerOf<IStatModifierBase>, IOwnerOf<PegModifier>, IOwnerOf<IEntityAccessory>
     {
         public IThinker Brains { get; }
-        public StatContainer Stats { get; }
+        public IStatContainer Stats { get; }
+
+        public void Initialize();
 
         public void DeInitializeBrains(IThinker thinker);
 
@@ -49,9 +52,10 @@ namespace DAFP.TOOLS.ECS
         public World GetWorld();
         public IEventBus Bus { get; }
         public Bounds Bounds { get; }
+        public Bounds CachedBounds { get; }
         public IVectorBase EyeVector { get; }
-        public void RecalculateBounds();
         public void Remove(EntityRemovalReason removalReason);
+
         public void BroadcastEvent<T>(T @event) where T : struct;
     }
 }

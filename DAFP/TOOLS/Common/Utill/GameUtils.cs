@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using BandoWare.GameplayTags;
 using DAFP.TOOLS.Common.Maths;
+using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Damage;
@@ -13,23 +14,65 @@ using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.Filters;
+using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.ViewModel;
 using Newtonsoft.Json.Linq;
+using NUnit.Framework;
 using Optional;
 using Optional.Unsafe;
+using PixelRouge.Inspector.Extensions;
 using RapidLib.DAFP.TOOLS.Common;
 using TNRD;
+using UGizmo;
+using UGizmo.Internal;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Object = System.Object;
 using Random = UnityEngine.Random;
 
 namespace DAFP.TOOLS.Common.Utill
 {
-    public static class Utils
+    public static class GameUtils
     {
+        public static IEnumerable<HitBox<T>> RealHitBoxes<T>(this IEnumerable<HitboxSlot<T>> slots)
+        {
+            var _l = new List<HitBox<T>>();
+            foreach (var _hitboxSlot in slots)
+            {
+                if (_hitboxSlot.TryGet(out var _box))
+                {
+                    _l.Add(_box);
+                }
+            }
+
+            return _l;
+        }
+
+
+        public static void SetEntityParent<T>(this T pet, IEntity owner) where T : IOwnedBy<IEntity>
+        {
+            if (pet == null) return;
+            pet.ChangeOwner(owner);
+        }
+
+        public static bool RemovePet<T>(T pet, ref List<SerializableInterface<T>> pets) where T : class
+        {
+            if (pet == null) return false;
+            if (!pets.ToValues().Contains(pet)) return false;
+            pets.RemoveAll((@interface => @interface.Value == pet));
+            return true;
+        }
+
+        public static void AddPet<T>(T pet, ref List<SerializableInterface<T>> pets) where T : class
+        {
+            if (pet == null) return;
+            if (pets.ToValues().Contains(pet)) return;
+            pets.Add(new SerializableInterface<T>(pet));
+        }
+
         public static bool RemovePet<T>(T pet, ref List<T> pets) where T : class
         {
             if (pet == null) return false;
@@ -183,6 +226,7 @@ namespace DAFP.TOOLS.Common.Utill
             var _angleToTarget = Vector2.Angle(direction.normalized, _toPoint.normalized);
             return _angleToTarget <= angle;
         }
+
 
         public static T[] GetComponentsInRoot<T>(this GameObject root) where T : Component
         {
@@ -387,19 +431,19 @@ namespace DAFP.TOOLS.Common.Utill
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (selector == null) throw new ArgumentNullException(nameof(selector));
 
-            using var enumerator = source.GetEnumerator();
-            if (!enumerator.MoveNext())
+            using var _enumerator = source.GetEnumerator();
+            if (!_enumerator.MoveNext())
                 throw new InvalidOperationException("Sequence contains no elements");
 
-            TMax maxValue = selector(enumerator.Current);
-            foreach (var item in source)
+            TMax _maxValue = selector(_enumerator.Current);
+            foreach (var _item in source)
             {
-                var value = selector(item);
-                if (value.CompareTo(maxValue) > 0)
-                    maxValue = value;
+                var _value = selector(_item);
+                if (_value.CompareTo(_maxValue) > 0)
+                    _maxValue = _value;
             }
 
-            return maxValue;
+            return _maxValue;
         }
 
         public static IEnumerable<T> ToValues<T>(this IEnumerable<SerializableInterface<T>> arr) where T : class
@@ -428,6 +472,40 @@ namespace DAFP.TOOLS.Common.Utill
             }
         }
 
+        public static Bounds GetCombinedBounds(this IEnumerable<Collider2D> colliders)
+        {
+            Bounds? _combined = null;
+            foreach (var _col in colliders)
+            {
+                if (_combined == null) _combined = _col.bounds;
+                else
+                {
+                    var _b = _combined.Value;
+                    _b.Encapsulate(_col.bounds);
+                    _combined = _b;
+                }
+            }
+
+            return _combined ?? new Bounds();
+        }
+
+        public static Bounds GetCombinedBounds(this IEnumerable<Collider> colliders)
+        {
+            Bounds? _combined = null;
+            foreach (var _col in colliders)
+            {
+                if (_combined == null) _combined = _col.bounds;
+                else
+                {
+                    var _b = _combined.Value;
+                    _b.Encapsulate(_col.bounds);
+                    _combined = _b;
+                }
+            }
+
+            return _combined ?? new Bounds();
+        }
+
         public static Bounds Add(this Bounds a, Bounds b)
         {
             if (a.size == Vector3.zero) return b;
@@ -449,6 +527,16 @@ namespace DAFP.TOOLS.Common.Utill
             return new Bounds(a.center - b.center, a.size - b.size);
         }
 
+
+        public static IEnumerable<T> Enabled<T>(this IEnumerable<T> models) where T : ISwitchable
+        {
+            return models.Where((switchable => switchable.Enabled));
+        }
+
+        public static IEnumerable<T> Disabled<T>(this IEnumerable<T> models) where T : ISwitchable
+        {
+            return models.Where((switchable => !switchable.Enabled));
+        }
 
         public static void DisableAll(this IEnumerable<ISwitchable> models)
         {
@@ -491,6 +579,11 @@ namespace DAFP.TOOLS.Common.Utill
             _find.Enable();
         }
 
+        public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
+        {
+            foreach (var _item in source)
+                action(_item);
+        }
 
         public static T FindByName<T>(this IEnumerable<T> nameables, string name) where T : INameable
         {
@@ -502,99 +595,239 @@ namespace DAFP.TOOLS.Common.Utill
             return nameables.FirstOrDefault(nameable => nameable.Name == name);
         }
 
+        //-- Cleaned up and it almost works 
+
         public static T DeepClone<T>(this T original) where T : ScriptableObject
         {
-            var _clone = ScriptableObject.Instantiate(original);
-            var _fields = original.GetType()
-                .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            return (T)deep_clone(original);
+        }
 
+        private static ScriptableObject deep_clone(ScriptableObject original)
+        {
+            var _clone = ScriptableObject.Instantiate(original);
+            var _fields = get_all_fields(original.GetType());
             foreach (var _f in _fields)
             {
+                if (_f.Name != "ChildThinkers")
+                    continue; //--TODO IDK how to fix this but when I try to clone something but this one thing everything breaks to shit
                 var _v = _f.GetValue(original);
-
-                // single ScriptableObject
-                if (_v is ScriptableObject _so)
-                {
-                    _f.SetValue(_clone, ScriptableObject.Instantiate(_so));
-                    continue;
-                }
-
-                // single wrapper (e.g. SerializableInterface<T>)
-                if (_v != null && _v is not IList)
-                {
-                    var _valueProp = _v.GetType().GetProperty("Value",
-                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (_valueProp != null && _valueProp.GetValue(_v) is ScriptableObject _soWrapped)
-                    {
-                        var _clonedSO = ScriptableObject.Instantiate(_soWrapped);
-                        var _newWrapper = Activator.CreateInstance(_v.GetType(), _clonedSO);
-                        _f.SetValue(_clone, _newWrapper);
-                        continue;
-                    }
-                }
-
-                // array or list (unified)
-                if (_v is IList _list && _list.Count > 0)
-                {
-                    bool _handled = false;
-                    IList _newList;
-
-                    if (_v is Array _arrList)
-                    {
-                        var _elementType = _arrList.GetType().GetElementType();
-                        _newList = Array.CreateInstance(_elementType, _arrList.Length);
-                    }
-                    else
-                    {
-                        _newList = (IList)Activator.CreateInstance(_list.GetType());
-                    }
-
-                    int _index = 0;
-                    foreach (var _item in _list)
-                    {
-                        if (_item is ScriptableObject _soItem)
-                        {
-                            if (_newList is Array _a) _a.SetValue(ScriptableObject.Instantiate(_soItem), _index);
-                            else _newList.Add(ScriptableObject.Instantiate(_soItem));
-                            _handled = true;
-                        }
-                        else if (_item != null)
-                        {
-                            var _valueProp = _item.GetType().GetProperty("Value",
-                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                            if (_valueProp != null && _valueProp.GetValue(_item) is ScriptableObject _soWrapped)
-                            {
-                                var _clonedSO = ScriptableObject.Instantiate(_soWrapped);
-                                var _newWrapper = Activator.CreateInstance(_item.GetType(), _clonedSO);
-                                if (_newList is Array _a) _a.SetValue(_newWrapper, _index);
-                                else _newList.Add(_newWrapper);
-                                _handled = true;
-                            }
-                            else
-                            {
-                                if (_newList is Array _a) _a.SetValue(_item, _index);
-                                else _newList.Add(_item);
-                            }
-                        }
-                        else
-                        {
-                            if (_newList is Array _a) _a.SetValue(null, _index);
-                            else _newList.Add(null);
-                        }
-
-                        _index++;
-                    }
-
-                    if (_handled)
-                    {
-                        _f.SetValue(_clone, _newList);
-                        continue;
-                    }
-                }
+                handle(clone_shit, _v, _f);
             }
 
             return _clone;
+
+
+            //-- stuff---------------------------------
+
+            void handle<T>(Func<T, T> cloneFunc, T original_obj, FieldInfo _f)
+            {
+                var _result = cloneFunc.Invoke(original_obj);
+                _f.SetValue(_clone, _result);
+            }
+
+            object clone_shit(object item)
+            {
+                switch (item)
+                {
+                    case null:
+                        return item;
+                    case ScriptableObject _so:
+                        return clone_so(_so);
+                    case IList _deepList:
+                        return clone_list(_deepList);
+                    default:
+                        return clone_wrapper(item);
+                }
+            }
+
+            object clone_wrapper(object _v)
+            {
+                var _valueProp = _v.GetType().GetProperty("Value",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (_valueProp == null) return _v;
+
+                var inner = _valueProp.GetValue(_v);
+                if (inner is not UnityEngine.ScriptableObject _ob) return _v;
+
+                var _clonedSo = clone_so(_ob);
+
+                // Create empty instance then set Value via reflection
+                var _newWrapper = Activator.CreateInstance(_v.GetType());
+                _valueProp.SetValue(_newWrapper, _clonedSo);
+                return _newWrapper;
+            }
+
+
+            ScriptableObject clone_so(ScriptableObject _so)
+            {
+                return deep_clone(_so);
+            }
+
+            IList list_add(IList _list, object _item)
+            {
+                if (_list is Array arr)
+                {
+                    var newArr = Array.CreateInstance(arr.GetType().GetElementType(), arr.Length + 1);
+                    Array.Copy(arr, newArr, arr.Length);
+                    newArr.SetValue(_item, arr.Length);
+                    return newArr;
+                }
+
+                _list.Add(_item);
+                return _list;
+            }
+
+            IList clone_list(IList _list)
+            {
+                IList _newList;
+
+
+                if (_list is Array _arrList)
+                {
+                    var _elementType = _arrList.GetType().GetElementType();
+                    _newList = Array.CreateInstance(_elementType, 0);
+                }
+                else
+                {
+                    _newList = (IList)Activator.CreateInstance(_list.GetType());
+                }
+
+
+                foreach (var _item in _list)
+                {
+                    _newList = list_add(_newList, (clone_shit(_item)));
+                }
+
+                return _newList;
+            }
+
+            IEnumerable<FieldInfo> get_all_fields(Type type, Func<FieldInfo, bool> predicate = null)
+            {
+                while (type != null && type != typeof(UnityEngine.Object))
+                {
+                    foreach (var f in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic |
+                                                     BindingFlags.Instance))
+                        if (predicate == null || predicate(f))
+                            yield return f;
+                    type = type.BaseType;
+                }
+            }
         }
+
+
+        // private static ScriptableObject deep_clone(ScriptableObject original) --Almost works
+        // {
+        //     var _clone = ScriptableObject.Instantiate(original);
+        //     var _fields = get_all_fields(original.GetType());
+        //     Debug.Log("AASSSSS ::: " + original.name);
+        //     foreach (var _f in _fields)
+        //     {
+        //         Debug.Log(_f.Name);
+        //         var _v = _f.GetValue(original);
+        //         handle(clone_shit, _v, _f);
+        //     }
+        //
+        //     return _clone;
+        //
+        //
+        //     //-- stuff---------------------------------
+        //
+        //     void handle<T>(Func<T, T> cloneFunc, T original_obj, FieldInfo _f)
+        //     {
+        //         var _result = cloneFunc.Invoke(original_obj);
+        //         _f.SetValue(_clone, _result);
+        //     }
+        //
+        //     object clone_shit(object item)
+        //     {
+        //         switch (item)
+        //         {
+        //             case null:
+        //                 return item;
+        //             case ScriptableObject _so:
+        //                 return clone_so(_so);
+        //             case IList _deepList:
+        //                 return clone_list(_deepList);
+        //             default:
+        //                 return clone_wrapper(item);
+        //         }
+        //     }
+        //
+        //     object clone_wrapper(object _v)
+        //     {
+        //         var _valueProp = _v.GetType().GetProperty("Value",
+        //             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        //
+        //         if (_valueProp == null) return _v;
+        //
+        //         var inner = _valueProp.GetValue(_v);
+        //         if (inner is not UnityEngine.ScriptableObject _ob) return _v;
+        //
+        //         var _clonedSo = clone_so(_ob);
+        //
+        //         // Create empty instance then set Value via reflection
+        //         var _newWrapper = Activator.CreateInstance(_v.GetType());
+        //         _valueProp.SetValue(_newWrapper, _clonedSo);
+        //         return _newWrapper;
+        //     }
+        //
+        //
+        //     ScriptableObject clone_so(ScriptableObject _so)
+        //     {
+        //         return deep_clone(_so);
+        //     }
+        //
+        //     IList list_add(IList _list, object _item)
+        //     {
+        //         if (_list is Array arr)
+        //         {
+        //             var newArr = Array.CreateInstance(arr.GetType().GetElementType(), arr.Length + 1);
+        //             Array.Copy(arr, newArr, arr.Length);
+        //             newArr.SetValue(_item, arr.Length);
+        //             return newArr;
+        //         }
+        //
+        //         _list.Add(_item);
+        //         return _list;
+        //     }
+        //
+        //     IList clone_list(IList _list)
+        //     {
+        //         IList _newList;
+        //
+        //
+        //         if (_list is Array _arrList)
+        //         {
+        //             var _elementType = _arrList.GetType().GetElementType();
+        //             _newList = Array.CreateInstance(_elementType, 0);
+        //         }
+        //         else
+        //         {
+        //             _newList = (IList)Activator.CreateInstance(_list.GetType());
+        //         }
+        //
+        //
+        //         foreach (var _item in _list)
+        //         {
+        //             _newList = list_add(_newList, (clone_shit(_item)));
+        //         }
+        //
+        //         return _newList;
+        //     }
+        //
+        //     IEnumerable<FieldInfo> get_all_fields(Type type, Func<FieldInfo, bool> predicate = null)
+        //     {
+        //         while (type != null && type != typeof(UnityEngine.Object))
+        //         {
+        //             foreach (var f in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic |
+        //                                              BindingFlags.Instance))
+        //                 if (predicate == null || predicate(f))
+        //                     yield return f;
+        //             type = type.BaseType;
+        //         }
+        //     }
+        // }
 
         public static IInputController TryGetRootController(this BaseThinker thinker, Func<IInputController> fallback)
         {
@@ -693,6 +926,7 @@ namespace DAFP.TOOLS.Common.Utill
                 }
             }
 
+            _combined.center += root.transform.position;
             return _combined;
         }
 
@@ -827,6 +1061,39 @@ namespace DAFP.TOOLS.Common.Utill
         //     var _val = board.Pets.Cast<IPeg<T>>().FindByName(name);
         //     return _val != default ? ((IPeg<T>)_val) : @default;
         // }
+
+
+        public static void DrawOnLayer(this IDebugSys<IGlobalGizmos, IMessenger> sys, DebugDrawLayer layer,
+            Action<IGlobalGizmos> brush)
+        {
+            layer.Draw(sys, brush);
+        }
+
+        public static void DrawOnSharedLayer(this IDebugSys<IGlobalGizmos, IMessenger> sys,
+            Action<IGlobalGizmos> brush)
+        {
+            sys.GetSharedLayer.Draw(sys, brush);
+        }
+
+        public static void Draw(this DebugDrawLayer layer, IDebugSys<IGlobalGizmos, IMessenger> sys,
+            Action<IGlobalGizmos> brush)
+        {
+            layer.Draw((() => brush.Invoke(sys.Gizmos)));
+        }
+
+        public static void Draw(this DebugDrawLayer layer, Action brush)
+        {
+            if (layer.Enabled)
+                brush.Invoke();
+        }
+
+
+        public static void PriorityForeach<T>(this IEnumerable<T> l, Action<T> action) where T : IPrioritized
+        {
+            var list = l.ToList();
+            list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            list.ForEach(action);
+        }
 
         public static IEnumerable<T> Filter<T>(this IFilter<T> filter, IEnumerable<T> ents)
         {

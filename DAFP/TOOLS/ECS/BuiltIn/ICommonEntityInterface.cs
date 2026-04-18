@@ -1,14 +1,21 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.Filters;
+using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using Optional;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public interface ICommonEntityInterface : IEntity
     {
+        public interface IHitBoxDefinition<T>
+        {
+            public IEnumerable<HitboxSlot<T>> HitBoxDefinition { get; }
+        }
         public interface IVelocityProvider : ICommonEntityInterface
         {
             public IVelocityStat Velocity { get; }
@@ -30,34 +37,34 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        public interface IEntMeleeAttackInputable : ICommonEntityInterface
+        public interface IMeleeAttackInputable : ICommonEntityInterface
         {
             public void InputMeleeAttack(IVectorBase vector);
             public void InputMeleeAttack();
         }
 
-        public interface IEntMovementInputable : ICommonEntityInterface
+        public interface IMovementInputable : ICommonEntityInterface
         {
             public void InputMovement(IVectorBase vector);
         }
 
-        public interface IEntJumpInputable : ICommonEntityInterface
+        public interface IJumpInputable : ICommonEntityInterface
         {
             public void InputMovement(float force);
         }
 
-        public interface IEntPathFindable : IEntTargetContainable
+        public interface IPathFindable : ITargetContainable
         {
             public IVectorBase PathFindToTarget();
         }
 
-        public interface IEntTargetContainable : ICommonEntityInterface
+        public interface ITargetContainable : ICommonEntityInterface
         {
             public Option<IEntity> Target { get; set; }
             public void ResetTarget() => Target = Option.None<IEntity>();
         }
 
-        public interface IEntTargetDetectable : IEntTargetContainable
+        public interface ITargetDetectable : ITargetContainable
         {
             public IEntity ScanForTarget(IFilter<IEntity> filter);
         }

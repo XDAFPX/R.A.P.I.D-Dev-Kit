@@ -7,5 +7,6 @@ namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput
     public interface IInputController : IDisposable, INameable, ISwitchable
     {
         void Bind(string move, Action<InputAction.CallbackContext> onMovePerformed);
+        void Init(string name, InputActionAsset _actions);
     }
 }

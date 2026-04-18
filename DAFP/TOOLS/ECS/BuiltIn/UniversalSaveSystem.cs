@@ -44,7 +44,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             var _metaData =
                 metaSerializer.SaveMetaData(_allData.GetValueOrDefault("Meta") as Dictionary<string, object>);
 
-            foreach (var _entity in world.ENTITIES)
+            foreach (var _entity in world.Entities)
             {
                 if (_entity.GetWorldRepresentation().GetComponent<NotSaveableEnt>() != null)
                     continue;
@@ -212,7 +212,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
                     var _matchedKeys = new List<string>();
 
-                    foreach (var _entity in world.ENTITIES)
+                    foreach (var _entity in world.Entities)
                     {
                         var _key = _worlddata.Keys.ToList().Find(s => s == _entity.ID);
 
@@ -256,7 +256,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 {
                     var PresistantEnts = value as Dictionary<string, object>;
 
-                    foreach (var _entity in world.ENTITIES)
+                    foreach (var _entity in world.Entities)
                         if (_entity.GetWorldRepresentation().GetComponent<PresistantEnt>())
                             if (PresistantEnts.TryGetValue(_entity.ID, out var _value2))
                             {

@@ -264,7 +264,7 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public static bool DEBUG = true;
 
-        private static bool check_field((FieldInfo, DeclareStatAttribute) field, StatContainer stats)
+        private static bool check_field((FieldInfo, DeclareStatAttribute) field, IStatContainer stats)
         {
             PathBuilder _path = null;
             var _naming = $"[{field.Item2.StatName}]/({field.Item1.Name})";
@@ -437,159 +437,103 @@ namespace DAFP.TOOLS.ECS.BigData
         {
             private List<string> segments;
             private int currentIndex;
-            private const char SEPARATOR = '/';
+            private static readonly char[] SEPARATORS = { '/', '\\', '.' };
 
-            public PathBuilder(string path)
+            public PathBuilder(string path, char[] separators = null)
             {
                 if (string.IsNullOrWhiteSpace(path))
                     throw new ArgumentException("Path cannot be null or empty", nameof(path));
 
-                segments = path.Split(SEPARATOR, StringSplitOptions.RemoveEmptyEntries).ToList();
+                var _separators = separators ?? SEPARATORS;
+                segments = path.Split(_separators, StringSplitOptions.RemoveEmptyEntries).ToList();
 
                 if (segments.Count == 0)
                     throw new ArgumentException("Path must contain at least one segment", nameof(path));
 
-                currentIndex = segments.Count - 1; // Start at bottom (leaf)
+                currentIndex = segments.Count - 1;
             }
 
-            // Get the topmost parent (root)
             public string GetRoot() => segments[0];
-
-            // Get the bottommost child (leaf)
             public string GetLeaf() => segments[^1];
-
-            // Get current segment
             public string GetCurrent() => segments[currentIndex];
 
-            // Move up the tree (towards root)
             public PathBuilder MoveUp(int steps = 1)
             {
                 currentIndex = Math.Max(0, currentIndex - steps);
                 return this;
             }
 
-            // Move down the tree (towards leaf)
             public PathBuilder MoveDown(int steps = 1)
             {
                 currentIndex = Math.Min(segments.Count - 1, currentIndex + steps);
                 return this;
             }
 
-            // Move to root
             public PathBuilder MoveToRoot()
             {
                 currentIndex = 0;
                 return this;
             }
 
-            // Move to leaf
             public PathBuilder MoveToLeaf()
             {
                 currentIndex = segments.Count - 1;
                 return this;
             }
 
-            // Get current depth (0-based, root = 0)
             public int GetDepth() => currentIndex;
-
-            // Get total depth
             public int GetTotalDepth() => segments.Count - 1;
 
-            // Get path from root to current position
-            public string GetPathToCurrent() => string.Join(SEPARATOR, segments.Take(currentIndex + 1));
+            public string GetPathToCurrent() => string.Join(SEPARATORS[0], segments.Take(currentIndex + 1));
+            public string GetFullPath() => string.Join(SEPARATORS[0], segments);
 
-            // Get full path
-            public string GetFullPath() => string.Join(SEPARATOR, segments);
-
-            // Get parent of current (or null if at root)
             public string GetParent() => currentIndex > 0 ? segments[currentIndex - 1] : null;
-
-            // Get child of current (or null if at leaf)
             public string GetChild() => currentIndex < segments.Count - 1 ? segments[currentIndex + 1] : null;
 
-            // Get all ancestors from current position to root
-            public List<string> GetAncestors()
-            {
-                return segments.Take(currentIndex).Reverse().ToList();
-            }
+            public List<string> GetAncestors() => segments.Take(currentIndex).Reverse().ToList();
+            public List<string> GetDescendants() => segments.Skip(currentIndex + 1).ToList();
 
-            // Get all descendants from current position to leaf
-            public List<string> GetDescendants()
-            {
-                return segments.Skip(currentIndex + 1).ToList();
-            }
-
-            // Iterate through progressive paths from root to leaf
-            // Returns: "Health", "Health/TestHealth", "Health/TestHealth/Test"
             public IEnumerable<string> IterateProgressivePaths()
             {
                 for (int _i = 0; _i < segments.Count; _i++)
-                {
-                    yield return string.Join(SEPARATOR, segments.Take(_i + 1));
-                }
+                    yield return string.Join(SEPARATORS[0], segments.Take(_i + 1));
             }
 
-            // Iterate through all segments from root to leaf
             public IEnumerable<string> IterateRootToLeaf()
             {
-                foreach (var _segment in segments)
-                {
-                    yield return _segment;
-                }
+                foreach (var _s in segments) yield return _s;
             }
 
-            // Iterate through all segments from leaf to root
             public IEnumerable<string> IterateLeafToRoot()
             {
                 for (int _i = segments.Count - 1; _i >= 0; _i--)
-                {
                     yield return segments[_i];
-                }
             }
 
-            // Iterate from current position to root
             public IEnumerable<string> IterateToRoot()
             {
                 for (int _i = currentIndex; _i >= 0; _i--)
-                {
                     yield return segments[_i];
-                }
             }
 
-            // Iterate from current position to leaf
             public IEnumerable<string> IterateToLeaf()
             {
                 for (int _i = currentIndex; _i < segments.Count; _i++)
-                {
                     yield return segments[_i];
-                }
             }
 
-            // Iterate with index and depth information
             public IEnumerable<(string segment, int index, int depth)> IterateWithInfo()
             {
                 for (int _i = 0; _i < segments.Count; _i++)
-                {
                     yield return (segments[_i], _i, _i);
-                }
             }
 
-            // Execute an action on each segment while iterating
-            public void ForEach(Action<string> action)
-            {
-                foreach (var _segment in segments)
-                {
-                    action(_segment);
-                }
-            }
+            public void ForEach(Action<string> action) => segments.ForEach(action);
 
-            // Execute an action with index/depth info
             public void ForEach(Action<string, int, int> action)
             {
                 for (int _i = 0; _i < segments.Count; _i++)
-                {
                     action(segments[_i], _i, _i);
-                }
             }
 
             public override string ToString() => GetPathToCurrent();

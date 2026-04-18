@@ -34,12 +34,12 @@ namespace DAFP.TOOLS.ECS.BigData
             // InternalValue is the original
             var _min = MinValue;
             var _max = MaxValue;
-            Utils.NormalizeMinMax(ref _min, ref _max);
+            GameUtils.NormalizeMinMax(ref _min, ref _max);
             MinValue = _min;
             MaxValue = _max;
 
 
-            return Utils.Clamp(value, MinValue, MaxValue);
+            return GameUtils.Clamp(value, MinValue, MaxValue);
         }
 
         private bool underflow_fix(T value, out T clampAndProcessValue)

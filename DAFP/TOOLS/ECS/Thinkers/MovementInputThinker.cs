@@ -9,6 +9,7 @@ using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.Thinkers
 {
@@ -17,11 +18,11 @@ namespace DAFP.TOOLS.ECS.Thinkers
     public class MovementInputThinker : BaseThinker
     {
         IInputController controller;
-
+        [Inject] private UniversalInputControllerManager controller_manager;
 
         protected override void InternalInitialize(IEntity host)
         {
-            controller = this.TryGetRootController((() => new InputController("Movement", InputSystem.actions)));
+            controller = this.TryGetRootController((() => controller_manager.Create<InputController>("Movement",InputSystem.actions)));
             controller.Bind("Move", (context) => OnMovementPerformed(host, context));
             controller.Enable();
         }
@@ -33,7 +34,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         private void OnMovementPerformed(IEntity host, InputAction.CallbackContext context)
         {
-            if (host is ICommonEntityInterface.IEntMovementInputable _movement)
+            if (host is ICommonEntityInterface.IMovementInputable _movement)
             {
                 _movement.InputMovement((V2)context.ReadValue<Vector2>());
             }

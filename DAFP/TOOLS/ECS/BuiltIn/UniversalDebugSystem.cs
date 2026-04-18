@@ -5,6 +5,8 @@ using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
 using UGizmo;
+using UnityEditor;
+using UnityEngine;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
@@ -30,19 +32,19 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public TGizmos Gizmos { get; }
         public TMessenger Messenger { get; }
         public IList<DebugDrawLayer> Layers { get; }
-        public DebugDrawLayer GetSharedLayer { get; }
+        public DebugDrawLayer GetSharedLayer => new DebugDrawLayer("SHARED", Application.isEditor);
 
 
         IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawers;
 
         public void AddPet(IDebugDrawable pet)
         {
-            Utils.AddPet(pet, ref debugDrawers);
+            GameUtils.AddPet(pet, ref debugDrawers);
         }
 
         public bool RemovePet(IDebugDrawable pet)
         {
-            return Utils.RemovePet(pet, ref debugDrawers);
+            return GameUtils.RemovePet(pet, ref debugDrawers);
         }
 
         public void AddPet(IDebugSubSys pet)

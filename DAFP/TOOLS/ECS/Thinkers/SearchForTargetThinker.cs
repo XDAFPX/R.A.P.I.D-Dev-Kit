@@ -20,7 +20,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         protected override void InternalTick(IEntity host, ITickerBase ticker)
         {
-            if (host is ICommonEntityInterface.IEntTargetDetectable _targetDetectable)
+            if (host is ICommonEntityInterface.ITargetDetectable _targetDetectable)
             {
                 _targetDetectable.Target = _targetDetectable.ScanForTarget(EntityFilter).Some();
             }

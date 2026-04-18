@@ -13,6 +13,7 @@ using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
+using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
@@ -36,18 +37,48 @@ namespace DAFP.TOOLS.ECS
         // Serialized Fields
         [ReadOnly] [SerializeField] private string id;
 
+
         [SerializeField] private SerializableInterface<IHaveGameplayTag> Tag;
         [SerializeField] private SerializableInterface<IThinker> _brains;
-        [field: SerializeField] public StatContainer Stats { get; private set; }
+        [SerializeField] private StatContainer _stats;
+
+
+        //-- Implementations
+
+
+        public IStatContainer Stats
+        {
+            get
+            {
+                if (_stats == null)
+                    return new DummyStatContainer();
+                return _stats;
+            }
+            set
+            {
+                switch (value)
+                {
+                    case StatContainer val:
+                        _stats = val;
+                        break;
+                    case null:
+                        _stats = null;
+                        break;
+                    // Any other IStatContainer impl won't be set cuz I'm tired
+                    default:
+                        break;
+                }
+            }
+        }
 
         public IThinker Brains
         {
-            get => _brains.Value;
-            set => _brains.Value = value;
+            get => _brains?.Value;
+            set
+            {
+                if (_brains != null) _brains.Value = value;
+            }
         }
-
-        [InspectorName("RandomizingFrom0To100")] [Range(0, 100)] [SerializeField]
-        private float Variety = 10;
 
 
         // Dependencies
@@ -92,52 +123,52 @@ namespace DAFP.TOOLS.ECS
 
         public void AddPet(IEntityAccessory pet)
         {
-            Utils.AddPet(pet, ref Accessories);
+            GameUtils.AddPet(pet, ref Accessories);
         }
 
         public bool RemovePet(IEntityAccessory pet)
         {
-            return Utils.RemovePet(pet, ref Accessories);
+            return GameUtils.RemovePet(pet, ref Accessories);
         }
 
         public void AddPet(PegModifier pet)
         {
-            Utils.AddPet(pet, ref ownedPegs);
+            GameUtils.AddPet(pet, ref ownedPegs);
         }
 
         public bool RemovePet(PegModifier pet)
         {
-            return Utils.RemovePet(pet, ref ownedPegs);
+            return GameUtils.RemovePet(pet, ref ownedPegs);
         }
 
         public void AddPet(IStatModifierBase pet)
         {
-            Utils.AddPet(pet, ref OwnedModifiers);
+            GameUtils.AddPet(pet, ref OwnedModifiers);
         }
 
         public bool RemovePet(IStatModifierBase pet)
         {
-            return Utils.RemovePet(pet, ref OwnedModifiers);
+            return GameUtils.RemovePet(pet, ref OwnedModifiers);
         }
 
         public void AddPet(IStatBase pet)
         {
-            Utils.AddPet(pet, ref OwnedStats);
+            GameUtils.AddPet(pet, ref OwnedStats);
         }
 
         public bool RemovePet(IStatBase pet)
         {
-            return Utils.RemovePet(pet, ref OwnedStats);
+            return GameUtils.RemovePet(pet, ref OwnedStats);
         }
 
         public void AddPet(IViewModel pet)
         {
-            Utils.AddPet(pet, ref viewModels);
+            GameUtils.AddPet(pet, ref viewModels);
         }
 
         public bool RemovePet(IViewModel pet)
         {
-            return Utils.RemovePet(pet, ref viewModels);
+            return GameUtils.RemovePet(pet, ref viewModels);
         }
 
         public List<IEntity> Owners { get; } = new();
@@ -176,9 +207,43 @@ namespace DAFP.TOOLS.ECS
             set { }
         }
 
-        public virtual Bounds Bounds { private set; get; }
+        private Bounds? cachedBounds;
+        private int cachedFrame;
+
+        public Bounds CachedBounds
+        {
+            get
+            {
+                if (!cachedBounds.HasValue) return Bounds;
+                var _bb = cachedBounds.Value;
+                _bb.center += transform.position;
+                return _bb;
+            }
+        }
+
+        public virtual Bounds Bounds
+        {
+            get
+            {
+                if (cachedBounds.HasValue && cachedFrame == Time.frameCount)
+                {
+                    var _bb = cachedBounds.Value;
+                    _bb.center += transform.position;
+                    return _bb;
+                }
+
+
+                var _bb2 = CalculateBounds();
+                var _localbb = _bb2;
+                _localbb.center -= transform.position;
+                cachedBounds = _localbb;
+                cachedFrame = Time.frameCount;
+                return _bb2;
+            }
+        }
+
+
         public virtual IVectorBase EyeVector => (V3)transform.forward;
-        private Bounds Localbounds { set; get; }
         public virtual NonEmptyList<IViewModel> View { private set; get; }
         public bool HasInitialized { get; set; }
         public event IEntity.TickCallBack OnTick;
@@ -203,11 +268,12 @@ namespace DAFP.TOOLS.ECS
         {
             if (World == null)
                 return;
-            Initialize();
-            OnStart();
+            if (World.IsRegistered(this))
+                return;
+            boot_strap(World);
         }
 
-        private void Start()
+        private void Awake()
         {
             if (!isInstantiated)
             {
@@ -222,6 +288,7 @@ namespace DAFP.TOOLS.ECS
                 kick_start();
             }
         }
+
 
         // Configuration Methods
 
@@ -248,17 +315,35 @@ namespace DAFP.TOOLS.ECS
             GenNewID();
         }
 
-        public void Initialize()
+        private void boot_strap(World world)
         {
             Memory = new BlackBoard(null, this);
+
+
             if (string.IsNullOrEmpty(id))
                 GenNewID();
-            initialize_tag();
-            World.RegisterEntity(this, EntityTicker);
-            gather_components();
+
+            foreach (var _ownedBy in detect_child_entities().Cast<IOwnedBy<IEntity>>())
+            {
+                if (_ownedBy.GetCurrentOwner() != null) continue;
+                _ownedBy.ChangeOwner(this);
+            }
+
 
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this);
+
+            gather_components();
+
+
+            world.RegisterEntity(this, EntityTicker);
+        }
+
+
+        public void Initialize()
+        {
+            initialize_tag();
+
             setup_entity_stats();
 
             SaveSystem.Bus.Subscribe(this);
@@ -269,18 +354,47 @@ namespace DAFP.TOOLS.ECS
                 _comp.Initialize();
 
             View = SetupView();
-            Bounds = CalculateBounds();
+            initialize_view(View);
+
+
             InitializeInternal();
             InitializeBrains(Brains);
             initialize_debug();
             HasInitialized = true;
+
+            DebugSystem.Log(World, $"{Name} entity is registered to a {World} world and initialized");
+
+
+            initialize_children();
+        }
+
+        private void initialize_children()
+        {
+            foreach (var _entity in Children)
+            {
+                if (_entity.HasInitialized)
+                    continue;
+                _entity.Initialize();
+            }
+        }
+
+        private void initialize_view(NonEmptyList<IViewModel> view)
+        {
+            view.ForEach((model => model.InitOwner(this)));
+
+
+            if (!TryGetComponent(out IHurtBoxController<IEntity> _controller))
+                return;
+            view.Select(v => v.GetHurtGroup(this))
+                .Where(group => group != null)
+                .ForEach(_controller.AddPet);
         }
 
         private void setup_entity_stats()
         {
-            if (Stats == null)
+            if (_stats == null)
                 return;
-            Stats = ScriptableObject.Instantiate(Stats);
+            Stats = ScriptableObject.Instantiate(_stats);
             assemble_list_additional_of_code_sources(out var _additions);
             StatInjector.InjectStats(this, _additions);
             Stats.Construct(this);
@@ -297,15 +411,6 @@ namespace DAFP.TOOLS.ECS
         }
 
 
-        public void OnStart()
-        {
-            if (Variety != 0)
-                Randomize(RandomSys, Variety / 100f);
-
-            foreach (var _comp in Components.Values)
-                _comp.OnStartInternal();
-        }
-
         public void Tick()
         {
             tick_stats();
@@ -315,10 +420,10 @@ namespace DAFP.TOOLS.ECS
 
             tick_brains(Brains);
 
-            tick_bounds();
 
             OnTick?.Invoke(this);
         }
+
 
         private void tick_stats()
         {
@@ -330,25 +435,6 @@ namespace DAFP.TOOLS.ECS
             brains?.Tick(this, EntityTicker);
         }
 
-        private void tick_bounds()
-        {
-            if (BoundsRefreshRate < 0)
-                return;
-            //Recalculate bounds every couple of frames
-            if (bounds_calc >= BoundsRefreshRate)
-            {
-                Localbounds = CalculateBounds();
-                bounds_calc = 0;
-            }
-            else
-            {
-                bounds_calc++;
-            }
-
-            var _bvb = Localbounds;
-            _bvb.center += transform.position;
-            Bounds = _bvb;
-        }
 
         private void tick_components()
         {
@@ -361,13 +447,10 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
-        private int bounds_calc = 0;
-        protected virtual int BoundsRefreshRate => 30;
-        public void RecalculateBounds() => CalculateBounds();
 
         protected virtual Bounds CalculateBounds()
         {
-            return Utils.CalculateCombinedBounds(this);
+            return GameUtils.CalculateCombinedBounds(this);
         }
 
         // Component Management
@@ -426,7 +509,7 @@ namespace DAFP.TOOLS.ECS
 
         private void initialize_tag()
         {
-            if (Tag.Value is ScriptableObject _obj)
+            if (Tag?.Value is ScriptableObject _obj)
             {
                 Tag = new SerializableInterface<IHaveGameplayTag>((IHaveGameplayTag)ScriptableObject.Instantiate(_obj));
             }
@@ -453,7 +536,10 @@ namespace DAFP.TOOLS.ECS
         protected virtual IEnumerable<IDebugDrawer> SetupDebugDrawers()
         {
             return new IDebugDrawer[]
-                { new EntityDebugDrawer.PositionDrawer(), new EntityDebugDrawer.BoundingBoxDrawer() };
+            {
+                new EntityDebugDrawer.PositionDrawer(),
+                new EntityDebugDrawer.HealthDrawer(), new EntityDebugDrawer.BoundingBoxDrawer()
+            };
         }
 
         private void initialize_debug()
@@ -506,6 +592,7 @@ namespace DAFP.TOOLS.ECS
                 if (_comp is IRandomizeable _rnd)
                     _rnd.Randomize(rng, margin01);
         }
+
 
         // Event Reactions
         public virtual void React(in IGlobalStateChanged e)
@@ -598,14 +685,55 @@ namespace DAFP.TOOLS.ECS
 
         public GameplayTagContainer GameplayTag
         {
-            get
-            {
-                return Tag?.Value==null ? GameplayTagContainer.Empty : Tag.Value.GameplayTag;
-            }
+            get { return Tag?.Value == null ? GameplayTagContainer.Empty : Tag.Value.GameplayTag; }
         }
 
 
         public IEnumerable<object> AbsolutePets => Children.Union<object>(debugDrawablePets).Union(Accessories)
             .Union(OwnedModifiers).Union(ownedPegs).Union(viewModels);
+
+
+        private IEnumerable<IEntity> detect_child_entities()
+        {
+            foreach (Transform child in transform)
+            {
+                if (child.TryGetComponent<IEntity>(out var entity))
+                {
+                    yield return entity;
+                }
+                else
+                {
+                    foreach (var nested in detect_child_entities_recursive(child))
+                        yield return nested;
+                }
+            }
+        }
+
+        private IEnumerable<IEntity> detect_child_entities_recursive(Transform root)
+        {
+            foreach (Transform child in root)
+            {
+                if (child.TryGetComponent<IEntity>(out var entity))
+                    yield return entity;
+                else
+                    foreach (var nested in detect_child_entities_recursive(child))
+                        yield return nested;
+            }
+        }
+
+        public static IEntity find_nearest_ent_up_parent_tree(Transform start)
+        {
+            Transform current = start.parent;
+
+            while (current != null)
+            {
+                if (current.TryGetComponent<IEntity>(out var entity))
+                    return entity;
+
+                current = current.parent;
+            }
+
+            return null;
+        }
     }
 }

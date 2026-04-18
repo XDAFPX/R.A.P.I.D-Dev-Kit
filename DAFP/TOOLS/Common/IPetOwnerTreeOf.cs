@@ -9,7 +9,7 @@ namespace RapidLib.DAFP.TOOLS.Common
         where TNode : IOwnerOf<TNode>, IOwnedBy<TNode>
     {
         List<TNode> Children { get; }
-
+    
         IEnumerable<TNode> IOwnerOf<TNode>.Pets => Children;
 
         void IOwnerOf<TNode>.AddPet(TNode node)

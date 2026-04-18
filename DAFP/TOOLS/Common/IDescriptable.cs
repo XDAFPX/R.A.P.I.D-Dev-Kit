@@ -2,7 +2,7 @@
 
 namespace RapidLib.DAFP.TOOLS.Common
 {
-    public interface IDescriptionContainer
+    public interface IDescriptable
     {
         public IMessage Description { get; set; }
     }

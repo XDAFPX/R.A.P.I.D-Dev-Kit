@@ -24,7 +24,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         }
 
         public string Name { get; set; }
-
+    
         public static class DefaultDebugLayers
         {
             public const string TRIGGERS = "Triggers";
@@ -34,6 +34,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             public const string EYE_VECTORS = "EyeVectors";
             public const string VELOCITIES = "Velocities";
             public const string NAMES = "Names";
+            public const string ENT_INFO = "EntInformation";
             public const string VIEW_MODELS = "ViewModels";
             public const string THINKERS = "Thinkers";
             public const string MISC = "Misc";

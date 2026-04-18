@@ -2,10 +2,13 @@
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.BuiltIn;
 using UGizmo;
 using UGizmo.Internal;
+using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEditor.Graphs;
 using UnityEngine;
+using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
@@ -24,6 +27,11 @@ namespace DAFP.TOOLS.ECS.DebugSystem
         {
             Sys = debugSys;
             Layer = Sys.Layers.FindByName(GetLayerName()) as DebugDrawLayer ?? Sys.GetSharedLayer;
+            OnInit();
+        }
+
+        protected virtual void OnInit()
+        {
         }
 
         public abstract void DrawInternal();
@@ -47,8 +55,85 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
             public override void DrawInternal()
             {
-                if (Host.Bounds.size != Vector3.zero)
-                    Sys.Gizmos.DrawWireBox2D(Host.Bounds.center, 0, Host.Bounds.size, color);
+                if (Host.CachedBounds.size != Vector3.zero)
+                    Sys.Gizmos.DrawWireBox2D(Host.CachedBounds.center, 0, Host.CachedBounds.size, color);
+            }
+        }
+
+        public class HealthDrawer : EntityDebugDrawer, IListener<ICommonEntityEvent.EntityTakeDamageEvent>
+        {
+            private Color color;
+            private readonly Color secoundColor;
+            private readonly float height;
+            private readonly float width;
+
+            public HealthDrawer(Color color = default, Color secoundColor = default, float height = 0.37f, float width = 2.5f)
+            {
+                if (secoundColor == default)
+                    secoundColor = Color.softRed;
+                if (color == default)
+                    color = Color.lightSeaGreen;
+                this.color = color;
+                this.secoundColor = secoundColor;
+                this.height = height;
+                this.width = width;
+            }
+
+            private float health01 = 1;
+
+            protected override string GetLayerName()
+            {
+                return DebugDrawLayer.DefaultDebugLayers.ENT_INFO;
+            }
+
+            protected override void OnInit()
+            {
+                if (extract_and_update_health(Host)) return;
+                Host.Bus.Subscribe(this);
+            }
+
+
+            public override void DrawInternal()
+            {
+                if (!Host.Stats.Has("Health"))
+                    return;
+                draw_bar();
+            }
+
+            private void draw_bar()
+            {
+                bool is2D = Host.CachedBounds.size.z == 0f;
+                var offset = 0.4f;
+                Vector3 barPosition = is2D
+                    ? new Vector3(Host.CachedBounds.min.x, Host.CachedBounds.max.y + offset, 0f)
+                    : new Vector3(Host.CachedBounds.min.x, Host.CachedBounds.max.y + offset, Host.CachedBounds.center.z);
+
+                Sys.Gizmos.DrawBox2D(barPosition, 0, new Vector2(width, height), secoundColor);
+                Sys.Gizmos.DrawBox2D(barPosition, 0, new Vector2(width * health01, height), color);
+            }
+
+
+            public IDebugSys<IGlobalGizmos, IMessenger> DebugSystem => Sys;
+
+            public void React(in ICommonEntityEvent.EntityTakeDamageEvent e)
+            {
+                if (e.Host != Host)
+                    return;
+                extract_and_update_health(Host);
+            }
+
+
+            private bool extract_and_update_health(IEntity entity)
+            {
+                var _health = entity.Stats.Get<uint>("Health", () => null);
+                if (_health == null) return true;
+                OnHostTakeDamage((float)_health.Value / (float)_health.MaxValue);
+                return false;
+            }
+
+            public void OnHostTakeDamage(float updatedHealth)
+            {
+                health01 = Mathf.Clamp01(updatedHealth);
             }
         }
 

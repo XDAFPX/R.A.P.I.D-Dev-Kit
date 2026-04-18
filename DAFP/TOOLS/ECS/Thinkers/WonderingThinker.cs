@@ -23,7 +23,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         protected override void InternalInitialize(IEntity host)
         {
-            if (host is ICommonEntityInterface.IEntTargetContainable _targetContainable)
+            if (host is ICommonEntityInterface.ITargetContainable _targetContainable)
             {
                 if (_targetContainable.Target.HasValue)
                     _targetContainable.ResetTarget();
@@ -31,7 +31,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
         }
 
-        private void update_target(ICommonEntityInterface.IEntTargetContainable host)
+        private void update_target(ICommonEntityInterface.ITargetContainable host)
         {
             if (host.Target.TryGetValue(out var target))
             {
@@ -67,7 +67,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
         protected override void InternalTick(IEntity host, ITickerBase ticker)
         {
             tryToAssignNewTarget.safeUpdateTimer(ticker.DeltaTime);
-            if (host is ICommonEntityInterface.IEntTargetContainable _targetContainable)
+            if (host is ICommonEntityInterface.ITargetContainable _targetContainable)
             {
                 if (!_targetContainable.Target.HasValue && tryToAssignNewTarget.isComplete)
                     update_target(_targetContainable);
@@ -78,10 +78,10 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
         }
 
-        private void try_to_walk_to_target(ICommonEntityInterface.IEntTargetContainable host, IEntity target,
+        private void try_to_walk_to_target(ICommonEntityInterface.ITargetContainable host, IEntity target,
             float delta)
         {
-            if (host is not ICommonEntityInterface.IEntMovementInputable _movementInputable) return;
+            if (host is not ICommonEntityInterface.IMovementInputable _movementInputable) return;
             walkToTarget.updateTimer(delta);
 
 
@@ -90,7 +90,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
             if (check_for_timer()) return;
 
-            if (host is ICommonEntityInterface.IEntPathFindable _pathFindable)
+            if (host is ICommonEntityInterface.IPathFindable _pathFindable)
             {
                 _movementInputable.InputMovement(_pathFindable.PathFindToTarget().Normalized);
                 return;

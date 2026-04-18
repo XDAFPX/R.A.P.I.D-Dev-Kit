@@ -1,6 +1,7 @@
 ﻿using DAFP.GAME.Assets;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BuiltIn;
+using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using NRandom;
 using NRandom.Unity;
 using Optional;
@@ -10,18 +11,31 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public static class EntityCommonExtensions
     {
-        public static IEntity AddEmptyEntity(this GameObject obj,IAssetFactory factory)
+        public static T AddEntity<T>(this GameObject obj, IAssetFactory factory) where T : MonoBehaviour,IEntity
         {
-            var ent =obj.AddComponent<EmptyEntity>();
+            var ent = obj.AddComponent<T>();
             factory.InjectD(obj);
             return ent;
         }
+
+        public static T AddHurtBox<T, TOwner>(this GameObject root, TOwner owner, HurtGroup<TOwner> group,IAssetFactory factory)
+            where T : HurtBox<TOwner>
+        {
+            return HurtBox<TOwner>.Construct<T>(root, owner, group,factory);
+        }
+
+        public static IEntity AddEmptyEntity(this GameObject obj, IAssetFactory factory)
+        {
+            var ent = obj.AddComponent<EmptyEntity>();
+            factory.InjectD(obj);
+            return ent;
+        }
+
         public static Option<Vector3> TryToFindARandomWaypoint3D(
             this IEntity ent, IRandom rng, float radius,
             LayerMask mask = default,
             int iterations = 100)
         {
-            ent.RecalculateBounds();
             var _bounds = ent.Bounds;
             var _pos = _bounds.center;
 
@@ -48,11 +62,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return Option.None<Vector3>();
         }
 
-        public static Option<Vector2> TryToFindARandomWaypoint2D( this IEntity ent, IRandom rng, float radius,
+        public static Option<Vector2> TryToFindARandomWaypoint2D(this IEntity ent, IRandom rng, float radius,
             LayerMask mask = default,
             int iterations = 100)
         {
-            ent.RecalculateBounds();
             var _bounds = ent.Bounds;
             var _pos = _bounds.center;
             for (int _i = 0; _i < iterations; _i++)

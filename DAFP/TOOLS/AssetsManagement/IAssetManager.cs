@@ -8,6 +8,7 @@ namespace DAFP.GAME.Assets
     public interface IAssetManager : IInitializable
     {
         // Despawn an object, returning it to its pool if possible
+        public IAssetFactory Factory { get; }
         public bool ReleaseIGamePoolable(IPoolComponentProvider provider);
         void Despawn(GameObject obj);
 

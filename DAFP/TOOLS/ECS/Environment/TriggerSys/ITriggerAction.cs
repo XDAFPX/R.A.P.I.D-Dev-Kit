@@ -1,6 +1,6 @@
 ﻿using RapidLib.DAFP.TOOLS.Common;
 
-namespace DAFP.TOOLS.ECS.Environment
+namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 {
     public interface ITriggerAction : IActionUpon<TriggerContext>
     {

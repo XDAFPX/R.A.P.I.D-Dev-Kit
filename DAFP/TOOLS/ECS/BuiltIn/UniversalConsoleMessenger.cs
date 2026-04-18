@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Codice.Utils;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Colors;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
+using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using PixelRouge.Colors;
 using RapidLib.DAFP.TOOLS.Common;
 using TMPro;
@@ -26,17 +28,19 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public UniversalConsoleMessenger([Inject(Id = "ConsoleUnlocked")] bool unlocked,
             [Inject(Id = "ConsoleFont")] Font consoleFont, [Inject(Id = "ConsoleTextSize")] float fontSize,
             [Inject(Id = "ConsoleCommandInterpriter")]
-            ICommandInterpreter interpreter)
+            ICommandInterpreter interpreter, UniversalInputControllerManager controllerManager)
         {
             ConsoleUnlocked = unlocked;
             ConsoleFont = consoleFont;
             this.fontSize = fontSize;
             TMPConsoleFont = TMP_FontAsset.CreateFontAsset(ConsoleFont);
             Interpreter = interpreter;
+            this.controllerManager = controllerManager;
             Interpreter.ChangeOwner(this);
         }
 
         protected ICommandInterpreter Interpreter;
+        private readonly UniversalInputControllerManager controllerManager;
         public bool ConsoleUnlocked;
         protected readonly Font ConsoleFont;
         private readonly float fontSize;
@@ -55,6 +59,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public void Print(IMessage message)
         {
+            if(initialized==false)
+                return;
             var val = message.Print();
             var results = new List<string>();
             SplitMessageIntoLines(val, results);
@@ -605,17 +611,25 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
         public bool Enabled { set; get; }
-
+        private List<IInputController> controllers_that_were_disabled;
         public void Enable()
         {
             Enabled = true;
             Root.gameObject.SetActive(true);
+
+
+            controllers_that_were_disabled =
+                controllerManager.Controllers.Enabled().ToList();
+            controllerManager.Controllers.DisableAll();
         }
 
         public void Disable()
         {
             Enabled = false;
             Root.gameObject.SetActive(false);
+
+            controllers_that_were_disabled?.EnableAll();
+            
         }
 
         public List<ICommandInterpreter> Children { get; } = new List<ICommandInterpreter>();

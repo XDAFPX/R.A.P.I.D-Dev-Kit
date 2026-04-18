@@ -25,6 +25,7 @@ namespace DAFP.GAME.Assets
             this.defaultAssetFactory = defaultAssetFactory;
         }
 
+        public IAssetFactory Factory => defaultAssetFactory;
         private HashSet<IAssetPoolBase> _pools;
 
 
@@ -102,6 +103,7 @@ namespace DAFP.GAME.Assets
             obj.transform.position = pos;
             return obj.AddEmptyEntity(defaultAssetFactory);
         }
+
 
         public bool ReleaseIGamePoolable(IPoolComponentProvider provider)
         {
