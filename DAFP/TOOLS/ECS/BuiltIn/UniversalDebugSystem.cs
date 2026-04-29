@@ -14,7 +14,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     public class UniversalDebugSystem<TMessenger, TGizmos> : IDebugSys<TGizmos, TMessenger> where TGizmos :
         IGlobalGizmos
         where TMessenger :
-        IMessenger
+        IConsoleMessenger
     {
         private List<IDebugDrawable> debugDrawers = new List<IDebugDrawable>();
         private List<IDebugSubSys> subSystems = new();
@@ -23,8 +23,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public UniversalDebugSystem(TMessenger messenger, TGizmos gizmos, IList<DebugDrawLayer> layers)
         {
             Messenger = messenger;
-            if (Messenger is IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>> ownable)
-                ownable.ChangeOwner((IDebugSys<IGlobalGizmos, IMessenger>)this);
+            if (Messenger is IOwnedBy<IDebugSys<IGlobalGizmos, IConsoleMessenger>> ownable)
+                ownable.ChangeOwner((IDebugSys<IGlobalGizmos, IConsoleMessenger>)this);
             Gizmos = gizmos;
             Layers = layers;
         }

@@ -15,10 +15,10 @@ namespace DAFP.TOOLS.Injection
     public class UniversalModManager : IModManager,IResetable,INameable
     {
         private readonly IEventBus bus;
-        private readonly IDebugSys<IGlobalGizmos, IMessenger> debug;
+        private readonly IDebugSys<IGlobalGizmos, IConsoleMessenger> debug;
         private readonly DiContainer injector;
 
-        [Inject]public UniversalModManager([Inject(Id = "GlobalGameEventsBus")] IEventBus bus,IDebugSys<IGlobalGizmos,IMessenger> debug, DiContainer injector, IMod[] initialMods)
+        [Inject]public UniversalModManager([Inject(Id = "GlobalGameEventsBus")] IEventBus bus,IDebugSys<IGlobalGizmos,IConsoleMessenger> debug, DiContainer injector, IMod[] initialMods)
         {
             this.bus = bus;
             this.debug = debug;

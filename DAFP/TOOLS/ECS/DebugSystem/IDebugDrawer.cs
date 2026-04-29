@@ -10,7 +10,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
     {
         public DebugDrawLayer Layer { get; set; }
 
-        public void InitilizeDebugDrawer(IDebugSys<IGlobalGizmos, IMessenger> debugSys);
+        public void InitilizeDebugDrawer(IDebugSys<IGlobalGizmos, IConsoleMessenger> debugSys);
         void DrawInternal();
 
 

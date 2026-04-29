@@ -16,9 +16,9 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
     [Serializable]
     public class EntityTypeFilter : IFilter<GameObject>, IFilter<IEntity>, ITriggerFilter
     {
-        [HideInInspector] public int typeMask; // багатотовий вибір типів IEntity
-        private static Type[] _entAsemblies = null;
+        [HideInInspector] public List<string> selectedTypeNames = new();
 
+        private static Type[] _entAsemblies = null;
 
         public static Type[] ENT_ASSEMBLIES
         {
@@ -37,33 +37,16 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
             }
         }
 
-        public bool Matches(IEntity other, Type[] entityTypes)
-        {
-            if (other == null) return false;
-
-            // Перевірка типу
-            if (typeMask == 0) return true;
-            bool matched = false;
-            for (int i = 0; i < entityTypes.Length; i++)
-            {
-                if (((1 << i) & typeMask) != 0 && entityTypes[i].IsAssignableFrom(other.GetType()))
-                {
-                    matched = true;
-                    break;
-                }
-            }
-
-            if (!matched) return false;
-
-
-            return true;
-        }
-
         public bool Matches(IEntity other)
         {
-            return Matches(other, ENT_ASSEMBLIES);
-        }
+            if (other == null) return false;
+            if (selectedTypeNames == null || selectedTypeNames.Count == 0) return true;
 
+            var type = other.GetType();
+            return selectedTypeNames.Any(name =>
+                ENT_ASSEMBLIES.FirstOrDefault(t => t.Name == name) is { } t &&
+                t.IsAssignableFrom(type));
+        }
 
         public TriggerEntity.TriggerEvent Event { get; set; }
 
@@ -84,7 +67,6 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
             return val;
         }
 
-
         public bool? LastStatus { get; set; }
     }
 
@@ -96,8 +78,6 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
         private static Type[] cachedEntityTypes;
         private static string[] cachedEntityTypeNames;
 
-        private static string[] cachedTags;
-
         static EntityFilterDrawer()
         {
             cachedEntityTypes = AppDomain.CurrentDomain.GetAssemblies()
@@ -106,9 +86,6 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
                 .ToArray();
 
             cachedEntityTypeNames = cachedEntityTypes.Select(t => t.Name).ToArray();
-
-            // Кешуємо усі теги проекту
-            cachedTags = UnityEditorInternal.InternalEditorUtility.tags;
         }
 
         private static bool foldout = true;
@@ -122,32 +99,58 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
                 true
             );
 
-            if (foldout)
+            if (!foldout) return;
+
+            EditorGUI.indentLevel++;
+            float lineHeight = EditorGUIUtility.singleLineHeight + 2;
+
+            var selectedTypeNamesProp = property.FindPropertyRelative("selectedTypeNames");
+
+            // Build current mask from saved names
+            int currentMask = 0;
+            for (int i = 0; i < cachedEntityTypeNames.Length; i++)
             {
-                EditorGUI.indentLevel++;
-                float lineHeight = EditorGUIUtility.singleLineHeight + 2;
-
-                var typeMaskProp = property.FindPropertyRelative("typeMask");
-
-                // Маска типів
-                typeMaskProp.intValue = EditorGUI.MaskField(
-                    new Rect(position.x, position.y + lineHeight, position.width, EditorGUIUtility.singleLineHeight),
-                    "Entity Types",
-                    typeMaskProp.intValue,
-                    cachedEntityTypeNames
-                );
-
-                // Інші поля
-
-                EditorGUI.indentLevel--;
+                for (int j = 0; j < selectedTypeNamesProp.arraySize; j++)
+                {
+                    if (selectedTypeNamesProp.GetArrayElementAtIndex(j).stringValue == cachedEntityTypeNames[i])
+                    {
+                        currentMask |= (1 << i);
+                        break;
+                    }
+                }
             }
-        }
 
+            // Draw mask field
+            int newMask = EditorGUI.MaskField(
+                new Rect(position.x, position.y + lineHeight, position.width, EditorGUIUtility.singleLineHeight),
+                "Entity Types",
+                currentMask,
+                cachedEntityTypeNames
+            );
+
+            // Save back as names if changed
+            if (newMask != currentMask)
+            {
+                selectedTypeNamesProp.ClearArray();
+                int idx = 0;
+                for (int i = 0; i < cachedEntityTypeNames.Length; i++)
+                {
+                    if ((newMask & (1 << i)) != 0)
+                    {
+                        selectedTypeNamesProp.InsertArrayElementAtIndex(idx);
+                        selectedTypeNamesProp.GetArrayElementAtIndex(idx).stringValue = cachedEntityTypeNames[i];
+                        idx++;
+                    }
+                }
+            }
+
+            EditorGUI.indentLevel--;
+        }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             float lineHeight = EditorGUIUtility.singleLineHeight + 2;
-            return foldout ? lineHeight * 2 : lineHeight; // 3 маски + 4 поля + foldout
+            return foldout ? lineHeight * 2 : lineHeight;
         }
     }
 #endif

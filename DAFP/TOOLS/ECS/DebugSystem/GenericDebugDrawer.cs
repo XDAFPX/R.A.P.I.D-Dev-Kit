@@ -13,10 +13,10 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
         public DebugDrawLayer Layer { get; set; }
 
-        protected IDebugSys<IGlobalGizmos, IMessenger> Sys;
+        protected IDebugSys<IGlobalGizmos, IConsoleMessenger> Sys;
         protected T Host => ((IOwnedBy<IDebugDrawable>)this).GetCurrentOwner() as T;
 
-        public void InitilizeDebugDrawer(IDebugSys<IGlobalGizmos, IMessenger> debugSys)
+        public void InitilizeDebugDrawer(IDebugSys<IGlobalGizmos, IConsoleMessenger> debugSys)
         {
             Sys = debugSys;
             Layer = Sys.Layers.FindByName(GetLayerName()) as DebugDrawLayer ?? Sys.GetSharedLayer;
@@ -24,6 +24,6 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
         protected abstract string GetLayerName();
         public abstract void DrawInternal();
-        public IDebugSys<IGlobalGizmos, IMessenger> DebugSystem => Sys;
+        public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem => Sys;
     }
 }

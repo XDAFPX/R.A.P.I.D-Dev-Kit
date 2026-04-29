@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using DAFP.TOOLS.ECS.BuiltIn;
 using UnityEngine.InputSystem;
 
 namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput

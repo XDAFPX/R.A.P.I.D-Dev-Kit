@@ -37,9 +37,9 @@ namespace DAFP.TOOLS.Injection
         where TSettingsSaveService : IGlobalSettingsSaveSystem
         where TAudioService : IAudioSystem
         where TRandomService : IRandom, new()
-        where TConsoleService : IMessenger
+        where TConsoleService : IConsoleMessenger
         where TGizmosService : IGlobalGizmos
-        where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IMessenger>
+        where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IConsoleMessenger>
         where TConsoleInterpriter : ICommandInterpreter
         where TAssetManager : IAssetManager
         where TModManager : IModManager
@@ -56,6 +56,11 @@ namespace DAFP.TOOLS.Injection
         protected abstract string GetDefaultCursorState(InjectContext arg);
         protected abstract string GetDefaultDifficultyStateDomainName(InjectContext arg);
         protected abstract bool GetDefaultConsoleUnlockState(InjectContext arg);
+
+        protected virtual Color GetDefaultConsoleColor()
+        {
+            return Color.white;
+        }
 
         protected abstract Font GetDefaultConsoleFont(InjectContext arg);
 
@@ -98,22 +103,26 @@ namespace DAFP.TOOLS.Injection
             return 23;
         }
 
-        protected virtual IEnumerable<Type> GetConsoleCommands()
+        protected virtual IEnumerable<Type> GetDefaultConsoleCommands()
         {
             return new Type[]
             {
-                typeof(UniversalCommandInterpreter.HelpCommand), typeof(UniversalCommandInterpreter.QuitCommand),
-                typeof(UniversalCommandInterpreter.LoadLevelCommand),
-                typeof(UniversalCommandInterpreter.VersionCommand),
-                typeof(UniversalCommandInterpreter.ChangeSceneCommand),
-                typeof(UniversalCommandInterpreter.PlayAudioCommand),
-                typeof(UniversalCommandInterpreter.MatCommand)
+                typeof(BuiltInCommands.HelpCommand),
+                typeof(BuiltInCommands.QuitCommand),
+                typeof(BuiltInCommands.LoadLevelCommand),
+                typeof(BuiltInCommands.VersionCommand),
+                typeof(BuiltInCommands.ChangeSceneCommand),
+                typeof(BuiltInCommands.PlayAudioCommand),
+                typeof(BuiltInCommands.MatCommand),
+                typeof(BuiltInCommands.NoclipCommand),
+                typeof(BuiltInCommands.PlayersCommand),
+                typeof(BuiltInCommands.ClearCommand),
             };
         }
 
         private void bind_commands()
         {
-            foreach (var _consoleCommand in GetConsoleCommands())
+            foreach (var _consoleCommand in GetDefaultConsoleCommands())
                 Container.Bind<IConsoleCommand>().To(_consoleCommand).AsTransient().Lazy();
         }
 
@@ -163,6 +172,7 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<float>().WithId("ConsoleTextSize").FromMethod(GetDefaultConsoleFontSize).AsCached();
             Container.Bind<Font>().WithId("ConsoleFont").FromMethod(GetDefaultConsoleFont).AsCached();
             Container.Bind<bool>().WithId("ConsoleUnlocked").FromMethod(GetDefaultConsoleUnlockState).AsCached();
+            Container.Bind<Color>().WithId("ConsoleColor").FromMethod(GetDefaultConsoleColor).AsCached();
             Container.Bind<IEventBus>().WithId("GlobalStateBus")
                 .FromMethod(_ => new GlobalStateBus()).AsCached().NonLazy();
 
@@ -285,7 +295,7 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<TGizmosService>().AsSingle().NonLazy();
             Container.Bind<TDebugService>().AsSingle().NonLazy();
             Container.Bind<ITickable>().To<TDebugService>().FromResolve();
-            Container.Bind<IDebugSys<IGlobalGizmos, IMessenger>>().To<TDebugService>().FromResolve();
+            Container.Bind<IDebugSys<IGlobalGizmos, IConsoleMessenger>>().To<TDebugService>().FromResolve();
         }
 
         private void bind_asset_manager()

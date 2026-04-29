@@ -36,6 +36,7 @@ namespace DAFP.TOOLS.ECS.Services
         public ITicker<IEntity> DefaultGameplayTicker { get; }
 
         public readonly List<IEntity> Entities = new();
+        public IEnumerable<IPlayer> Players => Entities.OfType<IPlayer>();
         protected readonly List<ITickerBase> Tickers = new();
 
         public string Name
@@ -80,11 +81,11 @@ namespace DAFP.TOOLS.ECS.Services
             foreach (var _entity in _nonPrioritized)
             {
                 if (_entity.GetCurrentOwner() != null) continue;
-                 ((IEntity)_entity).Initialize();
+                ((IEntity)_entity).Initialize();
             }
 
             HasInitialized = true;
-            
+
             Debug.Log($"The World ({this.Name}) initialized and loaded. ");
             // DebugSystem.Log(this, $"the World ({this.Name}) initialized and loaded. ");
         }
@@ -281,7 +282,7 @@ namespace DAFP.TOOLS.ECS.Services
 
         [Inject] public IGlobalCursorStateHandler CursorState { get; set; }
         [Inject] public IAssetFactory.DefaultAssetFactory AssetFactory { get; set; }
-        public IDebugSys<IGlobalGizmos, IMessenger> DebugSystem { get; }
+        public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
 
 
         public GameObject GetWorldRepresentation()

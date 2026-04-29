@@ -451,10 +451,6 @@ namespace DAFP.TOOLS.Common.Utill
             return arr.Select((@interface => @interface.Value));
         }
 
-        public static IEnumerable<IViewModel> Enabled(this IEnumerable<IViewModel> models)
-        {
-            return models.GetActiveViews();
-        }
 
         public static IEnumerable<IViewModel> GetActiveViews(this IEnumerable<IViewModel> models)
         {
@@ -527,6 +523,11 @@ namespace DAFP.TOOLS.Common.Utill
             return new Bounds(a.center - b.center, a.size - b.size);
         }
 
+
+        public static IEnumerable<T> Local<T>(this IEnumerable<T> models) where T : IPlayer
+        {
+            return models.Where((switchable => switchable.IsLocal));
+        }
 
         public static IEnumerable<T> Enabled<T>(this IEnumerable<T> models) where T : ISwitchable
         {
@@ -1063,19 +1064,19 @@ namespace DAFP.TOOLS.Common.Utill
         // }
 
 
-        public static void DrawOnLayer(this IDebugSys<IGlobalGizmos, IMessenger> sys, DebugDrawLayer layer,
+        public static void DrawOnLayer(this IDebugSys<IGlobalGizmos, IConsoleMessenger> sys, DebugDrawLayer layer,
             Action<IGlobalGizmos> brush)
         {
             layer.Draw(sys, brush);
         }
 
-        public static void DrawOnSharedLayer(this IDebugSys<IGlobalGizmos, IMessenger> sys,
+        public static void DrawOnSharedLayer(this IDebugSys<IGlobalGizmos, IConsoleMessenger> sys,
             Action<IGlobalGizmos> brush)
         {
             sys.GetSharedLayer.Draw(sys, brush);
         }
 
-        public static void Draw(this DebugDrawLayer layer, IDebugSys<IGlobalGizmos, IMessenger> sys,
+        public static void Draw(this DebugDrawLayer layer, IDebugSys<IGlobalGizmos, IConsoleMessenger> sys,
             Action<IGlobalGizmos> brush)
         {
             layer.Draw((() => brush.Invoke(sys.Gizmos)));

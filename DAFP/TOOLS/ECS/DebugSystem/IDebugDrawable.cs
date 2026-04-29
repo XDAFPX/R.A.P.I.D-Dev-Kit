@@ -6,7 +6,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 {
     public interface IDebugDrawable : IOwnerOf<IDebugDrawable>, IDrawable,IOwnedBy<IDebugDrawable>
     {
-        IDebugSys<IGlobalGizmos, IMessenger> DebugSystem { get; }
+        IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
 
         void IDrawable.Draw()
         {

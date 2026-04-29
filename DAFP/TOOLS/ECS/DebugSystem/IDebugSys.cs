@@ -7,13 +7,13 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
-    public interface IDebugSubSys : IOwnedBy<IDebugSys<IGlobalGizmos, IMessenger>>
+    public interface IDebugSubSys : IOwnedBy<IDebugSys<IGlobalGizmos, IConsoleMessenger>>
     {
     }
 
     public interface IDebugSys<out TGizmos, out TMessenger> : IDrawable, IOwnerOf<IDebugDrawable>,
         Zenject.ITickable, IOwnerOf<IDebugSubSys>
-        where TGizmos : IGlobalGizmos where TMessenger : IMessenger
+        where TGizmos : IGlobalGizmos where TMessenger : IConsoleMessenger
     {
         public TGizmos Gizmos { get; }
         public TMessenger Messenger { get; }

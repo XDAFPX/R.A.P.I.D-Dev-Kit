@@ -88,7 +88,7 @@ namespace DAFP.TOOLS.ECS
         [Inject] protected IRandom RandomSys;
         [Inject] protected IAssetManager AssetManager;
 
-        [Inject] public IDebugSys<IGlobalGizmos, IMessenger> DebugSystem { get; }
+        [Inject] public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
         [Inject(Id = "GlobalStateBus")] protected IEventBus GlobalStateBus;
         [Inject(Id = "GlobalGameEventsBus")] protected IEventBus GameEventsBus;
 
