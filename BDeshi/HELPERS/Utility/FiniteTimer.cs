@@ -331,14 +331,15 @@ namespace Bdeshi.Helpers.Utility
         public float Ratio => Mathf.Clamp01(Timer / MaxValue);
 
         public float ReverseRatio => 1 - Ratio;
-        public Dictionary<string, object> Save()
+        public ISaveData Save()
         {
-            return new Dictionary<string, object>() { { "time", Timer } };
+            return new GenericSaveData(new Dictionary<string, object>() { { "time", Timer } });
         }
 
-        public void Load(Dictionary<string, object> save)
+        public void Load(ISaveData saveData)
         {
-            if (save.TryGetValue("time", out var _value))
+            var _save = saveData.Data;
+            if (_save.TryGetValue("time", out var _value))
             {
                 Timer = (float)_value;
             }

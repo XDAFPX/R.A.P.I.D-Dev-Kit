@@ -6,6 +6,7 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Pegs
     public class MultiplyPegModifier : PegModifier, IPegStatModifier<int>, IPegStatModifier<uint>,
         IPegStatModifier<float>
     {
+
         public int Apply(int value)
         {
             return DefaultMultiply(value, Peg.GetAbsoluteValue());
@@ -25,7 +26,7 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Pegs
         public static T DefaultMultiply<T>(T a, object b)
         {
             var cc = StatInjector.try_convert(b, typeof(T));
-            
+
             if (cc == null)
                 return a;
 

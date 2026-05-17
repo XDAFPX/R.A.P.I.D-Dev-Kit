@@ -4,6 +4,6 @@ namespace DAFP.TOOLS.Common.TextSys
 {
     public interface ICommandInterpreter : IPetOwnerTreeOf<ICommandInterpreter> 
     {
-        public string Procces(string input);
+        public ITextProcess Process(string input);
     }
 }

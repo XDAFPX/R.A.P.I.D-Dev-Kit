@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Serialization
 {
-    public interface ISerializer<T> where T : ISavable
+    public interface ISerializer<in T> where T : ISavable
     {
         public Dictionary<string, object> Save(T obj);
         public void Load(Dictionary<string, object> save, T ent);
@@ -94,13 +94,13 @@ namespace DAFP.TOOLS.ECS.Serialization
             if (data == null)
                 return;
 
-            if (sv is ISavable saveable) saveable.Load(data as Dictionary<string, object>);
+            if (sv is ISavable saveable) saveable.Load(new GenericSaveData(data as Dictionary<string,object>) );
         }
 
         public static Dictionary<string, object> DefaultSave(object sv)
         {
             var data = new Dictionary<string, object>();
-            if (sv is ISavable saveable) data.AddSave(saveable.Save());
+            if (sv is ISavable saveable) data.AddSave(saveable.Save().Data);
 
             return data;
         }

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.Build;
@@ -7,42 +8,40 @@ using UnityEditor.Build.Reporting;
 public class BuildVersionProcessor : IPreprocessBuildWithReport
 {
     public int callbackOrder => 0;
-    public string initverison = "0.0";
+    public const string INIT_VERSION = "0.0";
 
     public void OnPreprocessBuild(BuildReport report)
     {
-        Debug.Log($"Current patch:[{Currentversion()}]");
-        Updateverison(Currentversion());
+        Debug.Log($"Current patch:[{current_version()}]");
+        update_version(current_version());
     }
 
-    private string Currentversion()
+    private string current_version()
     {
         try
         {
-            var version = PlayerSettings.bundleVersion.Split("-");
-            return version[1];
+            var _version = PlayerSettings.bundleVersion.Split("-");
+            return _version[1];
         }
-        catch (Exception ex)
+        catch (Exception _ex)
         {
-            return "0.0";
+            return INIT_VERSION;
         }
     }
 
-    private void Updateverison(string version)
+    private void update_version(string version)
     {
-        if (float.TryParse(version, out var paresedversion))
+        if (float.TryParse(version, NumberStyles.Float, CultureInfo.InvariantCulture, out var _parsedVersion))
         {
-            Debug.Log($"Parsed Patch: {paresedversion}");
-            var newversion = paresedversion + 0.01f;
-            Debug.Log($"Increased Version To: {newversion}");
-            PlayerSettings.bundleVersion = $"InDevPatch-{newversion}";
-            //string name = PlayerSettings.productName;
-            //PlayerSettings.productName = name.Split("-")[0]+"-" + newversion.ToString();
+            var _newVersion = (_parsedVersion + 0.01f).ToString("F2", CultureInfo.InvariantCulture);
+            Debug.Log($"Parsed Patch: {_parsedVersion}");
+            Debug.Log($"Increased Version To: {_newVersion}");
+            PlayerSettings.bundleVersion = $"InDevPatch-{_newVersion}";
             Debug.Log($"Patch Updated : {PlayerSettings.bundleVersion}");
         }
         else
         {
-            Debug.Log($"Could not parse version:{Currentversion()}");
+            Debug.Log($"Could not parse version: {version}");
         }
     }
 }

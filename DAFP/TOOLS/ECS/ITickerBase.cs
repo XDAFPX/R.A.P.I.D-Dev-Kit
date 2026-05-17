@@ -7,7 +7,7 @@ namespace DAFP.TOOLS.ECS
 {
     public interface ITickerBase : ITickable, IResetable, IComparable<ITickerBase>
     {
-        public bool IsAllowedToTick(IGlobalGameState state);
+        public bool IsAllowedToTick(IGameState state);
         public float UpdatesPerSecond { get; }
         public float DeltaTime { get; }
         public void Remove(ITickable tickable);

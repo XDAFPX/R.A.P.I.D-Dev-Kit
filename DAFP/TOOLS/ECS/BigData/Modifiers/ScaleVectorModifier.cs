@@ -2,22 +2,23 @@
 
 namespace DAFP.TOOLS.ECS.BigData.Modifiers
 {
-    public class ScaleVectorModifier : StatModifier<IVectorBase>
+    public class ScaleVectorModifier : StatModifier<IVector>
     {
         public IStat<float> Scaler { get; }
         private readonly float scaler;
 
-        public ScaleVectorModifier(IEntity owner, IStat<float> scaler) : base(owner)
+        public ScaleVectorModifier(IEntity owner, IStat<float> scaler, string name = nameof(ScaleVectorModifier)) :
+            base(owner,name)
         {
             Scaler = scaler;
         }
 
-        public ScaleVectorModifier(IEntity owner, float scaler) : base(owner)
+        public ScaleVectorModifier(IEntity owner, float scaler, string name = nameof(ScaleVectorModifier)) : base(owner,name)
         {
             this.scaler = scaler;
         }
 
-        public override IVectorBase Apply(IVectorBase value)
+        public override IVector Apply(IVector value)
         {
             if (Scaler != null)
                 return value.Scale(Scaler.Value);
@@ -27,9 +28,7 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers
         public override int Priority
         {
             get => 10;
-            set
-            {
-            }
+            set { }
         }
 
         public override void Dispose()

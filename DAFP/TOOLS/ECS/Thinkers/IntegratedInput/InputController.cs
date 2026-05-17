@@ -9,7 +9,10 @@ namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput
         private InputActionAsset actions;
         private readonly Dictionary<string, Action<InputAction.CallbackContext>> callbacks = new();
 
-        internal InputController(){}
+        internal InputController()
+        {
+        }
+
         public void Bind(string actionName, Action<InputAction.CallbackContext> callback)
         {
             var _action = actions.FindAction(actionName, true);
@@ -89,5 +92,14 @@ namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput
                 actions?.Disable();
             }
         }
+    }
+
+
+    public class UIInputController : InputController
+    {
+    }
+
+    public class GameplayInputController : InputController
+    {
     }
 }

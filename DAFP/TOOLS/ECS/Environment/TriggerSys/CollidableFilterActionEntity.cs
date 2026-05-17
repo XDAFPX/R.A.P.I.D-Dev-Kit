@@ -67,6 +67,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 
         protected override void InitializeInternal()
         {
+            base.InitializeInternal();
             Cols2d = GetComponentsInChildren<Collider2D>();
             Cols3d = GetComponentsInChildren<Collider>();
 

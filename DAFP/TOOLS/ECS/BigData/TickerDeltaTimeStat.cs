@@ -61,6 +61,11 @@ namespace DAFP.TOOLS.ECS.BigData
         {
         }
 
+        public void RemoveModifier(string name)
+        {
+            
+        }
+
         public List<IStatBase> Children { get; } = new();
 
         List<IStatBase> IPetOwnerTreeOf<IStatBase>.Owners => owners;

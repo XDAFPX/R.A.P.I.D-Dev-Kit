@@ -12,16 +12,18 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
 
         private IStat<ITickerBase> multiplierTick;
 
-        public MultiplyFloatModifier() : base(null)
+        public MultiplyFloatModifier() : base(null, nameof(MultiplyFloatModifier))
         {
-            
         }
-        public MultiplyFloatModifier(IStat<ITickerBase> multiplier, IEntity owner) : base(owner)
+
+        public MultiplyFloatModifier(IStat<ITickerBase> multiplier, IEntity owner,
+            string name = nameof(MultiplyFloatModifier)) : base(owner, name)
         {
             multiplierTick = multiplier;
         }
 
-        public MultiplyFloatModifier(IStat<float> multiplier, IEntity owner) : base(owner)
+        public MultiplyFloatModifier(IStat<float> multiplier, IEntity owner,
+            string name = nameof(MultiplyFloatModifier)) : base(owner,name)
         {
             this.multiplier = multiplier;
         }
@@ -36,7 +38,7 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
         public override int Priority
         {
             get => 10;
-            set {}
+            set { }
         }
 
         public override void Dispose()

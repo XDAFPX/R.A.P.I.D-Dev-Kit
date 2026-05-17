@@ -3,6 +3,7 @@ using Bdeshi.Helpers.Utility;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Thinkers;
@@ -23,7 +24,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         protected override void InternalInitialize(IEntity host)
         {
-            if (host is ICommonEntityInterface.ITargetContainable _targetContainable)
+            if (host is ITargetContainable _targetContainable)
             {
                 if (_targetContainable.Target.HasValue)
                     _targetContainable.ResetTarget();
@@ -31,12 +32,12 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
         }
 
-        private void update_target(ICommonEntityInterface.ITargetContainable host)
+        private void update_target(ITargetContainable host)
         {
-            if (host.Target.TryGetValue(out var target))
+            if (host.Target.Value.TryGetValue(out var target))
             {
                 Destroy(target.GetWorldRepresentation());
-                host.Target = Option.None<IEntity>();
+                host.Target.Value = Option.None<IEntity>();
             }
 
             tryToAssignNewTarget.reset();
@@ -52,7 +53,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
                 val.AddPet(new ActionDebugDrawer("Thinkers",
                     gizmos => { gizmos.DrawCircle2D(pos, ReachedTargetRadius, ColorsForUnity.FireBrick); }));
 
-                host.Target = val.Some();
+                host.Target.Value = val.Some();
             }
         }
 
@@ -67,21 +68,21 @@ namespace DAFP.TOOLS.ECS.Thinkers
         protected override void InternalTick(IEntity host, ITickerBase ticker)
         {
             tryToAssignNewTarget.safeUpdateTimer(ticker.DeltaTime);
-            if (host is ICommonEntityInterface.ITargetContainable _targetContainable)
+            if (host is ITargetContainable _targetContainable)
             {
                 if (!_targetContainable.Target.HasValue && tryToAssignNewTarget.isComplete)
                     update_target(_targetContainable);
-                if (_targetContainable.Target.TryGetValue(out var _target))
+                if (_targetContainable.Target.Value.TryGetValue(out var _target))
                 {
                     try_to_walk_to_target(_targetContainable, _target, ticker.DeltaTime);
                 }
             }
         }
 
-        private void try_to_walk_to_target(ICommonEntityInterface.ITargetContainable host, IEntity target,
+        private void try_to_walk_to_target(ITargetContainable host, IEntity target,
             float delta)
         {
-            if (host is not ICommonEntityInterface.IMovementInputable _movementInputable) return;
+            if (host is not IMovementInputable _movementInputable) return;
             walkToTarget.updateTimer(delta);
 
 
@@ -90,7 +91,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
             if (check_for_timer()) return;
 
-            if (host is ICommonEntityInterface.IPathFindable _pathFindable)
+            if (host is IPathFindable _pathFindable)
             {
                 _movementInputable.InputMovement(_pathFindable.PathFindToTarget().Normalized);
                 return;

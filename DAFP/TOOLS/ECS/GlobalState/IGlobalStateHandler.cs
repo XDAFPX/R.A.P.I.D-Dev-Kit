@@ -7,15 +7,11 @@ namespace DAFP.TOOLS.ECS.GlobalState
     public interface IGlobalStateHandler<TState> : Zenject.ITickable, IInitializable, IGlobalStateHandlerBase
         where TState : class, IState
     {
-        TState Default { get; }
-        StateChangeRequest<TState> PushState(StateChangeRequest<TState> request);
-        void PopState(StateChangeRequest<TState> request);
-        TState Current();
-        TState GetState(string name);
+        public abstract TState Default { get; }
 
-        Type GetStateType()
-        {
-            return typeof(TState);
-        }
+        public TState Current { get; }
+        public IGlobalStateHandler<TState> TransitionTo<TConcreteState>() where TConcreteState : TState, new();
+
+        public IGlobalStateHandler<TState> TransitionToDefault();
     }
 }

@@ -9,11 +9,11 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
         [SerializeField] private uint D;
         private IStat<uint> divider;
 
-        public DivideUintModifier() : base(null)
+        public DivideUintModifier() : base(null, nameof(DivideUintModifier))
         {
         }
 
-        public DivideUintModifier(IEntity owner, IStat<uint> divider) : base(owner)
+        public DivideUintModifier(IEntity owner, IStat<uint> divider, string name = nameof(DivideUintModifier)) : base(owner,name)
         {
             this.divider = divider;
         }

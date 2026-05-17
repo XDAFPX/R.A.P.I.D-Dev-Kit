@@ -81,7 +81,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             savableStates.Sort(new GenericComparerICompareable<IGlobalSettingsSavable>());
             foreach (var _globalStateHandlerBase in savableStates)
                 if (Data.TryGetValue(_globalStateHandlerBase.GetType().FullName, out var oo))
-                    _globalStateHandlerBase.Load(oo as Dictionary<string, object>);
+                    _globalStateHandlerBase.Load(new GenericSaveData(oo as Dictionary<string,object>));
 
 
             var _blackBoards = theblacks
@@ -91,13 +91,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             foreach (var _board in _blackBoards)
             {
                 var _fullName = _board.GetType().FullName;
-                if (Data.TryGetValue(_fullName, out var oo)) _board.Load(oo as Dictionary<string, object>);
+                if (Data.TryGetValue(_fullName, out var oo)) _board.Load(new GenericSaveData(oo as Dictionary<string,object>));
             }
 
 
             OnEnd?.Invoke();
         }
 
-        public SerializationBus Bus { get; } = new();
     }
 }

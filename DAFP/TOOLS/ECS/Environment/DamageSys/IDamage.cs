@@ -4,9 +4,8 @@ using DAFP.TOOLS.ECS.BigData;
 
 namespace DAFP.TOOLS.ECS.Environment.DamageSys
 {
-    public interface IDamage
+    public interface IDamage : IHealthChange<DamageInfo>
     {
-        DamageInfo Info { get; set; }
     }
 
     public class Damage : IDamage

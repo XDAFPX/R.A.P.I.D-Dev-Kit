@@ -2,11 +2,10 @@
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
 using UGizmo;
 using UGizmo.Internal;
-using Unity.VisualScripting.Antlr3.Runtime.Misc;
-using UnityEditor.Graphs;
 using UnityEngine;
 using UnityEventBus;
 
@@ -60,7 +59,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             }
         }
 
-        public class HealthDrawer : EntityDebugDrawer, IListener<ICommonEntityEvent.EntityTakeDamageEvent>
+        public class HealthDrawer : EntityDebugDrawer, IListener<OnEntityTakeDamageEvent>
         {
             private Color color;
             private readonly Color secoundColor;
@@ -115,9 +114,9 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
             public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem => Sys;
 
-            public void React(in ICommonEntityEvent.EntityTakeDamageEvent e)
+            public void React(in OnEntityTakeDamageEvent e)
             {
-                if (e.Host != Host)
+                if (e.Receiver != Host)
                     return;
                 extract_and_update_health(Host);
             }

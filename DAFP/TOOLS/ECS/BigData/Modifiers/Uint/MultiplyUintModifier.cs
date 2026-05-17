@@ -11,12 +11,13 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
         private IStat<uint> multiplier;
 
 
-        public MultiplyUintModifier() : base(null)
+        public MultiplyUintModifier() : base(null, nameof(MultiplyUintModifier))
         {
         }
 
 
-        public MultiplyUintModifier(IStat<uint> multiplier, IEntity owner) : base(owner)
+        public MultiplyUintModifier(IStat<uint> multiplier, IEntity owner,
+            string name = nameof(MultiplyUintModifier)) : base(owner, name)
         {
             this.multiplier = multiplier;
         }
@@ -31,9 +32,7 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
         public override int Priority
         {
             get => 10;
-            set
-            {
-            }
+            set { }
         }
 
         public override void Dispose()

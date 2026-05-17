@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.TextSys;
@@ -11,7 +12,7 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class UniversalDebugSystem<TMessenger, TGizmos> : IDebugSys<TGizmos, TMessenger> where TGizmos :
+    public class UniversalDebugSystem<TMessenger, TGizmos> : IDebugSys<TGizmos, TMessenger>, ITickable where TGizmos :
         IGlobalGizmos
         where TMessenger :
         IConsoleMessenger
@@ -33,6 +34,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public TMessenger Messenger { get; }
         public IList<DebugDrawLayer> Layers { get; }
         public DebugDrawLayer GetSharedLayer => new DebugDrawLayer("SHARED", Application.isEditor);
+        protected List<DebugValue> DebugValues = new List<DebugValue>();
 
 
         IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawers;
@@ -65,5 +67,38 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         IEnumerable<IDebugSubSys> IOwnerOf<IDebugSubSys>.Pets => subSystems;
 
         public IEnumerable<object> AbsolutePets => debugDrawers.Union<object>(subSystems);
+
+        public void AddDebugValue(DebugValue value)
+        {
+            if (!DebugValues.Contains(value))
+                DebugValues.Add(value);
+
+            Display.Value.UpdateValues(DebugValues);
+        }
+
+        public void RemoveDebugValue(string value)
+        {
+            var _found = DebugValues.FindByName<DebugValue>(value);
+            if (!_found.Equals(default))
+                DebugValues.Remove(_found);
+
+            Display.Value.UpdateValues(DebugValues);
+        }
+
+        protected readonly Lazy<DebugValueDisplay> Display =
+            new Lazy<DebugValueDisplay>(() => new DebugValueDisplay(Array.Empty<DebugValue>(), Color.white));
+
+        public void Tick()
+        {
+            Messenger.Tick();
+            ((IDrawable)this).Draw();
+            Display.Value.Tick();
+        }
+
+        public void Draw()
+        {
+            foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
+                _ownable.Draw();
+        }
     }
 }

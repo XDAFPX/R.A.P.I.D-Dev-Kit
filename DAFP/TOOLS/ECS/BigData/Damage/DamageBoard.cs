@@ -60,9 +60,9 @@ namespace DAFP.TOOLS.ECS.BigData.Damage
         }
 
 
-        public IDamage Construct(Option<IEntity> ent, Option<IVectorBase> vec, IStat<uint> stat)
+        public IDamage Construct(Option<IEntity> ent, Option<IVector> vec, IStat<uint> stat)
         {
-            return new Environment.DamageSys.Damage(new DamageInfo(stat, new DamageSource(ent, vec), Tag));
+            return new Environment.DamageSys.Damage(new DamageInfo(stat, new HealthChangeSource(ent, vec), Tag));
         }
 
         public IHaveGameplayTag Tag => TagContainer;

@@ -8,7 +8,7 @@ namespace DAFP.TOOLS.ECS.BigData.Damage
     public interface IDamageBoard : IStat<uint>
     {
 
-        public IDamage Construct(Option<IEntity> ent, Option<IVectorBase> vec, IStat<uint> stat);
+        public IDamage Construct(Option<IEntity> ent, Option<IVector> vec, IStat<uint> stat);
 
         public IHaveGameplayTag Tag { get; }
     }

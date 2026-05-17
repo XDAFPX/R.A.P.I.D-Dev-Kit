@@ -3,8 +3,6 @@ using DAFP.GAME.Assets;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BuiltIn;
-using Unity.VisualScripting.YamlDotNet.Core.Tokens;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -25,7 +23,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 
         public void FlagAsHit()
         {
-            BroadcastEvent(new HurtBoxFlaggedNotActivatedEvent() { HurtBox = this });
+            BroadcastEvent(new OnHurtBoxFlaggedEvent() { HurtBox = this });
         }
 
         public void Hurt(HitBox<T> box, T objThatHurtYou)
@@ -34,7 +32,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
             OnHurtT?.Invoke(objThatHurtYou);
 
 
-            BroadcastEvent(new HurtBoxActivatedEvent() { HitBox = box, HurtBox = this, Obj = objThatHurtYou });
+            BroadcastEvent(new OnHurtBoxActivatedEvent() { HitBox = box, HurtBox = this, Obj = objThatHurtYou });
             BroadcastEvent(new HurtBoxActivatedEvent<T>()
             {
                 Group = ((IPetOf<HurtGroup<T>, HurtBox<T>>)this).GetCurrentOwner(), HitBox = box, HurtBox = this,
@@ -62,7 +60,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
         public List<HurtGroup<T>> Owners { get; } = new List<HurtGroup<T>>();
     }
 
-    public struct HurtBoxFlaggedNotActivatedEvent
+    public struct OnHurtBoxFlaggedEvent
     {
         public IEntity HurtBox;
     }
@@ -75,7 +73,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
         public T Obj;
     }
 
-    public struct HurtBoxActivatedEvent
+    public struct OnHurtBoxActivatedEvent
     {
         public IEntity HitBox;
         public IEntity HurtBox;

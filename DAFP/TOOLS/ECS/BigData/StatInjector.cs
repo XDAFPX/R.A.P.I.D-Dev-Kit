@@ -222,9 +222,8 @@ namespace DAFP.TOOLS.ECS.BigData
             }
             else
             {
-                var _naming = $"[{field.statName}]/({field.field.Name})";
-                Debug.LogError($"StatInjector: failed to inject:  {_naming} ::");
-                Debug.LogError($"StatInjector: critical error");
+                var _naming = $"[{field.statName}] :: ({field.field.Name})";
+                 throw new Exception($"StatInjector: failed to inject:  {_naming} ::");
             }
         }
 
@@ -262,7 +261,7 @@ namespace DAFP.TOOLS.ECS.BigData
             }
         }
 
-        public static bool DEBUG = true;
+        public static bool DEBUG = false;
 
         private static bool check_field((FieldInfo, DeclareStatAttribute) field, IStatContainer stats)
         {

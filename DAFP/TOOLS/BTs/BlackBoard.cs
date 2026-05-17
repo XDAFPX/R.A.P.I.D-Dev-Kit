@@ -1,10 +1,11 @@
 ﻿using System.Collections.Generic;
 using DAFP.TOOLS.ECS;
+using DAFP.TOOLS.ECS.Serialization;
 using UnityEngine;
 
 namespace DAFP.TOOLS.BTs
 {
-    public interface IBlackBoard
+    public interface IBlackBoard : ISavable
     {
         void Set<T>(string key, T value);
         T Get<T>(string key);
@@ -13,21 +14,26 @@ namespace DAFP.TOOLS.BTs
 
     public class BlackBoard : IBlackBoard
     {
-        private readonly Dictionary<string, object> data = new();
+        private Dictionary<string, object> data = new();
 
 
-        public BlackBoard(IEntity target, IEntity self)
+        public BlackBoard(IEntity self)
         {
             data.Clear();
-            data.Add("Target", target);
             data.Add("Self", self);
         }
 
-        public float GetDistanceToTarget(Vector2 curpos)
+        public BlackBoard(IEntity self,Dictionary<string,object> @new)
         {
-            return GetTarget() != null
-                ? Vector2.Distance(GetTarget().GetWorldRepresentation().transform.position, curpos)
-                : Mathf.Infinity;
+            data.Clear();
+            data = @new;
+            data["Self"] = self;
+            
+        }
+
+        public void Delete(string key)
+        {
+            data.Remove(key);
         }
 
         public void Set<T>(string key, T value)
@@ -57,14 +63,19 @@ namespace DAFP.TOOLS.BTs
             return Get<IEntity>("Self");
         }
 
-        internal IEntity GetTarget()
-        {
-            return Get<IEntity>("Target");
-        }
-
         public Dictionary<string, object> GetFullData()
         {
             return data;
+        }
+
+        public ISaveData Save()
+        {
+            return new GenericSaveData(data);
+        }
+
+        public void Load(ISaveData saveData)
+        {
+            data = saveData.Data;
         }
     }
 }

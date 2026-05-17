@@ -1,4 +1,5 @@
-﻿using DAFP.TOOLS.Common.Utill;
+﻿using System.Collections.Generic;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.ViewModel;
 using Zenject;
@@ -7,9 +8,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public class Prop : Entity
     {
-        public override NonEmptyList<IViewModel> SetupView()
+        public override IEnumerable<IViewModel> SetupView()
         {
-            return GetDefaultView();
+            return new EmptyView().ToEnumerable();
         }
 
         [Inject(Id = "DefaultUpdateEntityGameplayTicker")]

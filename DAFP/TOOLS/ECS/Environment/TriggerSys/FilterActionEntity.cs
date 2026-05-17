@@ -29,7 +29,6 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
             var l = new List<TContext>(context);
 
 
-
             foreach (var _filter in Filters.ToValues())
             {
                 l = l.FilterThrough(_filter).ToList();
@@ -75,7 +74,13 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
         {
             foreach (var _filter in Filters.ToValues())
             {
+                Injector.Inject(_filter);
                 _filter.Initialize(this);
+            }
+
+            foreach (var _action in Actions.ToValues())
+            {
+                Injector.Inject(_action);
             }
         }
 

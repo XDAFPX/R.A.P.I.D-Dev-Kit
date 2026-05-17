@@ -1,13 +1,22 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Audio;
+using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using ModestTree;
 using NRandom;
+using PixelRouge.Inspector.Extensions;
+using R3;
+using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Zenject;
@@ -16,35 +25,23 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public static class BuiltInCommands
     {
-        public abstract class ConsoleCommand : IConsoleCommand
-        {
-            public List<ICommandInterpreter> Children { get; } = new();
-            public List<ICommandInterpreter> Owners { get; } = new();
-            public abstract string Name { get; set; }
-            public abstract IMessage Description { get; set; }
-
-            public string Procces(string input)
-            {
-                if (!CommandParserUtils.CheckIfInputContainsCommand(input, Name)) return null;
-                return Execute(input);
-            }
-
-            protected abstract string Execute(string input);
-        }
-
-        
-        
-        public class ClearCommand : ConsoleCommand
+        public class ClearCommand : ConsoleCommand //--fixed 
         {
             public override string Name { get; set; } = "cls";
             public override IMessage Description { get; set; } = IMessage.Literal("Clears console");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
                 var _interpreter = CommandParserUtils.GetRoot(this);
-                if (_interpreter is not IConsoleMessenger _console) return CommandParserUtils.GenericException();
+                if (_interpreter is not IConsoleMessenger _console)
+                {
+                    context.Log.OnNext(CommandParserUtils.GenericException());
+                    return UniTask.CompletedTask;
+                }
+
                 _console.Clear();
-                return "pass";
+
+                return UniTask.CompletedTask;
             }
         }
 
@@ -61,40 +58,109 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             public override string Name { get; set; } = "players";
 
             public override IMessage Description { get; set; } =
-                IMessage.Literal("displays the players in the current game");
+                IMessage.Literal("Displays the players in the current game.");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
                 if (world.Players.IsEmpty())
-                    return CommandParserUtils.NoPlayersException();
+                {
+                    context.Log.OnNext(CommandParserUtils.NoPlayersException());
+                    return UniTask.CompletedTask;
+                }
 
-                return $"There are {world.Players.Count()} players ::\n " + string.Join("\n", world.Players
-                    .Select(p => $" Player: name:'{p.Name}', local:{p.IsLocal}"));
+                context.Log.OnNext(IMessage.Literal($"There are {world.Players.Count()} players ::\n" + string.Join(
+                    "\n", world.Players
+                        .Select(p => $" Player: name:'{p.Body.Name}', local:{p.Data.IsLocal}"))));
+                return UniTask.CompletedTask;
             }
         }
 
-        public class NoclipCommand : ConsoleCommand
+        public abstract class OnePlayerCommand : ConsoleCommand
         {
-            private readonly World world;
+            protected readonly World World;
 
             [Inject]
-            public NoclipCommand(World world)
+            protected OnePlayerCommand(World world)
             {
-                this.world = world;
+                this.World = world;
+            }
+
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
+            {
+                var _arg = CommandParserUtils.GetSingleCommandArgument(SourceInput, Name);
+                var _pl = CommandParserUtils.ParsePlayer(_arg, World.Players, out var _error);
+                if (_pl == null)
+                {
+                    context.Log.OnNext(_error);
+                    return UniTask.CompletedTask;
+                }
+
+                return Execute(context, ct, _pl);
+            }
+
+            protected abstract UniTask Execute(TextProcessContext context, CancellationToken ct, IPlayer player);
+        }
+
+        public class Buddha : OnePlayerCommand, IHiddenCommand
+        {
+            [Inject]
+            public Buddha(World world) : base(world)
+            {
+            }
+
+            public override string Name { get; set; } = "buddha";
+
+            public override IMessage Description { get; set; } =
+                CompText.Literal("Makes the player invincible");
+
+            protected override UniTask Execute(TextProcessContext context, CancellationToken ct, IPlayer player)
+            {
+                GameUtils.Buddha(player.Body);
+                string _active = player.Body.Memory.Has("Buddha") ? "on" : "off";
+                context.Log.OnNext(IMessage.Literal($"Buddha mode {_active}"));
+                return UniTask.CompletedTask;
+            }
+        }
+
+        public class GodCommand : OnePlayerCommand
+        {
+            [Inject]
+            public GodCommand(World world) : base(world)
+            {
+            }
+
+            public override string Name { get; set; } = "god";
+
+            public override IMessage Description { get; set; } =
+                CompText.Literal("Makes the player invincible");
+
+            protected override UniTask Execute(TextProcessContext context, CancellationToken ct, IPlayer player)
+            {
+                GameUtils.God(player.Body);
+                string _active = player.Body.Memory.Has("God") ? "ON" : "OFF";
+                context.Log.OnNext(IMessage.Literal($"godmode {_active}"));
+                return UniTask.CompletedTask;
+            }
+        }
+
+        public class NoclipCommand : OnePlayerCommand
+        {
+            [Inject]
+            public NoclipCommand(World world) : base(world)
+            {
             }
 
             public override string Name { get; set; } = "noclip";
 
             public override IMessage Description { get; set; } =
-                CompText.Literal("disables the effect of gravity and makes the player nonsolid");
+                CompText.Literal("Disables the effect of gravity and makes the player nonsolid");
 
-            protected override string Execute(string input)
+            protected override UniTask Execute(TextProcessContext context, CancellationToken ct, IPlayer player)
             {
-                var arg = CommandParserUtils.GetSingleCommandArgument(input, Name);
-                var _pl = CommandParserUtils.ParsePlayer(arg, world.Players, out var _error);
-                if (_pl == null) return _error;
-                _pl.ToggleNoclip();
-                return $"Toggled noclip on player {_pl.Name}";
+                GameUtils.Noclip(player.Body);
+                string _active = player.Body.Memory.Has("Noclip") ? "Active" : "Disabled";
+                context.Log.OnNext(IMessage.Literal($"Noclip is [{_active}] on {player.Name}"));
+                return UniTask.CompletedTask;
             }
         }
 
@@ -109,16 +175,17 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             public override string Name { get; set; } = "mat";
             public override IMessage Description { get; set; } = IMessage.Literal("Changes the view of entities");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
                 foreach (var _ownable in Children)
                 {
-                    if (_ownable is not IConsoleCommand cmd) continue;
-                    if (!CommandParserUtils.CheckIfInputContainsCommand(input, cmd.Name)) continue;
-                    return cmd.Procces(input.Replace(cmd.Name, ""));
+                    if (_ownable is not IConsoleCommand _cmd) continue;
+                    if (!CommandParserUtils.CheckIfInputContainsCommand(SourceInput, _cmd.Name)) continue;
+                    return _cmd.Process(SourceInput.Replace(_cmd.Name, "")).Execute(context, ct);
                 }
 
-                return "use case: use a sub command with '_' prefix";
+                context.Log.OnNext(IMessage.Literal("use case: use a sub command with '_' prefix"));
+                return UniTask.CompletedTask;
             }
 
             public class MatDebugViewCommand : ConsoleCommand
@@ -128,20 +195,38 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 public override IMessage Description { get; set; } =
                     new CompText(new Span("Sets the debug draw layer's value").I_RT());
 
-                protected override string Execute(string input)
+                public override UniTask Execute(TextProcessContext context, CancellationToken ct)
                 {
-                    var args = CommandParserUtils.ParseArguments(input);
-                    var sys = CommandParserUtils.TryGetSys(this);
-                    if (!args.IsInBounds(0) || string.IsNullOrEmpty(args[0]))
-                        return CommandParserUtils.InvalidArgumentsException(this);
-                    if (!args.IsInBounds(1) || string.IsNullOrEmpty(args[1]))
-                        return CommandParserUtils.InvalidArgumentsException(this);
-                    var layer = sys.Layers.FindByName(args[0]);
-                    if (layer == default) return $"layer {args[0]} was not found";
-                    if (!CommandParserUtils.TryGetBool(args[1], out var val))
-                        return $"layer value({args[1]}) was invalid";
-                    (layer as DebugDrawLayer).Enabled = val;
-                    return "debug draw updated";
+                    var _args = CommandParserUtils.ParseArguments(SourceInput);
+                    var _sys = CommandParserUtils.TryGetSys(this);
+                    if (!_args.IsInBounds(0) || string.IsNullOrEmpty(_args[0]))
+                    {
+                        context.Log.OnNext(CommandParserUtils.InvalidArgumentsException(this));
+                        return UniTask.CompletedTask;
+                    }
+
+                    if (!_args.IsInBounds(1) || string.IsNullOrEmpty(_args[1]))
+                    {
+                        context.Log.OnNext(CommandParserUtils.InvalidArgumentsException(this));
+                        return UniTask.CompletedTask;
+                    }
+
+                    var _layer = _sys.Layers.FindByName(_args[0]);
+                    if (_layer == default)
+                    {
+                        context.Log.OnNext(IMessage.Literal($"layer {_args[0]} was not found"));
+                        return UniTask.CompletedTask;
+                    }
+
+                    if (!CommandParserUtils.TryGetBool(_args[1], out var _val))
+                    {
+                        context.Log.OnNext(IMessage.Literal($"layer value({_args[1]}) was invalid"));
+                        return UniTask.CompletedTask;
+                    }
+
+                    (_layer as DebugDrawLayer).Enabled = _val;
+                    context.Log.OnNext(IMessage.Literal("debug draw updated"));
+                    return UniTask.CompletedTask;
                 }
             }
         }
@@ -163,18 +248,21 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             public override string Name { get; set; } = "map";
             public override IMessage Description { get; set; } = IMessage.Literal("Changes the map");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
-                var result = CommandParserUtils.GetSingleCommandArgument(input, Name);
-                if (result == null) return CommandParserUtils.InvalidArgumentsException(this);
-                if (int.TryParse(result, out var index))
+                var _result = CommandParserUtils.GetSingleCommandArgument(SourceInput, Name);
+                if (_result == null)
                 {
-                    DefaultLevelTransition.Transition(index, saveSystem, world, random);
-                    return $"Loading... {result}";
+                    context.Log.OnNext(CommandParserUtils.InvalidArgumentsException(this));
+                    return UniTask.CompletedTask;
                 }
 
-                DefaultLevelTransition.Transition(result, saveSystem, world, random);
-                return $"Loading... {result}";
+                if (int.TryParse(_result, out var _index))
+                    DefaultLevelTransition.Transition(_index, saveSystem, world, random);
+                else
+                    DefaultLevelTransition.Transition(_result, saveSystem, world, random);
+                context.Log.OnNext(IMessage.Literal($"Loading... {_result}"));
+                return UniTask.CompletedTask;
             }
         }
 
@@ -183,13 +271,19 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             public override string Name { get; set; } = "scene";
             public override IMessage Description { get; set; } = IMessage.Literal("Changes the scene");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
-                var result = CommandParserUtils.GetSingleCommandArgument(input, Name);
-                if (result == null) return CommandParserUtils.InvalidArgumentsException(this);
-                if (int.TryParse(result, out var a)) SceneManager.LoadSceneAsync(a);
-                else SceneManager.LoadSceneAsync(result);
-                return $"Changing scene...";
+                var _result = CommandParserUtils.GetSingleCommandArgument(SourceInput, Name);
+                if (_result == null)
+                {
+                    context.Log.OnNext(CommandParserUtils.InvalidArgumentsException(this));
+                    return UniTask.CompletedTask;
+                }
+
+                if (int.TryParse(_result, out var _a)) SceneManager.LoadSceneAsync(_a);
+                else SceneManager.LoadSceneAsync(_result);
+                context.Log.OnNext(IMessage.Literal("Changing scene..."));
+                return UniTask.CompletedTask;
             }
         }
 
@@ -206,12 +300,18 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             public override string Name { get; set; } = "play";
             public override IMessage Description { get; set; } = IMessage.Literal("plays a sound effect or music");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
-                var result = CommandParserUtils.GetSingleCommandArgument(input, Name);
-                if (result == null) return CommandParserUtils.InvalidArgumentsException(this);
-                sys.PlayOneShot(sys.GetDefault(), result);
-                return $"playing {result} ...";
+                var _result = CommandParserUtils.GetSingleCommandArgument(SourceInput, Name);
+                if (_result == null)
+                {
+                    context.Log.OnNext(CommandParserUtils.InvalidArgumentsException(this));
+                    return UniTask.CompletedTask;
+                }
+
+                sys.PlayOneShot(sys.GetDefault(), _result);
+                context.Log.OnNext(IMessage.Literal($"playing {_result} ..."));
+                return UniTask.CompletedTask;
             }
         }
 
@@ -222,11 +322,13 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             public override IMessage Description { get; set; } =
                 IMessage.Literal("Displays the version of the game or unity (--unity)");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
-                if (CommandParserUtils.GetSingleCommandArgument(input, Name) == "--unity")
-                    return $"unity's version: {Application.unityVersion}";
-                return $"version: {Application.version}";
+                if (CommandParserUtils.GetSingleCommandArgument(SourceInput, Name) == "--unity")
+                    context.Log.OnNext(IMessage.Literal($"unity's version: {Application.unityVersion}"));
+                else
+                    context.Log.OnNext(IMessage.Literal($"version: {Application.version}"));
+                return UniTask.CompletedTask;
             }
         }
 
@@ -235,36 +337,141 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             public override string Name { get; set; } = "q";
             public override IMessage Description { get; set; } = IMessage.Literal("Exits from the game");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
+                context.Log.OnNext(IMessage.Literal("Quiting now..."));
 #if UNITY_EDITOR
                 UnityEditor.EditorApplication.isPlaying = false;
 #else
-            Application.Quit();
+        Application.Quit();
 #endif
-                return "Quiting now...";
+                return UniTask.CompletedTask;
             }
         }
+
+
+        public class ShowFPSCommand : ConsoleCommand, IHiddenCommand
+        {
+            private readonly World world;
+            private readonly InfoSystem infoSystem;
+            public override string Name { get; set; } = "cl_show_fps";
+            public override IMessage Description { get; set; } = IMessage.Literal("Shows FPS");
+
+            [Inject]
+            public ShowFPSCommand(World world, InfoSystem infoSystem)
+            {
+                this.world = world;
+                this.infoSystem = infoSystem;
+            }
+
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
+            {
+                var _sys = CommandParserUtils.TryGetSys(this);
+                var _arg = CommandParserUtils.GetSingleCommandArgument(SourceInput, Name);
+                if (CommandParserUtils.TryGetBool(_arg, out var _value))
+                {
+                    if (_value)
+                    {
+                        _sys.AddDebugValue(
+                            new DebugValue()
+                            {
+                                Name = "fps",
+                                Stream = (() => infoSystem.CurrentFPS.ToString(CultureInfo.InvariantCulture))
+                            });
+                    }
+                    else
+                    {
+                        _sys.RemoveDebugValue("fps");
+                    }
+                }
+                else
+                {
+                    context.Log.OnNext(IMessage.Literal("error happened"));
+                }
+
+                return UniTask.CompletedTask;
+            }
+        }
+
+        public class ShowPosCommand : ConsoleCommand,IHiddenCommand
+        {
+            private readonly World world;
+            public override string Name { get; set; } = "cl_show_pos";
+            public override IMessage Description { get; set; } = IMessage.Literal("Shows position and velocity ");
+
+            [Inject]
+            public ShowPosCommand(World world)
+            {
+                this.world = world;
+            }
+
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
+            {
+                var _sys = CommandParserUtils.TryGetSys(this);
+                var _arg = CommandParserUtils.GetSingleCommandArgument(SourceInput, Name);
+                var _pl = CommandParserUtils.ParsePlayer("", world.Players, out var _error);
+                if (CommandParserUtils.TryGetBool(_arg, out var _value) && _pl != null)
+                {
+                    if (_value)
+                    {
+                        _sys.AddDebugValue(
+                            new DebugValue() { Name = "pos", Stream = (() => _pl.Body.Pos().ToString()) });
+                        _sys.AddDebugValue(
+                            new DebugValue()
+                            {
+                                Name = "vel",
+                                Stream = (() =>
+                                    _pl.Body.Stats.Get("Velocity", () => new QuikStat<Vector3>()).Value.ToString())
+                            });
+                        _sys.AddDebugValue(
+                            new DebugValue()
+                            {
+                                Name = "ang", Stream = (() => _pl.Body.EyeVector.ToString())
+                            });
+                    }
+                    else
+                    {
+                        _sys.RemoveDebugValue("pos");
+                        _sys.RemoveDebugValue("vel");
+                        _sys.RemoveDebugValue("ang");
+                    }
+                }
+                else
+                {
+                    context.Log.OnNext(IMessage.Literal("error happened"));
+                }
+
+                return UniTask.CompletedTask;
+            }
+        }
+
 
         public class HelpCommand : ConsoleCommand
         {
             public override string Name { get; set; } = "help";
             public override IMessage Description { get; set; } = IMessage.Literal("Displays all commands");
 
-            protected override string Execute(string input)
+            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
-                var cmds = new List<IConsoleCommand>();
-                GetPets(CommandParserUtils.GetRoot(this), cmds);
-                return string.Join("\n", cmds.Select(cmd => $"{cmd.Name} : ({cmd.Description.Print()})"));
+                var _cmds = new List<IConsoleCommand>();
+                GetPets(CommandParserUtils.GetRoot(this), _cmds);
+                context.Log.OnNext(IMessage.Literal(
+                    string.Join("\n \n", _cmds.Select(cmd => $"  {cmd.Name} : ({cmd.Description.Print()})")) + "\n "));
+                return UniTask.CompletedTask;
             }
 
-            private void GetPets(ICommandInterpreter interpreter, List<IConsoleCommand> commands)
+            protected virtual void GetPets(ICommandInterpreter interpreter, List<IConsoleCommand> commands)
             {
                 if (interpreter == default) return;
-                if (interpreter is IConsoleCommand cmd) commands.Add(cmd);
-                foreach (var child in interpreter.Pets)
-                    if (child is ICommandInterpreter inter)
-                        GetPets(inter, commands);
+                if (interpreter is IConsoleCommand _cmd && Filter(_cmd)) commands.Add(_cmd);
+                foreach (var _child in interpreter.Pets)
+                    if (_child is ICommandInterpreter _inter)
+                        GetPets(_inter, commands);
+            }
+
+            protected virtual bool Filter(IConsoleCommand cmd)
+            {
+                return cmd is not IHiddenCommand;
             }
         }
     }

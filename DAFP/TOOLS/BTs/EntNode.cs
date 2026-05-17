@@ -1,5 +1,7 @@
-﻿using Bdeshi.Helpers.Utility;
+﻿using System;
+using Bdeshi.Helpers.Utility;
 using BDeshi.BTSM;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -9,23 +11,37 @@ namespace DAFP.TOOLS.BTs
 {
     public abstract class EntNode : BtNodeBase
     {
-        internal BlackBoard BlackBoard;
+        internal BlackBoard BlackBoard => host.Memory;
+        private IEntity host;
 
         internal IEntity GetSelf()
         {
-            return BlackBoard.GetSelf();
+            return host;
         }
 
-        internal IEntity GetTarget()
+
+        public sealed override BtStatus InternalTick()
         {
-            return BlackBoard.GetTarget();
+            if (!HasRequiredMemory()) return BtStatus.Failure;
+            try
+            {
+                return Work();
+            }
+            catch (Exception _e)
+            {
+                Debug.LogError(_e);
+                return BtStatus.Failure;
+            }
         }
 
-        internal abstract bool HasRequiredMemory();
+        protected abstract BtStatus Work();
 
-        internal EntNode(BlackBoard bb)
+        protected abstract bool HasRequiredMemory();
+
+        internal EntNode(IEntity ent)
         {
-            BlackBoard = bb;
+            ent.ThrowIfNull(nameof(ent));
+            host = ent;
         }
     }
 }

@@ -4,8 +4,6 @@ using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using UGizmo;
 using UGizmo.Internal;
-using UnityEditor.Graphs;
-using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {

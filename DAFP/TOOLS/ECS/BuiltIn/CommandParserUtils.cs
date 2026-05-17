@@ -7,16 +7,59 @@ using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
 using ModestTree;
+using RapidLib.DAFP.TOOLS.Common;
+using TripleA.Utils.Extensions;
 using UGizmo;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public static class CommandParserUtils
     {
-        public static IPlayer ParsePlayer(string plName, IEnumerable<IPlayer> players, out string error)
+        public class ConsoleProgressBar : IProgress<float>
+        {
+            private readonly TextProcessContext _context;
+            private readonly string label;
+            private readonly char filling;
+            private readonly char bounds;
+            private readonly int len;
+            private bool _started;
+
+            public ConsoleProgressBar(TextProcessContext context, string label, char filling = '#', char bounds = '[',
+                int len = 20)
+            {
+                _context = context;
+                this.label = label;
+                this.filling = filling;
+                this.bounds = bounds;
+                this.len = len;
+            }
+
+
+            public void Report(float progress)
+            {
+                int filled = (int)(progress * len);
+                string bar =
+                    $"{GetBracketPair(bounds).left}{new string(filling, filled)}{new string('-', len - filled)}{GetBracketPair(bounds).right}" +
+                    $" {(int)(progress * 100)}% {label}";
+
+                if (_started)
+                    _context.Log.OnNext(IMessage.Literal("\x1b[1A" + bar));
+                else
+                {
+                    _context.Log.OnNext(IMessage.Literal(bar));
+                    _started = true;
+                }
+            }
+
+            public static char[] BOUNDS_STYLES = new[] { '[', '<',  };
+            public static char[] FILLING_STYLES = new[] { '=', '#', '%' };
+        }
+
+        public static IPlayer ParsePlayer(string plName, IEnumerable<IPlayer> players, out IMessage error)
         {
             error = null;
             var _enumerable = players as IPlayer[] ?? players.ToArray();
+            _enumerable = _enumerable.Local().ToArray();
 
             if (_enumerable.IsEmpty())
             {
@@ -24,12 +67,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 return null;
             }
 
-            if (plName != null)
+            if (!plName.IsNullOrEmpty())
             {
                 var _player = _enumerable.FindByName(plName);
                 if (_player == null)
-                    error = $"Player '{plName}' does not exist";
-                return _player;
+                    error = IMessage.Literal($"Player '{plName}' does not exist");
+                return _player; 
             }
 
             var _local = _enumerable.Local().FirstOrDefault() ?? _enumerable.FirstOrDefault();
@@ -54,14 +97,14 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return null;
         }
 
-        public static string GenericException()
-            => $"Error happened";
+        public static IMessage GenericException()
+            => IMessage.Literal($"Error happened");
 
-        public static string NoPlayersException()
-            => $"There are no players in the game";
+        public static IMessage NoPlayersException()
+            => IMessage.Literal($"There are no players in the game");
 
-        public static string InvalidArgumentsException(IConsoleCommand command)
-            => $"The syntax of the command is incorrect.";
+        public static IMessage InvalidArgumentsException(IConsoleCommand command)
+            => IMessage.Literal($"The syntax of the command is incorrect.");
 
         public static bool TryGetBool(string input, out bool value)
         {
@@ -123,6 +166,18 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 return null;
             if (parts.Length > 2) return null;
             return parts[1];
+        }
+
+        public static (char left, char right) GetBracketPair(char c)
+        {
+            return c switch
+            {
+                '(' or ')' => ('(', ')'),
+                '[' or ']' => ('[', ']'),
+                '{' or '}' => ('{', '}'),
+                '<' or '>' => ('<', '>'),
+                _ => throw new ArgumentException($"Unsupported bracket: {c}")
+            };
         }
     }
 }

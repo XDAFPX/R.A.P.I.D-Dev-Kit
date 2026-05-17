@@ -66,9 +66,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return -1; // not found
         }
 
-        public override NonEmptyList<IViewModel> SetupView()
+        public override IEnumerable<IViewModel> SetupView()
         {
-            return new NonEmptyList<IViewModel>(new EmptyView());
+            return new[] { new EmptyView() };
         }
 
         public override ITicker<IEntity> EntityTicker { get; } = null;

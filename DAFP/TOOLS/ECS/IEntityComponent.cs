@@ -10,7 +10,6 @@ namespace DAFP.TOOLS.ECS
         public ITickerBase EntityComponentTicker { get; }
         public void Register(IEntity entity);
         public void Initialize();
-        public void OnStartInternal();
         public IEnumerable<IDebugDrawer> SetupDebugDrawers();
     }
 }

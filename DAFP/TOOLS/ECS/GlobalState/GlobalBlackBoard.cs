@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using DAFP.TOOLS.ECS.Serialization;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
@@ -26,14 +27,14 @@ namespace DAFP.TOOLS.ECS.GlobalState
             return Data.ContainsKey(key);
         }
 
-        public Dictionary<string, object> Save()
+        public ISaveData Save()
         {
-            return Data;
+            return new GenericSaveData(Data);
         }
 
-        public void Load(Dictionary<string, object> save)
+        public void Load(ISaveData saveData)
         {
-            Data = save;
+            Data = saveData.Data;
         }
     }
 }

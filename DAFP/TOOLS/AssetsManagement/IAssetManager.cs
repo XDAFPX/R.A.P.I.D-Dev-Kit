@@ -18,6 +18,12 @@ namespace DAFP.GAME.Assets
         // Spawn by full address, returns raw GameObject
         void Spawn(string address, Action<GameObject> onComplete);
 
+
+        public void Spawn<T>(T reference, Action<T> onComplete) where T : IGamePoolableBase
+        {
+            Spawn(reference.Prefix, reference.UName, onComplete);
+        }
+
         // Spawn by type-inferred prefix map
         void Spawn<T>(string uName, Action<T> onComplete) where T : IGamePoolableBase;
 

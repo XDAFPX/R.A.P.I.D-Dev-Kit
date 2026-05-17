@@ -9,8 +9,6 @@ namespace DAFP.TOOLS.ECS.Serialization
         public Task LoadAll(ISerializationService saveService, ISerializer<IEntity> serializer,
             IMetaSerializer metaSerializer, Action OnEnd, int slot);
 
-        public SerializationBus Bus { get; }
-
         public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer,
             IMetaSerializer metaSerializer, int slot);
 

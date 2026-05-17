@@ -13,7 +13,6 @@ namespace DAFP.TOOLS.ECS
         public IEntity Host;
         protected abstract void OnTick();
         protected abstract void OnInitialize();
-        protected abstract void OnStart();
 
         public void Initialize()
         {
@@ -48,10 +47,6 @@ namespace DAFP.TOOLS.ECS
             return Array.Empty<IDebugDrawer>();
         }
 
-        public void OnStartInternal()
-        {
-            OnStart();
-        }
 
         public GameObject GetWorldRepresentation()
         {

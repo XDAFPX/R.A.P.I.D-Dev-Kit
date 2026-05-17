@@ -42,6 +42,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return null;
         }
 
+        public Compatability Parse(IAnimAction action)
+        {
+            return Compatability.NotSupported;
+        }
+
         public List<IEntity> Owners { get; } = new();
     }
 }

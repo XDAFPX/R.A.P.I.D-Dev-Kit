@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using RapidLib.DAFP.TOOLS.Common;
@@ -50,15 +51,12 @@ namespace DAFP.TOOLS.ECS.Components
             }
         }
 
-        protected override void OnStart()
-        {
-        }
 
         public IEnumerable<object> AbsolutePets => Boxes.Select((slot => slot.Get()));
 
         private void Reset()
         {
-            if (TryGetComponent(out ICommonEntityInterface.IHitBoxDefinition<T> _def))
+            if (TryGetComponent(out IHitBoxDefinition<T> _def))
             {
                 Boxes = _def.HitBoxDefinition.ToList();
             }

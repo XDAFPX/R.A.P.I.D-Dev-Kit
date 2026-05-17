@@ -6,6 +6,7 @@ using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
+using DAFP.TOOLS.Injection;
 using PixelRouge.CsharpExtensionMethods;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -171,7 +172,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     if (_fullName != null)
                         if (_statedata.TryGetValue(_fullName, out var _value))
                         {
-                            _globalStateHandlerBase.Load(_value as Dictionary<string, object>);
+                            _globalStateHandlerBase.Load(new GenericSaveData(_value as Dictionary<string,object>));
                             _statedata.Remove(_fullName);
                         }
                 }
@@ -193,7 +194,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     if (_fullName != null)
                         if (_boardData.TryGetValue(_fullName, out var _value))
                         {
-                            _board.Load(_value as Dictionary<string, object>);
+                            _board.Load(new GenericSaveData(_value as Dictionary<string,object>));
                             _boardData.Remove(_fullName);
                         }
                 }
@@ -273,6 +274,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             OnEnd?.Invoke();
         }
 
-        public SerializationBus Bus { get; } = new();
+        [Inject(Id = IVideoGame.GAME_BUS_NAME)]public IEventBus Bus { get; } 
     }
 }

@@ -1,4 +1,5 @@
 ﻿using BandoWare.GameplayTags;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.TriggerSys;
 using RapidLib.DAFP.TOOLS.Common;
@@ -20,7 +21,7 @@ namespace DAFP.TOOLS.ECS.Environment.Actions
 
         public void Act(TriggerContext target)
         {
-            Act(target.Target.GameObject);
+            Act(target.Target.gameObject);
         }
 
         public void Act(IEntity target)

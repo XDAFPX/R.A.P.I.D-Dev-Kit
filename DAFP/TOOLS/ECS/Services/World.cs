@@ -15,8 +15,10 @@ using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.GlobalState;
+using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.ViewModel;
+using DAFP.TOOLS.Injection;
 using JetBrains.Annotations;
 using RapidLib.DAFP.TOOLS.Common;
 using UGizmo;
@@ -29,14 +31,15 @@ namespace DAFP.TOOLS.ECS.Services
     public abstract class World : MonoBehaviour, IEntity, IService, IOwnerOf<Ticker<IEntity>>
 
     {
-        public static readonly Ticker<IEntity> EMPTY_TICKER = new(0, new HashSet<IGlobalGameState>());
+        public static readonly Ticker<IEntity> EMPTY_TICKER = new(0, new HashSet<IGameState>());
         public readonly Ticker<IEntity> EmptyTicker = EMPTY_TICKER;
 
         [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
         public ITicker<IEntity> DefaultGameplayTicker { get; }
 
         public readonly List<IEntity> Entities = new();
-        public IEnumerable<IPlayer> Players => Entities.OfType<IPlayer>();
+        public IEnumerable<IPlayer> Players => players;
+        private readonly HashSet<IPlayer> players = new();
         protected readonly List<ITickerBase> Tickers = new();
 
         public string Name
@@ -59,7 +62,7 @@ namespace DAFP.TOOLS.ECS.Services
         {
             id = Guid.NewGuid().ToString();
             Enabled = true;
-            Memory = new BlackBoard(null, this);
+            Memory = new BlackBoard(this);
 
 
             // Entities.Clear();
@@ -86,7 +89,7 @@ namespace DAFP.TOOLS.ECS.Services
 
             HasInitialized = true;
 
-            Debug.Log($"The World ({this.Name}) initialized and loaded. ");
+            Debug.Log($"[World] ({this.Name}) initialized and loaded. ");
             // DebugSystem.Log(this, $"the World ({this.Name}) initialized and loaded. ");
         }
 
@@ -124,11 +127,18 @@ namespace DAFP.TOOLS.ECS.Services
             RegisterTicker(ticker);
             ticker.Subscribed.Add(ent);
             Entities.Add(ent);
+            if (ent.GetWorldRepresentation().TryGetComponent(out IPlayer _player))
+                register_player(_player);
             if (HasInitialized)
                 ent.Initialize();
 
             Debug.Log(
-                $"Registered Entity... Name: {ent.GetType().Name} , WorldName: {(ent is Entity _entity ? _entity.name : "NoName")} ");
+                $"[World]: Registered Entity... Name: {ent.GetType().Name} , WorldName: {(ent is Entity _entity ? _entity.name : "NoName")} ");
+        }
+
+        private void register_player(IPlayer player)
+        {
+            players.Add(player);
         }
 
         public bool IsRegistered(IEntity ent) => Entities.Contains(ent);
@@ -169,7 +179,7 @@ namespace DAFP.TOOLS.ECS.Services
 
         public void SafeTick(ITickerBase ticker)
         {
-            if (ticker.IsAllowedToTick(GameState.Current()))
+            if (ticker.IsAllowedToTick(GameState.Current))
                 ticker.Tick();
         }
 
@@ -193,6 +203,33 @@ namespace DAFP.TOOLS.ECS.Services
             }
         }
 
+        public void MakePlayer(PlayerData data)
+        {
+            var _ent = data.Memory.GetSelf();
+            if (_ent == null)
+                return;
+            if (_ent.GetWorldRepresentation().GetComponent<IPlayer>() != null)
+                return;
+            var _player = _ent.GetWorldRepresentation().AddComponent<Player>();
+            _player.Data = data;
+            register_player(_player);
+        }
+
+        public void MovePlayer([NotNull] Player player, [NotNull] IEntity newOwner)
+        {
+            if (player.Body == newOwner)
+                throw new ArgumentException("tried to move the player on it self");
+            if (newOwner.GetWorldRepresentation().GetComponent<IPlayer>() != null)
+                throw new ArgumentException("tried to move the player to a another player object");
+
+
+            var _oldData = player.Data;
+            Destroy(player);
+            var _newPlayer = newOwner.GetWorldRepresentation().AddComponent<Player>();
+            _newPlayer.Data = _oldData.SetData(new BlackBoard(newOwner, _oldData.Memory.GetFullData()));
+            register_player(_newPlayer);
+
+        }
 
         public IEntity SpawnEmptyEntity(Vector3 pos)
         {
@@ -234,7 +271,7 @@ namespace DAFP.TOOLS.ECS.Services
         {
         }
 
-        public NonEmptyList<IViewModel> View { get; } = new NonEmptyList<IViewModel>(new EmptyView());
+        public ICollection<IViewModel> View { get; } = new EmptyView().ToEnumerable().Cast<IViewModel>().ToList();
         public BlackBoard Memory { get; private set; }
         public Dictionary<Type, IEntityComponent> Components { get; }
 
@@ -252,10 +289,10 @@ namespace DAFP.TOOLS.ECS.Services
             return this;
         }
 
-        public IEventBus Bus => GlobalStateBus;
+        public IEventBus Bus => GameBus;
         public Bounds Bounds => new Bounds(Vector3.zero, new Vector3(23123132131321, 31232323231, 3132331321111));
         public Bounds CachedBounds => Bounds;
-        public IVectorBase EyeVector => new V3();
+        public IVector EyeVector => new V3();
 
         public void Remove(EntityRemovalReason removalReason)
         {
@@ -277,10 +314,10 @@ namespace DAFP.TOOLS.ECS.Services
         private IEnumerable<IEntityAccessory> pets5 = new List<IEntityAccessory>();
 
 
-        [Inject(Id = "GlobalStateBus")] public IEventBus GlobalStateBus;
+        [Inject(Id = IVideoGame.GAME_BUS_NAME)] public IEventBus GameBus;
         [Inject] public IGlobalGameStateHandler GameState { get; set; }
 
-        [Inject] public IGlobalCursorStateHandler CursorState { get; set; }
+        [Inject] public ICursorStateHandler CursorState { get; set; }
         [Inject] public IAssetFactory.DefaultAssetFactory AssetFactory { get; set; }
         public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
 
@@ -378,12 +415,12 @@ namespace DAFP.TOOLS.ECS.Services
         public IEnumerable<object> AbsolutePets => Tickers.Cast<object>().Union(Entities);
         public List<IEntity> Children => Entities;
 
-        public Dictionary<string, object> Save()
+        public ISaveData Save()
         {
-            return new Dictionary<string, object>();
+            return new GenericSaveData();
         }
 
-        public void Load(Dictionary<string, object> save)
+        public void Load(ISaveData saveData)
         {
         }
 

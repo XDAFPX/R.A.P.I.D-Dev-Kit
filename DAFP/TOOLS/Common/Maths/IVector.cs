@@ -1,21 +1,23 @@
 ﻿using System;
+using DAFP.TOOLS.Common.Utill;
 using UnityEngine;
 
 namespace DAFP.TOOLS.Common.Maths
 {
     // Generic vector interface supporting common operations for any dimension
-    public interface IVectorBase
+    public interface IVector
     {
         float? GetValueAtDimension(int dimension);
-        void SetValueAtDimension(int dimension, float? value);
+
+        IVector SetValueAtDimension(int dimension, float? value);
         int Dimensions { get; }
         float Magnitude { get; }
-        IVectorBase Normalized { get; }
-        IVectorBase Normalize();
+        IVector Normalized { get; }
+        IVector Normalize();
 
-        IVectorBase Scale(float scalar);
+        IVector Scale(float scalar);
 
-        IVectorBase Reverse()
+        IVector Reverse()
         {
             return Scale(-1);
         }
@@ -45,14 +47,14 @@ namespace DAFP.TOOLS.Common.Maths
         }
     }
 
-    public interface IVector<TSelf> : IVectorBase where TSelf : struct, IVector<TSelf>
+    public interface IVector<TSelf> : IVector where TSelf : struct, IVector<TSelf>
     {
-        IVectorBase IVectorBase.Normalize()
+        IVector IVector.Normalize()
         {
             return Normalized;
         }
 
-        IVectorBase IVectorBase.Normalized => Normalized;
+        IVector IVector.Normalized => Normalized;
 
         TSelf Normalized { get; }
 
@@ -60,7 +62,7 @@ namespace DAFP.TOOLS.Common.Maths
         TSelf Subtract(TSelf other);
         TSelf Scale(float scalar);
 
-        IVectorBase IVectorBase.Scale(float scalar)
+        IVector IVector.Scale(float scalar)
         {
             return Scale(scalar);
         }
@@ -148,14 +150,16 @@ namespace DAFP.TOOLS.Common.Maths
             return new V2(v.x, v.y);
         }
 
-        public void SetValueAtDimension(int dimension, float? value)
+        public IVector SetValueAtDimension(int dimension, float? value)
         {
-            if (value == null) return;
+            if (value == null) return this;
             switch (dimension)
             {
                 case 1: x = value.Value; break;
                 case 2: y = value.Value; break;
             }
+
+            return this;
         }
 
         public float? GetValueAtDimension(int dimension)
@@ -246,15 +250,18 @@ namespace DAFP.TOOLS.Common.Maths
             return new V3(v.x, v.y, v.z);
         }
 
-        public void SetValueAtDimension(int dimension, float? value)
+        public IVector SetValueAtDimension(int dimension, float? value)
         {
-            if (value == null) return;
+            if (value == null) return this;
+
             switch (dimension)
             {
                 case 1: x = value.Value; break;
                 case 2: y = value.Value; break;
                 case 3: z = value.Value; break;
             }
+
+            return this;
         }
 
         public float? GetValueAtDimension(int dimension)
@@ -350,9 +357,9 @@ namespace DAFP.TOOLS.Common.Maths
             return new V4(v.x, v.y, v.z, v.w);
         }
 
-        public void SetValueAtDimension(int dimension, float? value)
+        public IVector SetValueAtDimension(int dimension, float? value)
         {
-            if (value == null) return;
+            if (value == null) return this;
             switch (dimension)
             {
                 case 1: x = value.Value; break;
@@ -360,6 +367,8 @@ namespace DAFP.TOOLS.Common.Maths
                 case 3: z = value.Value; break;
                 case 4: w = value.Value; break;
             }
+
+            return this;
         }
 
         public float? GetValueAtDimension(int dimension)

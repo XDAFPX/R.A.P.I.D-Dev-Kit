@@ -11,6 +11,7 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Pegs
         protected IEntity Owner;
 
         [field :Priority][field : SerializeField]public int Priority { get; set; }
+        public string Name { get; set; }  
         public IStatBase Peg { get; set; }
 
         public List<IEntity> Owners { get; } = new();

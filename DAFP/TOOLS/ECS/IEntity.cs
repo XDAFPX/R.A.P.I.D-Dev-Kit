@@ -35,7 +35,7 @@ namespace DAFP.TOOLS.ECS
 
         public void InitializeBrains(IThinker thinker);
 
-        public NonEmptyList<IViewModel> View { get; }
+        public ICollection<IViewModel> View { get; }
 
         public BlackBoard Memory { get; }
         public Dictionary<Type, IEntityComponent> Components { get; }
@@ -53,7 +53,7 @@ namespace DAFP.TOOLS.ECS
         public IEventBus Bus { get; }
         public Bounds Bounds { get; }
         public Bounds CachedBounds { get; }
-        public IVectorBase EyeVector { get; }
+        public IVector EyeVector { get; }
         public void Remove(EntityRemovalReason removalReason);
 
         public void BroadcastEvent<T>(T @event) where T : struct;

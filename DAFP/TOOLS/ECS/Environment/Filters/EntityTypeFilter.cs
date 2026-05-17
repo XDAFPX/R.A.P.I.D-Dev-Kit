@@ -60,9 +60,9 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
             return Matches(go);
         }
 
-        public bool EvalTrigger(TriggerEntity.TriggerEvent @event, TriggerCollider target)
+        public bool EvalTrigger(TriggerEntity.TriggerEvent @event, UniversalCollider target)
         {
-            var val = Evaluate(target.GameObject);
+            var val = Evaluate(target.gameObject);
             LastStatus = val;
             return val;
         }

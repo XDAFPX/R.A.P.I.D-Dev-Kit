@@ -1,17 +1,25 @@
 ﻿using System;
+using System.Linq;
 using BandoWare.GameplayTags;
 using BDeshi.BTSM;
 using Bdeshi.Helpers.Utility;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Components;
+using DAFP.TOOLS.ECS.Components.Movement;
+using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
+using JetBrains.Annotations;
+using Optional;
+using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace DAFP.TOOLS.BTs
 {
-    public class EntBehNodes
+    public static class EntBehNodes
     {
         public class EmptyNode : BtNodeBase
         {
@@ -36,16 +44,17 @@ namespace DAFP.TOOLS.BTs
             }
         }
 
+
         public class ActionNode : BtNodeBase
         {
             private readonly Action action;
             private readonly Action @out;
 
-            public ActionNode(Action action, Action Out)
+            public ActionNode(Action action, Action @out)
             {
-                Out = default;
+                @out = default;
                 this.action = action;
-                @out = Out;
+                this.@out = @out;
             }
 
             public ActionNode(Action action)
@@ -64,43 +73,33 @@ namespace DAFP.TOOLS.BTs
 
             public override BtStatus InternalTick()
             {
-                action.Invoke();
+                try
+                {
+                    action.Invoke();
+                }
+                catch (Exception _e)
+                {
+                    Debug.LogError(_e);
+                    return BtStatus.Failure;
+                }
+
                 return BtStatus.Success;
             }
         }
 
-        public class HaltNode : EntNode
+        public class HitBoxNode<T> : BtNodeBase
         {
-            private readonly UniversalMover2D mover2D;
-            private readonly UniversalMover3D mover3D;
-            private readonly IUniversalMover imover;
-            private readonly IStat<float> divisor;
+            private readonly HitBox<T>[] boxes;
+            private UniversalHitboxController<T> controller;
 
-            public HaltNode(IEntity ent, IStat<float> divisor) : base(ent.Memory)
+            public HitBoxNode(params HitBox<T>[] boxes)
             {
-                this.divisor = divisor;
-                if (ent.GetWorldRepresentation().TryGetComponent(out IUniversalMover mm))
-                {
-                    imover = mm;
-                }
+                this.boxes = boxes;
             }
 
-            public HaltNode(BlackBoard bb, IUniversalMover imover, IStat<float> divisor) : base(bb)
+            public HitBoxNode(UniversalHitboxController<T> controller)
             {
-                this.imover = imover;
-                this.divisor = divisor;
-            }
-
-            public HaltNode(BlackBoard bb, UniversalMover3D mover3D, IStat<float> divisor) : base(bb)
-            {
-                this.mover3D = mover3D;
-                this.divisor = divisor;
-            }
-
-            public HaltNode(BlackBoard bb, UniversalMover2D mover2D, IStat<float> divisor) : base(bb)
-            {
-                this.mover2D = mover2D;
-                this.divisor = divisor;
+                this.controller = controller;
             }
 
             public override void Enter()
@@ -112,6 +111,40 @@ namespace DAFP.TOOLS.BTs
             }
 
             public override BtStatus InternalTick()
+            {
+                boxes?.ForEach((box => box.Act()));
+                controller?.Act();
+
+                return BtStatus.Success;
+            }
+        }
+
+        public class HaltNode : EntNode
+        {
+            private readonly Mover2D mover2D;
+            private readonly Mover3D mover3D;
+            private readonly IMover imover;
+            private readonly IStat<float> divisor;
+
+            public HaltNode(IEntity ent, IStat<float> divisor) : base(ent)
+            {
+                this.divisor = divisor;
+                if (ent.GetWorldRepresentation().TryGetComponent(out IMover _mm))
+                {
+                    imover = _mm;
+                }
+            }
+
+
+            public override void Enter()
+            {
+            }
+
+            public override void Exit()
+            {
+            }
+
+            protected override BtStatus Work()
             {
                 mover2D?.DoHalt(divisor.Value);
                 mover3D?.DoHalt(divisor.Value);
@@ -119,7 +152,7 @@ namespace DAFP.TOOLS.BTs
                 return BtStatus.Success;
             }
 
-            internal override bool HasRequiredMemory()
+            protected override bool HasRequiredMemory()
             {
                 return true;
             }
@@ -127,78 +160,51 @@ namespace DAFP.TOOLS.BTs
 
         public class DashNode : EntNode
         {
-            private readonly UniversalMover2D movement2d;
-            private readonly UniversalMover3D movement;
-            private readonly IUniversalMover i_mover;
+            private readonly Mover2D movement2d;
+            private readonly Mover3D movement;
+            private readonly IMover i_mover;
             private readonly string dashDirName;
-            private readonly IStat<IVectorBase> dir;
+            private readonly IStat<IVector> dir;
             private readonly IStat<float> dur;
             private readonly EntWaitNode wait;
 
-            public DashNode(IEntity ent, IStat<IVectorBase> dashDir, IStat<float> dur) : base(ent.Memory)
+            public DashNode(IEntity ent, IStat<IVector> dashDir, IStat<float> dur) : base(ent)
             {
-                if (ent.GetWorldRepresentation().TryGetComponent(out IUniversalMover _mover))
+                if (ent.GetWorldRepresentation().TryGetComponent(out IMover _mover))
                     i_mover = _mover;
                 dir = dashDir;
                 this.dur = dur;
-                wait = new EntWaitNode(ent.Memory, dur.Value);
+                wait = new EntWaitNode(ent, dur.Value);
             }
 
-            public DashNode(IEntity ent, string dashDirName, IStat<float> dur) : base(ent.Memory)
+            public DashNode(IEntity ent, string dashDirName, IStat<float> dur) : base(ent)
             {
-                if (ent.GetWorldRepresentation().TryGetComponent(out IUniversalMover _mover))
+                if (ent.GetWorldRepresentation().TryGetComponent(out IMover _mover))
                     i_mover = _mover;
                 this.dashDirName = dashDirName;
                 this.dur = dur;
-                wait = new EntWaitNode(ent.Memory, dur.Value);
-            }
-
-            public DashNode(BlackBoard bb, IUniversalMover movement, string dashDirName, IStat<float> dur) : base(bb)
-            {
-                i_mover = movement;
-                this.dashDirName = dashDirName;
-                this.dur = dur;
-                wait = new EntWaitNode(bb, dur.Value);
-            }
-
-            public DashNode(BlackBoard bb, UniversalMover3D movement, string dashDirName, IStat<float> dur) : base(bb)
-            {
-                this.movement = movement;
-                this.dashDirName = dashDirName;
-                this.dur = dur;
-                wait = new EntWaitNode(bb, dur.Value);
-            }
-
-            public DashNode(BlackBoard bb, UniversalMover2D movement2d, string dashDirName, IStat<float> dur) : base(bb)
-            {
-                this.movement2d = movement2d;
-                this.dashDirName = dashDirName;
-
-                this.dur = dur;
-                wait = new EntWaitNode(bb, dur.Value);
+                wait = new EntWaitNode(ent, dur.Value);
             }
 
             public override void Enter()
             {
-                movement?.DoDash(BlackBoard.Get<Vector3>(dashDirName), dur.Value);
-
-                movement2d?.DoDash(BlackBoard.Get<Vector2>(dashDirName), dur.Value);
-                i_mover.DoDash(BlackBoard.Get<IVectorBase>(dashDirName) ?? dir.Value, dur.Value);
                 wait.Enter();
             }
 
             public override void Exit()
             {
+                wait.Exit();
             }
 
-            public override BtStatus InternalTick()
+            protected override BtStatus Work()
             {
-                if (!HasRequiredMemory())
-                    return BtStatus.Failure;
+                movement?.DoDash(BlackBoard.Get<Vector3>(dashDirName), dur.Value);
+                movement2d?.DoDash(BlackBoard.Get<Vector2>(dashDirName), dur.Value);
+                i_mover.DoDash(BlackBoard.Get<IVector>(dashDirName) ?? dir.Value, dur.Value);
                 return wait.Tick();
             }
 
-            internal override bool HasRequiredMemory()
+            protected override bool HasRequiredMemory()
             {
                 return BlackBoard.Has(dashDirName) || dir != default;
             }
@@ -206,17 +212,20 @@ namespace DAFP.TOOLS.BTs
 
         public class LoSCheckNode3D : EntNode
         {
+            private readonly ITargetOf<IEntity> target;
             private readonly LayerMask mask;
 
-            public LoSCheckNode3D(BlackBoard bb, LayerMask mask)
-                : base(bb)
+            public LoSCheckNode3D([NotNull] IEntity self, [NotNull] ITargetOf<IEntity> target, LayerMask mask)
+                : base(self)
             {
+                this.target = target;
+                target.ThrowIfNull(nameof(target));
                 this.mask = mask;
             }
 
-            internal override bool HasRequiredMemory()
+            protected override bool HasRequiredMemory()
             {
-                return GetSelf() != null && GetTarget() != null;
+                return GetSelf() != null && target.HasValue;
             }
 
             public override void Enter()
@@ -227,36 +236,33 @@ namespace DAFP.TOOLS.BTs
             {
             }
 
-            public override BtStatus InternalTick()
+            protected override BtStatus Work()
             {
-                if (!HasRequiredMemory())
-                    return BtStatus.Failure;
-
-                var origin = GetSelf().GetWorldRepresentation().transform.position;
-                var direction = (GetTarget().GetWorldRepresentation().transform.position - origin).normalized;
+                var _origin = GetSelf().GetWorldRepresentation().transform.position;
+                var _direction = (target.Raw.GetWorldRepresentation().transform.position - _origin).normalized;
 
                 // 1) Perform the raycast
-                var hits = Physics.RaycastAll(origin, direction, Mathf.Infinity, mask);
+                var _hits = Physics.RaycastAll(_origin, _direction, Mathf.Infinity, mask);
 
                 // 2) Sort hits by distance so nearest is first
-                Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+                Array.Sort(_hits, (a, b) => a.distance.CompareTo(b.distance));
 
                 // 3) Process sorted hits
-                foreach (var hit in hits)
+                foreach (var _hit in _hits)
                 {
-                    var selfGo = GetSelf().GetWorldRepresentation().gameObject;
-                    if (hit.collider.gameObject == selfGo ||
-                        hit.collider.transform.root == GetSelf().GetWorldRepresentation().transform)
+                    var _selfGo = GetSelf().GetWorldRepresentation().gameObject;
+                    if (_hit.collider.gameObject == _selfGo ||
+                        _hit.collider.transform.root == GetSelf().GetWorldRepresentation().transform)
                         continue;
 
-                    if (hit.collider.gameObject.TryGetComponent<IEntity>(out var entity) &&
-                        entity == GetTarget())
+                    if (_hit.collider.gameObject.TryGetComponent<IEntity>(out var _entity) &&
+                        _entity == target.Raw)
                     {
-                        Debug.DrawRay(origin, direction * hit.distance, Color.green);
+                        Debug.DrawRay(_origin, _direction * _hit.distance, Color.green);
                         return BtStatus.Success;
                     }
 
-                    Debug.DrawRay(origin, direction * hit.distance, Color.red);
+                    Debug.DrawRay(_origin, _direction * _hit.distance, Color.red);
                     // Blocked by another object
                     return BtStatus.Failure;
                 }
@@ -268,17 +274,20 @@ namespace DAFP.TOOLS.BTs
 
         public class LoSCheckNode2D : EntNode
         {
+            [NotNull] private readonly ITargetOf<IEntity> target;
             private readonly LayerMask mask;
 
-            public LoSCheckNode2D(BlackBoard bb, LayerMask mask)
-                : base(bb)
+            public LoSCheckNode2D([NotNull] IEntity self, [NotNull] ITargetOf<IEntity> target, LayerMask mask)
+                : base(self)
             {
+                target.ThrowIfNull(nameof(target));
+                this.target = target;
                 this.mask = mask;
             }
 
-            internal override bool HasRequiredMemory()
+            protected override bool HasRequiredMemory()
             {
-                return GetSelf() != null && GetTarget() != null;
+                return GetSelf() != null && target.HasValue;
             }
 
             public override void Enter()
@@ -289,24 +298,21 @@ namespace DAFP.TOOLS.BTs
             {
             }
 
-            public override BtStatus InternalTick()
+            protected override BtStatus Work()
             {
-                if (!HasRequiredMemory())
-                    return BtStatus.Failure;
+                var _pos = GetSelf().GetWorldRepresentation().transform.position;
+                Vector2 _dir = (target.Raw.GetWorldRepresentation().transform.position - _pos).normalized;
+                var _hits = Physics2D.RaycastAll(_pos, _dir, 1000, mask);
 
-                var pos = GetSelf().GetWorldRepresentation().transform.position;
-                Vector2 dir = (GetTarget().GetWorldRepresentation().transform.position - pos).normalized;
-                var hits = Physics2D.RaycastAll(pos, dir, 1000, mask);
-
-                foreach (var hit in hits)
+                foreach (var _hit in _hits)
                 {
-                    var selfGo = GetSelf().GetWorldRepresentation().gameObject;
-                    if (hit.collider.gameObject == selfGo ||
-                        hit.collider.transform.root == GetSelf().GetWorldRepresentation().transform)
+                    var _selfGo = GetSelf().GetWorldRepresentation().gameObject;
+                    if (_hit.collider.gameObject == _selfGo ||
+                        _hit.collider.transform.root == GetSelf().GetWorldRepresentation().transform)
                         continue;
 
-                    if (hit.collider.gameObject.TryGetComponent<IEntity>(out var entity) &&
-                        entity == GetTarget())
+                    if (_hit.collider.gameObject.TryGetComponent<IEntity>(out var _entity) &&
+                        _entity == target.Raw)
                         return BtStatus.Success;
 
                     // Blocked by another object
@@ -318,235 +324,235 @@ namespace DAFP.TOOLS.BTs
             }
         }
 
-        public class FaceNode2D : EntNode
-        {
-            private Vector2 dir;
-            public FiniteTimer RotateTimer;
-            public bool Invert;
-            public bool InvertTransform;
-            public bool IsUp;
-            public bool Flip;
-            public Vector2 Size;
-            public string BlackBoardName;
-            private AngleClamper clamper;
+        // public class FaceNode2D : EntNode TODO FIX someday
+        // {
+        //     private Vector2 dir;
+        //     public FiniteTimer RotateTimer;
+        //     public bool Invert;
+        //     public bool InvertTransform;
+        //     public bool IsUp;
+        //     public bool Flip;
+        //     public Vector2 Size;
+        //     public string BlackBoardName;
+        //     private AngleClamper clamper;
+        //
+        //     public FaceNode2D(BlackBoard bb, FiniteTimer rotateTimer, bool invert, bool invertTransform, bool isUp,
+        //         bool flipTransform, Vector2 initSize, string dataName, AngleClamper clamper = null) : base(bb)
+        //     {
+        //         RotateTimer = rotateTimer;
+        //         Invert = invert;
+        //         Flip = flipTransform;
+        //         Size = initSize;
+        //         BlackBoardName = dataName;
+        //         this.clamper = clamper;
+        //         InvertTransform = invertTransform;
+        //     }
+        //
+        //     protected override bool HasRequiredMemory()
+        //     {
+        //         return BlackBoard.Get<Transform>(BlackBoardName) != null && GetTarget() != null;
+        //     }
+        //
+        //     internal virtual Vector2 GetDir()
+        //     {
+        //         if (!HasRequiredMemory())
+        //             return Vector2.zero;
+        //         return BlackBoard.Get<Transform>(BlackBoardName).position -
+        //                GetTarget().GetWorldRepresentation().transform.position;
+        //     }
+        //
+        //     public override void Enter()
+        //     {
+        //         RotateTimer.reset();
+        //     }
+        //
+        //     public override void Exit()
+        //     {
+        //     }
+        //
+        //     public override BtStatus InternalTick()
+        //     {
+        //         if (!HasRequiredMemory())
+        //             return BtStatus.Failure;
+        //         var _body = BlackBoard.Get<Transform>(BlackBoardName);
+        //         var _cc = RotateTimer.tryCompleteTimer(GetSelf().EntityTicker.DeltaTime);
+        //         var _t = Mathf.Clamp01(RotateTimer.Timer / RotateTimer.MaxValue);
+        //
+        //         DoFace(_body, _t, BlackBoard, GetDir(), Invert, InvertTransform, IsUp, Size, Flip, clamper);
+        //
+        //
+        //         if (_cc) return BtStatus.Success;
+        //
+        //         return BtStatus.Running;
+        //     }
+        //
+        //     public static void DoFace(Transform body, float t, BlackBoard black, Vector2 dir, bool invert,
+        //         bool invertTransform, bool up, Vector2 initSize, bool flip, AngleClamper clamper = null)
+        //     {
+        //         if (clamper == null)
+        //             clamper = AngleClamper.FREE;
+        //         dir.Normalize();
+        //         var _m = invert ? 1f : -1f;
+        //         if (black.Has("FacingRight"))
+        //         {
+        //             UpdateFacing(dir, black);
+        //             if (black.Get<bool>("FacingRight"))
+        //                 _m *= -1;
+        //         }
+        //
+        //         if (up)
+        //             body.up = Vector3.Lerp(body.up, clamper.Clamp(dir) * _m, t);
+        //         else
+        //             body.right = Vector3.Lerp(body.right, clamper.Clamp(dir) * _m, t);
+        //         //Debug.DrawRay(body.transform.position,clamper.Clamp(dir) * (_m * 5),Color.blue,0.1f,true);
+        //         if (flip) TryFlipTransform(body, dir, black, initSize, invertTransform ? -1 : 1);
+        //     }
+        //
+        //     public static void TryFlipTransform(Transform transform, Vector2 dir, BlackBoard blackBoard, Vector2 size,
+        //         float mInvert)
+        //     {
+        //         var _face = UpdateFacing(dir, blackBoard);
+        //         transform.localScale = new Vector2((_face ? size.x : -size.x) * mInvert, size.y);
+        //     }
+        //
+        //     public static bool UpdateFacing(Vector2 dir, BlackBoard blackBoard)
+        //     {
+        //         var _face = dir.x > 0;
+        //         blackBoard.Set("FacingRight", _face);
+        //         return _face;
+        //     }
+        //
+        //     public override string EditorName => $"{GetType().Name} ({RotateTimer.remaingValue()}s left)";
+        // }
+        //
+        // public class FaceNodeContinuous2D : EntNode
+        // {
+        //     private Vector2 dir;
+        //     public bool Invert;
+        //     public string InvertName;
+        //     public bool IsUp;
+        //     public float Speed;
+        //     public Vector2 Size;
+        //     public bool Flip;
+        //     public string BlackBoardName;
+        //     private AngleClamper clamper;
+        //
+        //     public FaceNodeContinuous2D(BlackBoard bb, bool invert, bool invertTransform, bool isUp, float speed,
+        //         bool flipTransform, Vector2 initSize, string dataName, AngleClamper clamper = null) : base(bb)
+        //     {
+        //         if (clamper == null)
+        //             clamper = AngleClamper.FREE;
+        //         this.clamper = clamper;
+        //         Invert = invert;
+        //         Speed = speed;
+        //         Flip = flipTransform;
+        //         Size = initSize;
+        //         BlackBoardName = dataName;
+        //         InvertTransform = invertTransform;
+        //     }
+        //
+        //     public FaceNodeContinuous2D(BlackBoard bb, string invertName, bool invertTransform, bool isUp, float speed,
+        //         bool flipTransform, Vector2 initSize, string dataName, AngleClamper clamper = null) : base(bb)
+        //     {
+        //         if (clamper == null)
+        //             clamper = AngleClamper.FREE;
+        //         this.clamper = clamper;
+        //         //Invert = invert;
+        //         InvertName = invertName;
+        //         Speed = speed;
+        //         Flip = flipTransform;
+        //         Size = initSize;
+        //         BlackBoardName = dataName;
+        //         InvertTransform = invertTransform;
+        //     }
+        //
+        //     public bool InvertTransform { get; set; }
+        //
+        //     protected override bool HasRequiredMemory()
+        //     {
+        //         return BlackBoard.Get<Transform>(BlackBoardName) != null && GetTarget() != null;
+        //     }
+        //
+        //     internal virtual Vector2 GetDir()
+        //     {
+        //         if (!HasRequiredMemory())
+        //             return Vector2.zero;
+        //         return BlackBoard.Get<Transform>(BlackBoardName).position -
+        //                GetTarget().GetWorldRepresentation().transform.position;
+        //     }
+        //
+        //     public override void Enter()
+        //     {
+        //     }
+        //
+        //     public override void Exit()
+        //     {
+        //     }
+        //
+        //     public override BtStatus InternalTick()
+        //     {
+        //         if (!HasRequiredMemory())
+        //             return BtStatus.Failure;
+        //
+        //         var _body = BlackBoard.Get<Transform>(BlackBoardName);
+        //         //Debug.Log(BlackBoard.Get<bool>(InvertName));
+        //         FaceNode2D.DoFace(_body, Time.deltaTime * Speed, BlackBoard, GetDir(),
+        //             string.IsNullOrEmpty(InvertName) ? Invert : BlackBoard.Get<bool>(InvertName), InvertTransform, IsUp,
+        //             Size, Flip);
+        //
+        //         return BtStatus.Running;
+        //     }
+        // }
 
-            public FaceNode2D(BlackBoard bb, FiniteTimer rotateTimer, bool invert, bool invertTransform, bool isUp,
-                bool flipTransform, Vector2 initSize, string dataName, AngleClamper clamper = null) : base(bb)
-            {
-                RotateTimer = rotateTimer;
-                Invert = invert;
-                Flip = flipTransform;
-                Size = initSize;
-                BlackBoardName = dataName;
-                this.clamper = clamper;
-                InvertTransform = invertTransform;
-            }
-
-            internal override bool HasRequiredMemory()
-            {
-                return BlackBoard.Get<Transform>(BlackBoardName) != null && GetTarget() != null;
-            }
-
-            internal virtual Vector2 GetDir()
-            {
-                if (!HasRequiredMemory())
-                    return Vector2.zero;
-                return BlackBoard.Get<Transform>(BlackBoardName).position -
-                       GetTarget().GetWorldRepresentation().transform.position;
-            }
-
-            public override void Enter()
-            {
-                RotateTimer.reset();
-            }
-
-            public override void Exit()
-            {
-            }
-
-            public override BtStatus InternalTick()
-            {
-                if (!HasRequiredMemory())
-                    return BtStatus.Failure;
-                var _body = BlackBoard.Get<Transform>(BlackBoardName);
-                var _cc = RotateTimer.tryCompleteTimer(GetSelf().EntityTicker.DeltaTime);
-                var _t = Mathf.Clamp01(RotateTimer.Timer / RotateTimer.MaxValue);
-
-                DoFace(_body, _t, BlackBoard, GetDir(), Invert, InvertTransform, IsUp, Size, Flip, clamper);
-
-
-                if (_cc) return BtStatus.Success;
-
-                return BtStatus.Running;
-            }
-
-            public static void DoFace(Transform body, float t, BlackBoard black, Vector2 dir, bool invert,
-                bool invertTransform, bool up, Vector2 initSize, bool flip, AngleClamper clamper = null)
-            {
-                if (clamper == null)
-                    clamper = AngleClamper.FREE;
-                dir.Normalize();
-                var _m = invert ? 1f : -1f;
-                if (black.Has("FacingRight"))
-                {
-                    UpdateFacing(dir, black);
-                    if (black.Get<bool>("FacingRight"))
-                        _m *= -1;
-                }
-
-                if (up)
-                    body.up = Vector3.Lerp(body.up, clamper.Clamp(dir) * _m, t);
-                else
-                    body.right = Vector3.Lerp(body.right, clamper.Clamp(dir) * _m, t);
-                //Debug.DrawRay(body.transform.position,clamper.Clamp(dir) * (_m * 5),Color.blue,0.1f,true);
-                if (flip) TryFlipTransform(body, dir, black, initSize, invertTransform ? -1 : 1);
-            }
-
-            public static void TryFlipTransform(Transform transform, Vector2 dir, BlackBoard blackBoard, Vector2 size,
-                float mInvert)
-            {
-                var _face = UpdateFacing(dir, blackBoard);
-                transform.localScale = new Vector2((_face ? size.x : -size.x) * mInvert, size.y);
-            }
-
-            public static bool UpdateFacing(Vector2 dir, BlackBoard blackBoard)
-            {
-                var _face = dir.x > 0;
-                blackBoard.Set("FacingRight", _face);
-                return _face;
-            }
-
-            public override string EditorName => $"{GetType().Name} ({RotateTimer.remaingValue()}s left)";
-        }
-
-        public class FaceNodeContinuous2D : EntNode
-        {
-            private Vector2 dir;
-            public bool Invert;
-            public string InvertName;
-            public bool IsUp;
-            public float Speed;
-            public Vector2 Size;
-            public bool Flip;
-            public string BlackBoardName;
-            private AngleClamper clamper;
-
-            public FaceNodeContinuous2D(BlackBoard bb, bool invert, bool invertTransform, bool isUp, float speed,
-                bool flipTransform, Vector2 initSize, string dataName, AngleClamper clamper = null) : base(bb)
-            {
-                if (clamper == null)
-                    clamper = AngleClamper.FREE;
-                this.clamper = clamper;
-                Invert = invert;
-                Speed = speed;
-                Flip = flipTransform;
-                Size = initSize;
-                BlackBoardName = dataName;
-                InvertTransform = invertTransform;
-            }
-
-            public FaceNodeContinuous2D(BlackBoard bb, string Invert_name, bool invertTransform, bool isUp, float speed,
-                bool flipTransform, Vector2 initSize, string dataName, AngleClamper clamper = null) : base(bb)
-            {
-                if (clamper == null)
-                    clamper = AngleClamper.FREE;
-                this.clamper = clamper;
-                //Invert = invert;
-                InvertName = Invert_name;
-                Speed = speed;
-                Flip = flipTransform;
-                Size = initSize;
-                BlackBoardName = dataName;
-                InvertTransform = invertTransform;
-            }
-
-            public bool InvertTransform { get; set; }
-
-            internal override bool HasRequiredMemory()
-            {
-                return BlackBoard.Get<Transform>(BlackBoardName) != null && GetTarget() != null;
-            }
-
-            internal virtual Vector2 GetDir()
-            {
-                if (!HasRequiredMemory())
-                    return Vector2.zero;
-                return BlackBoard.Get<Transform>(BlackBoardName).position -
-                       GetTarget().GetWorldRepresentation().transform.position;
-            }
-
-            public override void Enter()
-            {
-            }
-
-            public override void Exit()
-            {
-            }
-
-            public override BtStatus InternalTick()
-            {
-                if (!HasRequiredMemory())
-                    return BtStatus.Failure;
-
-                var _body = BlackBoard.Get<Transform>(BlackBoardName);
-                //Debug.Log(BlackBoard.Get<bool>(InvertName));
-                FaceNode2D.DoFace(_body, Time.deltaTime * Speed, BlackBoard, GetDir(),
-                    string.IsNullOrEmpty(InvertName) ? Invert : BlackBoard.Get<bool>(InvertName), InvertTransform, IsUp,
-                    Size, Flip);
-
-                return BtStatus.Running;
-            }
-        }
-
-        public class EntFacingContinuousNode2D : EntNode
-        {
-            public FaceDirNodeContinuous2D FaceDir;
-            public FaceNodeContinuous2D Face;
-            public LoSCheckNode2D LoS;
-
-            public EntFacingContinuousNode2D(BlackBoard bb, bool invert, bool invertTransform, bool isUp, float speed,
-                bool flipTransform, Vector2 initSize, string dataName, string dirDataName, LayerMask losMask) : base(bb)
-            {
-                Face = new FaceNodeContinuous2D(bb, invert, invertTransform, isUp, speed, flipTransform, initSize,
-                    dataName);
-                FaceDir = new FaceDirNodeContinuous2D(bb, invert, !invertTransform, isUp, speed / 2, flipTransform,
-                    initSize,
-                    dataName, dirDataName);
-                LoS = new LoSCheckNode2D(bb, losMask);
-            }
-
-            public override void Enter()
-            {
-                LoS.Enter();
-                Face.Enter();
-                FaceDir.Enter();
-            }
-
-            public override void Exit()
-            {
-                LoS.Exit();
-                Face.Exit();
-                FaceDir.Exit();
-            }
-
-            public override BtStatus InternalTick()
-            {
-                if (LoS.Tick() == BtStatus.Success)
-                    Face.Tick();
-                else
-                    FaceDir.Tick();
-                return BtStatus.Running;
-            }
-
-            internal override bool HasRequiredMemory()
-            {
-                return LoS.HasRequiredMemory() && Face.HasRequiredMemory() && FaceDir.HasRequiredMemory();
-            }
-        }
+        // public class EntFacingContinuousNode2D : EntNode
+        // {
+        //     public FaceDirNodeContinuous2D FaceDir;
+        //     public FaceNodeContinuous2D Face;
+        //     public LoSCheckNode2D LoS;
+        //
+        //     public EntFacingContinuousNode2D(BlackBoard bb, bool invert, bool invertTransform, bool isUp, float speed,
+        //         bool flipTransform, Vector2 initSize, string dataName, string dirDataName, LayerMask losMask) : base(bb)
+        //     {
+        //         Face = new FaceNodeContinuous2D(bb, invert, invertTransform, isUp, speed, flipTransform, initSize,
+        //             dataName);
+        //         FaceDir = new FaceDirNodeContinuous2D(bb, invert, !invertTransform, isUp, speed / 2, flipTransform,
+        //             initSize,
+        //             dataName, dirDataName);
+        //         LoS = new LoSCheckNode2D(bb, losMask);
+        //     }
+        //
+        //     public override void Enter()
+        //     {
+        //         LoS.Enter();
+        //         Face.Enter();
+        //         FaceDir.Enter();
+        //     }
+        //
+        //     public override void Exit()
+        //     {
+        //         LoS.Exit();
+        //         Face.Exit();
+        //         FaceDir.Exit();
+        //     }
+        //
+        //     public override BtStatus InternalTick()
+        //     {
+        //         if (LoS.Tick() == BtStatus.Success)
+        //             Face.Tick();
+        //         else
+        //             FaceDir.Tick();
+        //         return BtStatus.Running;
+        //     }
+        //
+        //     internal override bool HasRequiredMemory()
+        //     {
+        //         return LoS.HasRequiredMemory() && Face.HasRequiredMemory() && FaceDir.HasRequiredMemory();
+        //     }
+        // }
 
         public class EntWaitNode : EntNode
         {
-            public EntWaitNode(BlackBoard bb, float dur) : base(bb)
+            public EntWaitNode([NotNull] IEntity self, float dur) : base(self)
             {
                 Timer.resetAndSetMax(dur);
             }
@@ -559,11 +565,9 @@ namespace DAFP.TOOLS.BTs
                 Timer.reset();
             }
 
-            public override BtStatus InternalTick()
+            protected override BtStatus Work()
             {
-                if (Timer.tryCompleteTimer(GetSelf().EntityTicker.DeltaTime)) return BtStatus.Success;
-
-                return BtStatus.Running;
+                return Timer.tryCompleteTimer(GetSelf().EntityTicker.DeltaTime) ? BtStatus.Success : BtStatus.Running;
             }
 
             public override void Exit()
@@ -571,48 +575,48 @@ namespace DAFP.TOOLS.BTs
                 Timer.reset();
             }
 
-            internal override bool HasRequiredMemory()
+            protected override bool HasRequiredMemory()
             {
                 return GetSelf() != null;
             }
         }
 
-        public class FaceDirNode2D : FaceNode2D
-        {
-            private readonly string data_dirname;
-
-            public FaceDirNode2D(BlackBoard bb, FiniteTimer rotateTimer, bool invert, bool invertTransform, bool isUp,
-                bool flipTransform, Vector2 initSize, string dataName, string dataDirname,
-                AngleClamper clamper = null) : base(bb, rotateTimer, invert, invertTransform, isUp, flipTransform,
-                initSize,
-                dataName, clamper)
-            {
-                data_dirname = dataDirname;
-            }
-
-            internal override Vector2 GetDir()
-            {
-                return BlackBoard.Has(data_dirname) ? BlackBoard.Get<Vector2>(data_dirname) : base.GetDir();
-            }
-        }
-
-        public class FaceDirNodeContinuous2D : FaceNodeContinuous2D
-        {
-            public string DataDirname;
-
-            public FaceDirNodeContinuous2D(BlackBoard bb, bool invert, bool invertTransform, bool isUp, float speed,
-                bool flipTransform, Vector2 initSize, string dataName, string dataDirName,
-                AngleClamper clamper = null) : base(bb, invert, invertTransform, isUp, speed, flipTransform, initSize,
-                dataName, clamper)
-            {
-                DataDirname = dataDirName;
-            }
-
-            internal override Vector2 GetDir()
-            {
-                return BlackBoard.Has(DataDirname) ? BlackBoard.Get<Vector2>(DataDirname) : base.GetDir();
-            }
-        }
+        // public class FaceDirNode2D : FaceNode2D
+        // {
+        //     private readonly string data_dirname;
+        //
+        //     public FaceDirNode2D(BlackBoard bb, FiniteTimer rotateTimer, bool invert, bool invertTransform, bool isUp,
+        //         bool flipTransform, Vector2 initSize, string dataName, string dataDirname,
+        //         AngleClamper clamper = null) : base(bb, rotateTimer, invert, invertTransform, isUp, flipTransform,
+        //         initSize,
+        //         dataName, clamper)
+        //     {
+        //         data_dirname = dataDirname;
+        //     }
+        //
+        //     internal override Vector2 GetDir()
+        //     {
+        //         return BlackBoard.Has(data_dirname) ? BlackBoard.Get<Vector2>(data_dirname) : base.GetDir();
+        //     }
+        // }
+        //
+        // public class FaceDirNodeContinuous2D : FaceNodeContinuous2D
+        // {
+        //     public string DataDirname;
+        //
+        //     public FaceDirNodeContinuous2D(BlackBoard bb, bool invert, bool invertTransform, bool isUp, float speed,
+        //         bool flipTransform, Vector2 initSize, string dataName, string dataDirName,
+        //         AngleClamper clamper = null) : base(bb, invert, invertTransform, isUp, speed, flipTransform, initSize,
+        //         dataName, clamper)
+        //     {
+        //         DataDirname = dataDirName;
+        //     }
+        //
+        //     internal override Vector2 GetDir()
+        //     {
+        //         return BlackBoard.Has(DataDirname) ? BlackBoard.Get<Vector2>(DataDirname) : base.GetDir();
+        //     }
+        // }
 
 
         public class PlayAnimationNode : EntNode
@@ -630,18 +634,20 @@ namespace DAFP.TOOLS.BTs
                 AnPlayNoRestart
             }
 
-            public PlayAnimationNode(BlackBoard bb, Animator animator, string name, float crossfadeDur = 0,
-                PaNodeMode mode = PaNodeMode.AnPlay) : base(bb)
+            public PlayAnimationNode([NotNull] IEntity ent, Animator animator, string name, float crossfadeDur = 0,
+                PaNodeMode mode = PaNodeMode.AnPlay) : base(ent)
             {
+                animator.ThrowIfNull(nameof(animator));
                 this.animator = animator;
                 this.name = name;
                 this.crossfadeDur = crossfadeDur;
                 playmode = mode;
             }
 
-            public PlayAnimationNode(BlackBoard bb, Animator animator, int cachedName, float crossfadeDur = 0,
-                PaNodeMode mode = PaNodeMode.AnPlay) : base(bb)
+            public PlayAnimationNode(IEntity ent, Animator animator, int cachedName, float crossfadeDur = 0,
+                PaNodeMode mode = PaNodeMode.AnPlay) : base(ent)
             {
+                animator.ThrowIfNull(nameof(animator));
                 this.animator = animator;
                 cache = cachedName;
                 this.crossfadeDur = crossfadeDur;
@@ -649,7 +655,7 @@ namespace DAFP.TOOLS.BTs
                 playmode = mode;
             }
 
-            internal override bool HasRequiredMemory()
+            protected override bool HasRequiredMemory()
             {
                 return animator != null;
             }
@@ -658,33 +664,28 @@ namespace DAFP.TOOLS.BTs
             {
             }
 
-            public override BtStatus InternalTick()
+            protected override BtStatus Work()
             {
-                if (HasRequiredMemory())
+                switch (playmode)
                 {
-                    switch (playmode)
-                    {
-                        case PaNodeMode.AnPlay:
-                            SafePlay(animator, name, cache);
-                            break;
-                        case PaNodeMode.AnCrossFade:
-                            SafeCrossFade(animator, name, cache, crossfadeDur);
-                            break;
-                        case PaNodeMode.AnPlayNoRestart:
-                            SafePlayNoRestart(animator, name, cache);
-                            break;
-                        default:
-                            SafePlay(animator, name, cache);
-                            break;
-                    }
-
-                    return BtStatus.Success;
+                    case PaNodeMode.AnPlay:
+                        safe_play(animator, name, cache);
+                        break;
+                    case PaNodeMode.AnCrossFade:
+                        safe_cross_fade(animator, name, cache, crossfadeDur);
+                        break;
+                    case PaNodeMode.AnPlayNoRestart:
+                        safe_play_no_restart(animator, name, cache);
+                        break;
+                    default:
+                        safe_play(animator, name, cache);
+                        break;
                 }
 
-                return BtStatus.Failure;
+                return BtStatus.Success;
             }
 
-            private void SafePlay(Animator animator, string name, int cachedHash)
+            private void safe_play(Animator animator, string name, int cachedHash)
             {
                 if (!string.IsNullOrEmpty(name))
                     animator.Play(name);
@@ -692,41 +693,41 @@ namespace DAFP.TOOLS.BTs
                     animator.Play(cachedHash);
             }
 
-            private void SafePlayNoRestart(Animator animator, string name, int cachedHash)
+            private void safe_play_no_restart(Animator animator, string name, int cachedHash)
             {
-                var state = animator.GetCurrentAnimatorStateInfo(0);
+                var _state = animator.GetCurrentAnimatorStateInfo(0);
 
 
                 if (!string.IsNullOrEmpty(name))
                 {
-                    if (!state.IsName(name)) animator.Play(name);
+                    if (!_state.IsName(name)) animator.Play(name);
                 }
                 else
                 {
-                    if (state.shortNameHash != cachedHash) animator.Play(cachedHash);
+                    if (_state.shortNameHash != cachedHash) animator.Play(cachedHash);
                 }
             }
 
-            private void SafeCrossFade(Animator animator, string name, int cachedHash, float dur)
+            private void safe_cross_fade(Animator animator, string name, int cachedHash, float dur)
             {
-                var state = animator.GetCurrentAnimatorStateInfo(0);
+                var _state = animator.GetCurrentAnimatorStateInfo(0);
 
                 if (crossfadeDur == 0)
                     throw new Exception("YO! YOU FORGOT TO ADD THE CROSSFADE DURATION YOU DUMB ASS!");
 
                 if (!string.IsNullOrEmpty(name))
                 {
-                    if (!state.IsName(name))
+                    if (!_state.IsName(name))
                         animator.CrossFade(name, dur);
                     else
-                        SafePlay(animator, name, cachedHash);
+                        safe_play(animator, name, cachedHash);
                 }
                 else
                 {
-                    if (state.shortNameHash != cachedHash)
+                    if (_state.shortNameHash != cachedHash)
                         animator.CrossFade(cachedHash, dur);
                     else
-                        SafePlay(animator, name, cachedHash);
+                        safe_play(animator, name, cachedHash);
                 }
             }
 
@@ -762,13 +763,13 @@ namespace DAFP.TOOLS.BTs
                 }
                 else
                 {
-                    var s = Child.Tick();
-                    if (s == BtStatus.Failure || s == BtStatus.Success)
+                    var _s = Child.Tick();
+                    if (_s == BtStatus.Failure || _s == BtStatus.Success)
                     {
                         cooldown.ResetToDefault();
                     }
 
-                    return s;
+                    return _s;
                 }
             }
         }
@@ -806,194 +807,135 @@ namespace DAFP.TOOLS.BTs
                 return BtStatus.Success;
             }
         }
-    }
 
-    public abstract class ModifierNodeBase<T> : BtNodeBase
-    {
-        protected readonly IStat<T> stat;
-        protected readonly StatModifier<T>[] mods;
-
-        public ModifierNodeBase(IStat<T> stat, params StatModifier<T>[] mods)
+        public abstract class ModifierNodeBase<T> : BtNodeBase
         {
-            this.stat = stat;
-            this.mods = mods;
-        }
+            protected readonly IStat<T> Stat;
+            protected readonly StatModifier<T>[] Mods;
 
-        public sealed override void Enter()
-        {
-        }
-
-        public sealed override void Exit()
-        {
-        }
-    }
-
-    public class RemoveModifierNode<T> : ModifierNodeBase<T>
-    {
-        public RemoveModifierNode(IStat<T> stat, params StatModifier<T>[] mods) : base(stat, mods)
-        {
-        }
-
-        public override BtStatus InternalTick()
-        {
-            try
+            public ModifierNodeBase(IStat<T> stat, params StatModifier<T>[] mods)
             {
-                foreach (var mod in mods)
+                this.Stat = stat;
+                this.Mods = mods;
+            }
+
+            public sealed override void Enter()
+            {
+            }
+
+            public sealed override void Exit()
+            {
+            }
+        }
+
+        public class RemoveModifierNode<T> : ModifierNodeBase<T>
+        {
+            public RemoveModifierNode(IStat<T> stat, params StatModifier<T>[] mods) : base(stat, mods)
+            {
+            }
+
+            public override BtStatus InternalTick()
+            {
+                try
                 {
-                    stat.RemoveModifier(mod);
+                    foreach (var _mod in Mods)
+                    {
+                        Stat.RemoveModifier(_mod);
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                return BtStatus.Failure;
-            }
-
-            return BtStatus.Success;
-        }
-    }
-
-    public class AddModifierNode<T> : ModifierNodeBase<T>
-    {
-        public AddModifierNode(IStat<T> stat, params StatModifier<T>[] mods) : base(stat, mods)
-        {
-        }
-
-        public override BtStatus InternalTick()
-        {
-            try
-            {
-                foreach (var mod in mods)
+                catch (Exception _e)
                 {
-                    stat.AddModifier(mod);
+                    return BtStatus.Failure;
                 }
+
+                return BtStatus.Success;
             }
-            catch (Exception e)
+        }
+
+        public class AddModifierNode<T> : ModifierNodeBase<T>
+        {
+            public AddModifierNode(IStat<T> stat, params StatModifier<T>[] mods) : base(stat, mods)
             {
-                return BtStatus.Failure;
             }
 
-            return BtStatus.Success;
-        }
-    }
-
-    public abstract class GTagNodeBase : EntNode
-    {
-        protected readonly IEntity ent;
-        protected readonly GameplayTag[] tags;
-        protected readonly GameplayTagContainer container;
-
-        protected GTagNodeBase(IEntity ent, IHaveGameplayTag ct) : base(ent.Memory)
-        {
-            container = ct.GameplayTag;
-            this.ent = ent;
-        }
-
-        protected GTagNodeBase(IEntity ent, GameplayTag tag) : base(ent.Memory)
-        {
-            this.ent = ent;
-            this.tags = new[] { tag };
-        }
-
-        protected GTagNodeBase(IEntity ent, params GameplayTag[] tags) : base(ent.Memory)
-        {
-            this.ent = ent;
-            this.tags = tags;
-        }
-
-        protected GTagNodeBase(BlackBoard bb, GameplayTag tag) : base(bb)
-        {
-            this.tags = new[] { tag };
-            ent = bb.GetSelf();
-        }
-
-        public override void Enter()
-        {
-        }
-
-        public override void Exit()
-        {
-        }
-
-        internal override bool HasRequiredMemory() => true;
-    }
-
-    public class AddGTagNode : GTagNodeBase
-    {
-        public AddGTagNode(IEntity ent, IHaveGameplayTag ct) : base(ent, ct)
-        {
-        }
-
-        public AddGTagNode(IEntity ent, GameplayTag tag) : base(ent, tag)
-        {
-        }
-
-        public AddGTagNode(IEntity ent, params GameplayTag[] tags) : base(ent, tags)
-        {
-        }
-
-        public AddGTagNode(BlackBoard bb, GameplayTag tag) : base(bb, tag)
-        {
-        }
-
-        public override BtStatus InternalTick()
-        {
-            try
+            public override BtStatus InternalTick()
             {
-                foreach (var _gameplayTag in tags)
+                try
+                {
+                    foreach (var _mod in Mods)
+                    {
+                        Stat.AddModifier(_mod);
+                    }
+                }
+                catch (Exception _e)
+                {
+                    return BtStatus.Failure;
+                }
+
+                return BtStatus.Success;
+            }
+        }
+
+        public abstract class GTagNodeBase : EntNode
+        {
+            protected readonly IEntity Ent;
+            protected readonly GameplayTag[] Tags;
+
+
+            protected GTagNodeBase(IEntity ent, params GameplayTag[] tags) : base(ent)
+            {
+                this.Ent = ent;
+                this.Tags = tags;
+            }
+
+
+            public override void Enter()
+            {
+            }
+
+            public override void Exit()
+            {
+            }
+
+            protected override bool HasRequiredMemory() => true;
+        }
+
+        public class AddGTagNode : GTagNodeBase
+        {
+            public AddGTagNode([NotNull] IEntity ent, params GameplayTag[] tags) : base(ent, tags)
+            {
+            }
+
+
+            protected override BtStatus Work()
+            {
+                foreach (var _gameplayTag in Tags)
                 {
                     if (_gameplayTag != null && _gameplayTag.IsValid)
-                        ent.GameplayTag.Add(_gameplayTag);
+                        Ent.GameplayTag.Add(_gameplayTag);
                 }
 
-                if (container is { IsEmpty: false })
-                    ent.GameplayTag.AddTags(container);
+                return BtStatus.Success;
             }
-            catch (Exception e)
+        }
+
+        public class RemoveGTagNode : GTagNodeBase
+        {
+            public RemoveGTagNode(IEntity ent, params GameplayTag[] tags) : base(ent, tags)
             {
-                return BtStatus.Failure;
             }
 
-            return BtStatus.Success;
-        }
-    }
 
-    public class RemoveGTagNode : GTagNodeBase
-    {
-        public RemoveGTagNode(IEntity ent, IHaveGameplayTag ct) : base(ent, ct)
-        {
-        }
-
-        public RemoveGTagNode(IEntity ent, GameplayTag tag) : base(ent, tag)
-        {
-        }
-
-        public RemoveGTagNode(IEntity ent, params GameplayTag[] tags) : base(ent, tags)
-        {
-        }
-
-        public RemoveGTagNode(BlackBoard bb, GameplayTag tag) : base(bb, tag)
-        {
-        }
-
-        public override BtStatus InternalTick()
-        {
-            try
+            protected override BtStatus Work()
             {
-                foreach (var _gameplayTag in tags)
+                foreach (var _gameplayTag in Tags)
                 {
                     if (_gameplayTag != null && _gameplayTag.IsValid)
-                        ent.GameplayTag.RemoveTag(_gameplayTag);
+                        Ent.GameplayTag.RemoveTag(_gameplayTag);
                 }
 
-                if (container is { IsEmpty: false })
-                    ent.GameplayTag.RemoveTags(container);
+                return BtStatus.Success;
             }
-            catch (Exception e)
-            {
-                return BtStatus.Failure;
-            }
-
-            return BtStatus.Success;
         }
     }
 }

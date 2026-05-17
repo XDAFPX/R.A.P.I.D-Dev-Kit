@@ -11,7 +11,7 @@ using Random = UnityEngine.Random;
 
 namespace DAFP.TOOLS.ECS.Components
 {
-    public class UniversalCooldownController : EntityComponent, ISavable
+    public sealed class UniversalCooldownController : EntityComponent, ISavable
     {
         [ReadOnly] [SerializeField] private SerializableHashSet<Cooldown> Cooldowns = new();
 
@@ -30,23 +30,21 @@ namespace DAFP.TOOLS.ECS.Components
         {
         }
 
-        protected override void OnStart()
-        {
-        }
 
-        public Dictionary<string, object> Save()
+        public ISaveData Save()
         {
             var save = new Dictionary<string, object>();
             foreach (var _cooldown in Cooldowns) save.Add(_cooldown.Name, _cooldown.Save());
 
-            return save;
+            return new GenericSaveData(save);
         }
 
-        public void Load(Dictionary<string, object> save)
+        public void Load(ISaveData saveData)
         {
+            var save = saveData.Data;
             foreach (var _cooldown in Cooldowns)
                 if (save.TryGetValue(_cooldown.Name, out var _value))
-                    _cooldown.Load(_value as Dictionary<string, object>);
+                    _cooldown.Load(new GenericSaveData(_value as Dictionary<string,object>));
         }
     }
 

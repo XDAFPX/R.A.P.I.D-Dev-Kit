@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common;
+using DAFP.TOOLS.Common.Utill;
 using TNRD;
 using UnityEngine;
 using Zenject.Internal;
@@ -124,6 +125,11 @@ namespace DAFP.TOOLS.ECS.BigData
             StatModifiers.Remove(modifier);
         }
 
+        public void RemoveModifier(string name)
+        {
+            RemoveModifier(StatModifiers.FindByName(Name));
+        }
+
         public static implicit operator QuikStat<T>(T stat)
         {
             return new QuikStat<T>(stat);
@@ -139,5 +145,4 @@ namespace DAFP.TOOLS.ECS.BigData
 
         List<IEntity> IPetOf<IEntity, IStatBase>.Owners { get; } = new List<IEntity>();
     }
-
 }

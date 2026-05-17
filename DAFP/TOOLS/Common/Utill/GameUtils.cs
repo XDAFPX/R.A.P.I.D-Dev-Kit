@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -10,6 +11,7 @@ using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Damage;
+using DAFP.TOOLS.ECS.BigData.Modifiers;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
@@ -37,6 +39,105 @@ namespace DAFP.TOOLS.Common.Utill
 {
     public static class GameUtils
     {
+        public static void AddForce(this IMover mover, Vector3 vec, ForceMode forceMode)
+        {
+            switch (forceMode)
+            {
+                case ForceMode.Force:
+                    mover.AddForceNormal(vec.ToGeneric());
+                    break;
+                case ForceMode.Impulse:
+                    mover.AddForceImpulse(vec.ToGeneric());
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(forceMode), forceMode, null);
+            }
+        }
+
+        public static void AddForce(this IMover mover, Vector2 vec, ForceMode2D forceMode2D)
+        {
+            switch (forceMode2D)
+            {
+                case ForceMode2D.Force:
+                    mover.AddForceNormal(vec.ToGeneric());
+                    break;
+                case ForceMode2D.Impulse:
+                    mover.AddForceImpulse(vec.ToGeneric());
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(forceMode2D), forceMode2D, null);
+            }
+        }
+
+        public static IVector ToGeneric(this Vector4 vector4)
+        {
+            return (V4)vector4;
+        }
+
+        public static IVector ToGeneric(this Vector3 vector3)
+        {
+            return (V3)vector3;
+        }
+
+        public static IVector ToGeneric(this Vector2 vector2)
+        {
+            return (V2)vector2;
+        }
+
+        public static IVector Subtract(this IVector a, IVector b)
+        {
+            var dims = Math.Max(a.Dimensions, b.Dimensions);
+            var result = a;
+            for (var i = 1; i <= dims; i++)
+            {
+                var aVal = a.GetValueAtDimension(i) ?? 0f;
+                var bVal = b.GetValueAtDimension(i) ?? 0f;
+                result = result.SetValueAtDimension(i, aVal - bVal);
+            }
+
+            return result;
+        }
+
+        public static IVector Add(this IVector a, IVector b)
+        {
+            var dims = Math.Max(a.Dimensions, b.Dimensions);
+            var result = a;
+            for (var i = 1; i <= dims; i++)
+            {
+                var aVal = a.GetValueAtDimension(i) ?? 0f;
+                var bVal = b.GetValueAtDimension(i) ?? 0f;
+                result = result.SetValueAtDimension(i, aVal + bVal);
+            }
+
+            return result;
+        }
+
+        public static float DotProduct(this IVector a, IVector b)
+        {
+            var dims = Math.Max(a.Dimensions, b.Dimensions);
+            var result = 0f;
+            for (var i = 1; i <= dims; i++)
+            {
+                var aVal = a.GetValueAtDimension(i) ?? 0f;
+                var bVal = b.GetValueAtDimension(i) ?? 0f;
+                result += aVal * bVal;
+            }
+
+            return result;
+        }
+
+        public static IEnumerable<T> ToEnumerable<T>(this T obj)
+        {
+            return new T[] { obj };
+        }
+
+        public static void ThrowIfNull(this object obj, string name)
+        {
+            if (obj == null)
+                throw new ArgumentNullException(name);
+        }
+
+
         public static IEnumerable<HitBox<T>> RealHitBoxes<T>(this IEnumerable<HitboxSlot<T>> slots)
         {
             var _l = new List<HitBox<T>>();
@@ -122,7 +223,7 @@ namespace DAFP.TOOLS.Common.Utill
             return v3 + new Vector3(v2.x, v2.y, 0);
         }
 
-        public static Vector3 Add(this Vector3 v3, IVectorBase v32)
+        public static Vector3 Add(this Vector3 v3, IVector v32)
         {
             return v3 + (Vector3)v32.TryGetVector3();
         }
@@ -457,13 +558,21 @@ namespace DAFP.TOOLS.Common.Utill
             return models.Where(viewModel => viewModel.Enabled);
         }
 
-        public static void Do<T>(this IEnumerable<IViewModel> views, Action<T> action) where T : IViewModel
+        public static void Do(this IEnumerable<IViewModel> views, IAnimAction action)
+        {
+            foreach (var _view in views.Enabled())
+            {
+                _view.Do(action);
+            }
+        }
+
+        public static void Do<T>(this IEnumerable<IViewModel> views, IAnimAction action) where T : IViewModel
         {
             foreach (var _view in views.Enabled())
             {
                 if (_view is T _typedView)
                 {
-                    action(_typedView);
+                    _typedView.Do(action);
                 }
             }
         }
@@ -526,7 +635,7 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static IEnumerable<T> Local<T>(this IEnumerable<T> models) where T : IPlayer
         {
-            return models.Where((switchable => switchable.IsLocal));
+            return models.Where((switchable => switchable.Data.IsLocal));
         }
 
         public static IEnumerable<T> Enabled<T>(this IEnumerable<T> models) where T : ISwitchable
@@ -951,14 +1060,22 @@ namespace DAFP.TOOLS.Common.Utill
             return transform.gameObject.AddOrGetComponent<T>();
         }
 
+
         public static IEnumerable<T> FilterThrough<T>(this IEnumerable<T> arr, IFilter<T> filter)
         {
             return filter.Filter(arr);
         }
 
-        public static IEnumerable<IEntity> FilterThrough(this IEntity[] arr, EntityFilter filter)
+
+        public static IEnumerable<T> FilterThrough<T>(this IEnumerable<T> arr, IEnumerable<IFilter<T>> filters)
         {
-            return filter.Filter(arr);
+            IEnumerable<T> _list = arr;
+            foreach (var _filter in filters)
+            {
+                _list = _list.FilterThrough(_filter);
+            }
+
+            return _list;
         }
 
         public static Vector3 LookVector(this IEntity arr)
@@ -1089,6 +1206,11 @@ namespace DAFP.TOOLS.Common.Utill
         }
 
 
+        public static IEnumerable<T> ClearOfNulls<T>(this IEnumerable<T> l)
+        {
+            return l.Where((arg => arg != null));
+        }
+
         public static void PriorityForeach<T>(this IEnumerable<T> l, Action<T> action) where T : IPrioritized
         {
             var list = l.ToList();
@@ -1155,17 +1277,17 @@ namespace DAFP.TOOLS.Common.Utill
             return value;
         }
 
-        public static IDamage Construct(this IDamageBoard dmg, Option<IVectorBase> vec)
+        public static IDamage Construct(this IDamageBoard dmg, Option<IVector> vec)
         {
             return dmg.Construct(Option.None<IEntity>(), vec, dmg);
         }
 
-        public static IDamage Construct(this IDamageBoard dmg, Option<IEntity> ent, Option<IVectorBase> vec)
+        public static IDamage Construct(this IDamageBoard dmg, Option<IEntity> ent, Option<IVector> vec)
         {
             return dmg.Construct(ent, vec, dmg);
         }
 
-        public static IDamage Construct(this IDamageBoard dmg, Option<IVectorBase> vec, IStat<uint> stat)
+        public static IDamage Construct(this IDamageBoard dmg, Option<IVector> vec, IStat<uint> stat)
         {
             return dmg.Construct(Option.None<IEntity>(), vec, stat);
         }
@@ -1234,17 +1356,17 @@ namespace DAFP.TOOLS.Common.Utill
             return a;
         }
 
-        public static float GetRatio(this IStat<int> a)
+        public static float GetRatio01(this IStat<int> a)
         {
             return (float)a.Value / (float)a.MaxValue;
         }
 
-        public static float GetRatio(this IStat<float> a)
+        public static float GetRatio01(this IStat<float> a)
         {
             return (float)a.Value / (float)a.MaxValue;
         }
 
-        public static float GetRatio(this IStat<uint> a)
+        public static float GetRatio01(this IStat<uint> a)
         {
             return (float)a.Value / (float)a.MaxValue;
         }
@@ -1261,15 +1383,127 @@ namespace DAFP.TOOLS.Common.Utill
         //     return stat;
         // }
 
-        public static T TakeDamage<T>(this T stat, IDamage damage) where T : IStat<uint>
+        public static T TakeHealing<T>(this T stat, IHealing healing) where T : IStat<uint>
         {
-            stat.Value = stat.Value.SafeSubtract(damage.Info.Damage.Value);
+            return stat.TakeHealing(healing.Info.Amount);
+        }
+
+        public static T TakeHealing<T>(this T stat, IStat<uint> healing) where T : IStat<uint>
+        {
+            stat.Value += healing.Value;
             return stat;
         }
+
+        public static T TakeDamage<T>(this T stat, IDamage damage) where T : IStat<uint>
+        {
+            return stat.TakeDamage(damage.Info.Amount);
+        }
+
+        public static T TakeDamage<T>(this T stat, IStat<uint> damage) where T : IStat<uint>
+        {
+            stat.Value = stat.Value.SafeSubtract(damage.Value);
+            return stat;
+        }
+
 
         public static bool Dead(this IStat<uint> stat)
         {
             return stat.Value == 0;
+        }
+
+        public static UniversalCollisionManager CollisionManager(this IEntity ent) =>
+            UniversalCollisionManager.EnsureOn(ent.GetWorldRepresentation());
+
+        public static void Buddha([NotNull] IEntity ent)
+        {
+            if (ent.Memory.Has("Buddha"))
+                remove_buddha(ent);
+            else
+                add_buddha(ent);
+        }
+
+        private static void add_buddha(IEntity ent)
+        {
+            ent.Memory.Set("Buddha", "_");
+            var stats = GetHpStats(ent);
+
+            stats.ForEach((stat =>
+                stat.AddModifier(new LockModifier<uint>(ent, 1,
+                    "Buddha's will"))));
+        }
+
+        private static void remove_buddha(IEntity ent)
+        {
+            ent.Memory.Delete("Buddha");
+            var stats = GetHpStats(ent);
+            stats.ForEach((stat => stat.RemoveModifier("Buddha's will")));
+        }
+
+        public static void God([NotNull] IEntity ent)
+        {
+            if (ent.Memory.Has("God"))
+                remove_god(ent);
+            else
+                add_god(ent);
+        }
+
+        private static void add_god(IEntity ent)
+        {
+            ent.Memory.Set("God", "_");
+            var stats = GetHpStats(ent);
+
+            stats.ForEach((stat =>
+                stat.AddModifier(new MaxLockModifier<uint>(ent, MaxLockModifier<uint>.StatValue.Default, stat,
+                    "God's will"))));
+        }
+
+
+        private static void remove_god(IEntity ent)
+        {
+            ent.Memory.Delete("God");
+            var stats = GetHpStats(ent);
+            stats.ForEach((stat => stat.RemoveModifier("God's will")));
+        }
+
+        public static List<IStat<uint>> GetHpStats(IEntity ent)
+        {
+            var stats = new List<IStat<uint>>();
+
+            stats.Add(ent.Stats.Get("Health", () => new QuikStat<uint>(1)));
+            stats.Add(ent.Stats.Get("HP", () => new QuikStat<uint>(1)));
+            stats.Add(ent.Stats.Get("Hp", () => new QuikStat<uint>(1)));
+            return stats;
+        }
+
+        public static void Noclip([NotNull] IEntity ent)
+        {
+            if (ent.Memory.Has("Noclip"))
+                remove_noclip(ent);
+            else
+                add_noclip(ent);
+
+
+            // if (!GameplayTagUtility.IsNameValid("Noclip", out var _message))
+            // {
+            //     throw new NotSupportedException(
+            //         $"[Utils] Noclip is not supported in this game. Add GTag(Noclip) :: {_message}");
+            // }
+            //
+            //
+            // if (ent.GameplayTag.Contains("Noclip")) remove_noclip(ent);
+            // else add_noclip(ent);
+        }
+
+        private static void add_noclip(IEntity ent)
+        {
+            ent.Memory.Set("Noclip", "_");
+            ent.CollisionManager().SetCollisionState(false);
+        }
+
+        private static void remove_noclip(IEntity ent)
+        {
+            ent.Memory.Delete("Noclip");
+            ent.CollisionManager().SetCollisionState(true);
         }
     }
 }

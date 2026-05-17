@@ -58,6 +58,18 @@ namespace DAFP.TOOLS.ECS.BigData
             return this;
         }
 
+        // public bool TryGet<T>(string name, ) not needed
+        // {
+        //     try
+        //     {
+        //         return get<T>(name);
+        //     }
+        //     catch (Exception _e)
+        //     {
+        //         return fallback.Invoke();
+        //     }
+        // }
+
         public IStat<T> Get<T>(string name, Func<IStat<T>> fallback)
         {
             try
@@ -97,9 +109,8 @@ namespace DAFP.TOOLS.ECS.BigData
 
             throw_if_stat_invalid();
             return null;
-            
-            
-            
+
+
             void throw_if_stat_invalid()
             {
                 throw new Exception(

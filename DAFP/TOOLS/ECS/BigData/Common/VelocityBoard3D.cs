@@ -2,6 +2,7 @@
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using UnityEngine;
@@ -9,8 +10,8 @@ using UnityEngine.Serialization;
 
 namespace DAFP.TOOLS.ECS.BigData.Common
 {
-    public class VelocityBoard3D : Vector3Board, ICommonEntityInterface.IMovementProvider.IMovingStat,
-        ICommonEntityInterface.IVelocityProvider.IVelocityStat
+    public class VelocityBoard3D : Vector3Board, IMovingStat,
+        IVelocityStat
     {
         private Rigidbody rb;
 
@@ -88,7 +89,7 @@ namespace DAFP.TOOLS.ECS.BigData.Common
                 rb.linearVelocity = rb.linearVelocity.normalized * MinValue.magnitude;
         }
 
-        IVectorBase ICommonEntityInterface.IVelocityProvider.IVelocityStat.Value => (V3)Value;
+        IVector IVelocityStat.Value => (V3)Value;
 
         public bool IsMoving => Value.sqrMagnitude > isMovingTreshold;
     }

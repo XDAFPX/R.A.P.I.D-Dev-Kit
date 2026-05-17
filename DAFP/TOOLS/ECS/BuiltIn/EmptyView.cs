@@ -3,7 +3,6 @@ using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using DAFP.TOOLS.ECS.ViewModel;
 using RapidLib.DAFP.TOOLS.Common;
-using UnityEditor.PackageManager.Requests;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
@@ -30,6 +29,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public HurtGroup<IEntity> GetHurtGroup(IEntity owner)
         {
             return null;
+        }
+
+        public Compatability Parse(IAnimAction action)
+        {
+            return Compatability.NotSupported;
         }
 
         public List<IEntity> Owners { get; } = new();

@@ -8,13 +8,13 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 
     public struct TriggerContext
     {
-        public TriggerContext( TriggerEntity.TriggerEvent @event, TriggerCollider target)
+        public TriggerContext( TriggerEntity.TriggerEvent @event, UniversalCollider target)
         {
             Target = target;
             Event = @event;
         }
 
         public TriggerEntity.TriggerEvent Event { get; }
-        public TriggerCollider Target { get; }
+        public UniversalCollider Target { get; }
     }
 }

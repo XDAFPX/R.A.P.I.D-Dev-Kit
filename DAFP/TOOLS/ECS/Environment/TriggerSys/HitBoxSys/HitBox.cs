@@ -4,12 +4,8 @@ using System.Linq;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Environment.Filters;
-using DAFP.TOOLS.ECS.ViewModel;
-using RapidLib.DAFP.TOOLS.Aspects;
 using RapidLib.DAFP.TOOLS.Common;
-using UnityEditor.Build;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
@@ -44,7 +40,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
             //----- EVENTS
             
             
-            BroadcastEvent( new HitBoxActivatedEvent()
+            BroadcastEvent( new OnHitBoxActivatedEvent()
             {
                 StuffCaught = _enumerable.Cast<object>().ToArray(), Hitbox = this,
                 Owner = ((IOwnedBy<IEntity>)this).GetCurrentOwner()
@@ -71,13 +67,13 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 
         protected abstract IEnumerable<T> BuildContext(IEnumerable<HurtBox<T>> hits);
 
-        private IEnumerable<HurtBox<T>> get_boxes(IEnumerable<TriggerCollider> colliders)
+        private IEnumerable<HurtBox<T>> get_boxes(IEnumerable<UniversalCollider> colliders)
         {
             foreach (var _triggerCollider in colliders)
             {
-                if (_triggerCollider.GameObject == null)
+                if (_triggerCollider.gameObject == null)
                     continue;
-                if (_triggerCollider.GameObject.TryGetComponent<HurtBox<T>>(out var _hurtBox))
+                if (_triggerCollider.gameObject.TryGetComponent<HurtBox<T>>(out var _hurtBox))
                 {
                     yield return _hurtBox;
                 }
@@ -85,11 +81,11 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
         }
 
 
-        private List<TriggerCollider> collect_all_hits()
+        private List<UniversalCollider> collect_all_hits()
         {
             var _seen2d = new HashSet<Collider2D>();
             var _seen3d = new HashSet<Collider>();
-            var _result = new List<TriggerCollider>();
+            var _result = new List<UniversalCollider>();
 
             var _filter = new ContactFilter2D { useTriggers = true };
 
@@ -100,7 +96,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
                 foreach (var _hit in _hits)
                 {
                     if (!_seen2d.Add(_hit)) continue;
-                    _result.Add(new TriggerCollider(_hit));
+                    _result.Add(new UniversalCollider(_hit));
                 }
             }
 
@@ -119,7 +115,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
                     var _hit = buffer3d[_i];
                     if (_hit == _col) continue;
                     if (!_seen3d.Add(_hit)) continue;
-                    _result.Add(new TriggerCollider(_hit));
+                    _result.Add(new UniversalCollider(_hit));
                 }
             }
 
@@ -139,7 +135,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
         public HurtBox<T>[] HurtBoxesFound;
     }
 
-    public struct HitBoxActivatedEvent
+    public struct OnHitBoxActivatedEvent
     {
         public IEntity Hitbox;
         public IEntity Owner;

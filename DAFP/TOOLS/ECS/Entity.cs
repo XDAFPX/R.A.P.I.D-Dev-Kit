@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Archon.SwissArmyLib.Utils.Editor;
 using BandoWare.GameplayTags;
 using DAFP.GAME.Assets;
@@ -9,16 +11,21 @@ using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Audio;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
+using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using DAFP.TOOLS.ECS.GlobalState;
+using DAFP.TOOLS.ECS.GlobalState.Events;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.ViewModel;
+using DAFP.TOOLS.Injection;
+using ModestTree;
 using PixelRouge.Inspector;
 using UGizmo;
 using UnityEngine;
@@ -26,13 +33,17 @@ using UnityEventBus;
 using UnityGetComponentCache;
 using Zenject;
 using NRandom;
+using PixelRouge.CsharpExtensionMethods;
+using PixelRouge.Inspector.Extensions;
 using RapidLib.DAFP.TOOLS.Common;
 using TNRD;
 
 namespace DAFP.TOOLS.ECS
 {
+    [SelectionBase]
+    [DisallowMultipleComponent]
     public abstract class Entity : MonoBehaviour, IEntity, IDisposable, IRandomizeable, ISavable,
-        IListener<IGlobalStateChanged>, IListener<OnSaveMadeOrLoaded>, IOwnedBy<IDebugDrawable>
+        IListener<OnGameStateChanged>, IListener<OnSaveMadeOrLoaded>, IOwnedBy<IDebugDrawable>
     {
         // Serialized Fields
         [ReadOnly] [SerializeField] private string id;
@@ -81,20 +92,44 @@ namespace DAFP.TOOLS.ECS
         }
 
 
+        [SerializeField] private List<SerializableInterface<IViewModel>> view = new();
+
+        public virtual ICollection<IViewModel> View
+        {
+            get
+            {
+                Debug.Assert(realView != null);
+                if (!realView.IsEmpty()) return realView;
+
+                var _backup = SetupView();
+                var _viewModels = _backup as IViewModel[] ?? _backup.ToArray();
+                if (_viewModels.IsNullOrEmpty())
+                    _viewModels = new EmptyView().ToEnumerable().ToArray<IViewModel>();
+                foreach (var _viewModel in _viewModels)
+                {
+                    realView.Add(_viewModel);
+                }
+
+                return realView;
+            }
+        }
+
+        private DelegateSet<IViewModel> realView;
+
         // Dependencies
         [Inject] protected DiContainer Injector;
         [Inject] protected World World;
         [Inject] protected ISaveSystem SaveSystem;
         [Inject] protected IRandom RandomSys;
         [Inject] protected IAssetManager AssetManager;
+        [Inject] protected IAudioSystem AudioSystem;
 
         [Inject] public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
-        [Inject(Id = "GlobalStateBus")] protected IEventBus GlobalStateBus;
-        [Inject(Id = "GlobalGameEventsBus")] protected IEventBus GameEventsBus;
+        [Inject(Id = IVideoGame.GAME_BUS_NAME)] protected IEventBus GameEventsBus;
 
         // Components & Memory
         public Dictionary<Type, IEntityComponent> Components { get; } = new();
-        public BlackBoard Memory { get; set; }
+        public BlackBoard Memory { get; private set; }
 
         // Pets & Ownership
 
@@ -203,8 +238,8 @@ namespace DAFP.TOOLS.ECS
 
         public virtual string Name
         {
-            get => GetType().FullName + $": ({gameObject.name})";
-            set { }
+            get => name;
+            set => name = value;
         }
 
         private Bounds? cachedBounds;
@@ -243,13 +278,13 @@ namespace DAFP.TOOLS.ECS
         }
 
 
-        public virtual IVectorBase EyeVector => (V3)transform.forward;
-        public virtual NonEmptyList<IViewModel> View { private set; get; }
+        public virtual IVector EyeVector => (V3)transform.forward;
         public bool HasInitialized { get; set; }
         public event IEntity.TickCallBack OnTick;
 
         // Abstract Members
-        public abstract NonEmptyList<IViewModel> SetupView();
+
+        public abstract IEnumerable<IViewModel> SetupView();
         public abstract ITicker<IEntity> EntityTicker { get; }
         protected abstract void InitializeInternal();
         protected abstract void TickInternal();
@@ -305,6 +340,7 @@ namespace DAFP.TOOLS.ECS
                 return;
             // Stats = ScriptableObject.Instantiate<StatContainer>(Stats);
             assemble_list_additional_of_code_sources(out var _ads);
+
             StatInjector.FixStats(this, _ads);
         }
 
@@ -313,11 +349,61 @@ namespace DAFP.TOOLS.ECS
         public void Reset()
         {
             GenNewID();
+            SetupStats();
+            var _backup = SetupView();
+            var _viewModels = _backup as IViewModel[] ?? _backup.ToArray();
+            if (_viewModels.IsNullOrEmpty())
+                _viewModels = new EmptyView().ToEnumerable().ToArray<IViewModel>();
+            var _inter = _viewModels.Select((model => new SerializableInterface<IViewModel>(model)));
+            view = _inter.ToList();
+        }
+
+        private void OnValidate()
+        {
+            if (!gameObject.activeInHierarchy)
+                return;
+            try
+            {
+                assemble_list_additional_of_code_sources(out var _ads);
+                StatInjector.InjectStats(this, _ads);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[{nameof(StatInjector)}] Bad stats detected at object '{name}' regenerating... ");
+                SetupStats();
+            }
+
+            // Editor-time: check that every component on this GameObject has its GetComponentCache dependencies satisfied
+            try
+            {
+                // Check this Entity first
+                GetComponentCacheInitializer.HasAllDependencies(this, new Component[] { this });
+                // Then check all other MonoBehaviours on the same GameObject
+                var behaviours = GetComponents<MonoBehaviour>();
+                foreach (var mb in behaviours)
+                {
+                    if (mb == null) continue;
+                    if (ReferenceEquals(mb, this)) continue;
+                    GetComponentCacheInitializer.HasAllDependencies(mb);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Entity] Dependency validation threw on '{name}': {ex.Message}");
+            }
+
+            if (!view.IsNullOrEmpty()) return;
+            var _backup = SetupView();
+            var _viewModels = _backup as IViewModel[] ?? _backup.ToArray();
+            if (_viewModels.IsNullOrEmpty())
+                _viewModels = new EmptyView().ToEnumerable().ToArray<IViewModel>();
+            var _inter = _viewModels.Select((model => new SerializableInterface<IViewModel>(model)));
+            view = _inter.ToList();
         }
 
         private void boot_strap(World world)
         {
-            Memory = new BlackBoard(null, this);
+            Memory = new BlackBoard(this);
 
 
             if (string.IsNullOrEmpty(id))
@@ -331,7 +417,7 @@ namespace DAFP.TOOLS.ECS
 
 
             AnimationNameCacheInitializer.InitializeCaches(this);
-            GetComponentCacheInitializer.InitializeCaches(this);
+            GetComponentCacheInitializer.InitializeCaches(this, gameObject, this.ToEnumerable().ToArray<Component>());
 
             gather_components();
 
@@ -346,23 +432,20 @@ namespace DAFP.TOOLS.ECS
 
             setup_entity_stats();
 
-            SaveSystem.Bus.Subscribe(this);
-            GlobalStateBus.Subscribe(this);
+            // SaveSystem.Bus.Subscribe(this);
             GameEventsBus.Subscribe(this);
 
             foreach (var _comp in Components.Values)
                 _comp.Initialize();
 
-            View = SetupView();
-            initialize_view(View);
 
-
+            initialize_view();
             InitializeInternal();
             InitializeBrains(Brains);
             initialize_debug();
             HasInitialized = true;
 
-            DebugSystem.Log(World, $"{Name} entity is registered to a {World} world and initialized");
+            DebugSystem.Log(World, $"{Name} entity is initialized");
 
 
             initialize_children();
@@ -378,16 +461,40 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
-        private void initialize_view(NonEmptyList<IViewModel> view)
+        private void initialize_view()
         {
-            view.ForEach((model => model.InitOwner(this)));
+            realView = new DelegateSet<IViewModel>((() => view.ToValues()),
+                model =>
+                {
+                    view.Add(new SerializableInterface<IViewModel>(model));
+                    return true;
+                },
+                (model =>
+                {
+                    var m = view.FirstOrDefault((viewModel => model == viewModel.Value));
+                    if (m != null) view.Remove(m);
+                    return m != null;
+                }),
+                (model => view.ToValues().Contains(model)), (() => view.Clear()));
 
 
-            if (!TryGetComponent(out IHurtBoxController<IEntity> _controller))
-                return;
-            view.Select(v => v.GetHurtGroup(this))
-                .Where(group => group != null)
-                .ForEach(_controller.AddPet);
+            IEnumerable<IViewModel> _finalView = View;
+            register();
+
+            void register()
+            {
+                _finalView.ThrowIfNull(nameof(view));
+
+                var _viewModels = _finalView as IViewModel[] ?? _finalView.ToArray();
+                _viewModels.ForEach((model => model.InitOwner(this)));
+
+
+                if (!TryGetComponent(out IHurtBoxController<IEntity> _controller))
+                    return;
+                _viewModels.Select(v => v.GetHurtGroup(this))
+                    .Where(group => group != null)
+                    .ForEach(_controller.AddPet);
+            }
         }
 
         private void setup_entity_stats()
@@ -402,9 +509,12 @@ namespace DAFP.TOOLS.ECS
 
         private void assemble_list_additional_of_code_sources(out object[] additions)
         {
-            gather_components();
-            var comps = Components.Select((pair => pair.Value)).Cast<object>();
-            var brains = _brains.Value;
+
+
+
+            IEnumerable<object> comps = GetComponents<MonoBehaviour>();
+
+            var brains = _brains?.Value;
             if (brains != null)
                 comps = comps.Concat(new[] { brains });
             additions = comps.ToArray();
@@ -456,6 +566,8 @@ namespace DAFP.TOOLS.ECS
         // Component Management
         private void gather_components()
         {
+            if (Components == null)
+                return;
             Components.Clear();
             foreach (var _comp in gameObject.GetComponents<IEntityComponent>())
                 AddEntComponent(_comp);
@@ -518,18 +630,18 @@ namespace DAFP.TOOLS.ECS
         private void clone_or_assign_brain(IThinker thinker)
         {
             Brains = thinker;
-            if (Brains is not BaseThinker || thinker is not BaseThinker)
+            if (Brains is not BaseThinker || thinker is not BaseThinker _t )
                 return;
 #if UNITY_EDITOR
 
-            if (Brains is BaseThinker { EditMode: false } && thinker is BaseThinker _t)
+            if (Brains is BaseThinker { EditMode: false } )
                 Brains = _t.DeepClone();
             else
             {
                 Brains = thinker;
             }
 #else
-            Brains = thinker.DeepClone();
+                Brains = _t.DeepClone();
 #endif
         }
 
@@ -563,6 +675,7 @@ namespace DAFP.TOOLS.ECS
             DebugSystem.AddPet(this);
         }
 
+        
         public GameObject GetWorldRepresentation()
         {
             return gameObject;
@@ -576,12 +689,12 @@ namespace DAFP.TOOLS.ECS
         public IEventBus Bus { get; } = new EntityBus();
 
         // Saving & Loading
-        public virtual Dictionary<string, object> Save()
+        public virtual ISaveData Save()
         {
-            return new Dictionary<string, object>();
+            return new GenericSaveData();
         }
 
-        public virtual void Load(Dictionary<string, object> save)
+        public virtual void Load(ISaveData saveData)
         {
         }
 
@@ -595,7 +708,7 @@ namespace DAFP.TOOLS.ECS
 
 
         // Event Reactions
-        public virtual void React(in IGlobalStateChanged e)
+        public virtual void React(in OnGameStateChanged e)
         {
         }
 
@@ -639,8 +752,6 @@ namespace DAFP.TOOLS.ECS
             DeInitializeBrains(Brains);
             cleanup_brains();
             DebugSystem.RemovePet(this);
-            SaveSystem.Bus.UnSubscribe(this);
-            GlobalStateBus.UnSubscribe(this);
             GameEventsBus.UnSubscribe(this);
             World.RemoveEntity(this);
         }
@@ -664,6 +775,8 @@ namespace DAFP.TOOLS.ECS
             gameObject.SetActive(false);
         }
 
+        //--Helpers
+        private readonly ConcurrentDictionary<(Type, string), FieldInfo> fieldCache = new();
 
         public void BroadcastEvent<T>(T @event) where T : struct
         {
@@ -671,12 +784,6 @@ namespace DAFP.TOOLS.ECS
             GameEventsBus.Send(@event);
         }
 
-        protected NonEmptyList<IViewModel> GetDefaultView()
-        {
-            var _render = new RendererView();
-            _render.InitOwner(this);
-            return new NonEmptyList<IViewModel>(_render);
-        }
 
         public class EntityBus : EventBusImpl, IEventBus
         {
@@ -735,5 +842,6 @@ namespace DAFP.TOOLS.ECS
 
             return null;
         }
+
     }
 }

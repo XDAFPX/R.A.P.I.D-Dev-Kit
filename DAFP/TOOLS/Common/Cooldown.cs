@@ -1,26 +1,37 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using Bdeshi.Helpers.Utility;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BigData;
+using TNRD;
 
 namespace DAFP.TOOLS.Common
 {
     [System.Serializable]
-    public class Cooldown : SafeFiniteTimer, IStat<float>, ISerializationCallbackReceiver
+    public class Cooldown : SafeFiniteTimer, IStat<float>
     {
-        [SerializeField] private float maxValue;
+        [SerializeField] private SerializableInterface<IStat<float>> maxStat;
 
         // ensure Unity serializes the list so it never stays null
-        [SerializeField] private List<StatModifier<float>> modifiers;
 
         [SerializeField] private float timer;
 
-        public Cooldown(string name, float maxValue)
+
+        private Cooldown()
+        {
+        }
+
+        public Cooldown(string name, IStat<float> stat)
         {
             Name = name;
-            modifiers = new List<StatModifier<float>>();
-            this.maxValue = maxValue;
+            this.maxStat = new SerializableInterface<IStat<float>>(stat);
+        }
+
+        public Cooldown(string name, float stat)
+        {
+            Name = name;
+            this.maxStat = new SerializableInterface<IStat<float>>(new QuikStat<float>(stat));
         }
 
         [field: SerializeField] public string Name { get; set; }
@@ -64,17 +75,14 @@ namespace DAFP.TOOLS.Common
         {
             get
             {
-                // safety fallback in case something went wrong
-                if (modifiers == null)
-                    modifiers = new List<StatModifier<float>>();
-
-                var temp = maxValue;
-                modifiers.Sort();
-                foreach (var modifier in modifiers)
-                    temp = modifier.Apply(temp);
-                return temp;
+                if (maxStat == null) return 0;
+                return maxStat.Value.Value;
             }
-            set => maxValue = value;
+            set
+            {
+                if (maxStat == null) return;
+                maxStat.Value.Value = value;
+            }
         }
 
         public float MinValue
@@ -101,30 +109,23 @@ namespace DAFP.TOOLS.Common
 
         public void AddModifier(StatModifier<float> modifier)
         {
-            if (modifiers == null) modifiers = new List<StatModifier<float>>();
-            modifiers.Add(modifier);
+            maxStat.Value.AddModifier(modifier);
         }
 
         public void RemoveModifier(StatModifier<float> modifier)
         {
-            if (modifiers == null) return;
-            modifiers.Remove(modifier);
+            maxStat.Value.RemoveModifier(modifier);
+        }
+
+        public void RemoveModifier(string name)
+        {
+            maxStat.Value.RemoveModifier(name);
         }
 
         public float TrueCoolDownTime => ReverseRatio * MaxValue;
         public bool IsOnCooldown => !isComplete;
 
         // ISerializationCallbackReceiver
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
-        {
-            /* nothing */
-        }
-
-        void ISerializationCallbackReceiver.OnAfterDeserialize()
-        {
-            if (modifiers == null)
-                modifiers = new List<StatModifier<float>>();
-        }
 
 
         public override string ToString()
@@ -137,5 +138,4 @@ namespace DAFP.TOOLS.Common
 
         List<IEntity> IPetOf<IEntity, IStatBase>.Owners { get; } = new();
     }
-    
 }

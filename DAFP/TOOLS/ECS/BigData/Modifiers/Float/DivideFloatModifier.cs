@@ -6,13 +6,15 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
     [System.Serializable]
     public class DivideFloatModifier : StatModifier<float>
     {
-        [SerializeField]private SerializableInterface<IStat<float>> _devider;
+        [SerializeField] private SerializableInterface<IStat<float>> _devider;
         private IStat<float> divider;
 
-        public DivideFloatModifier() : base(null)
+        public DivideFloatModifier() : base(null, nameof(DivideFloatModifier))
         {
         }
-        public DivideFloatModifier(IEntity owner, IStat<float> divider) : base(owner)
+
+        public DivideFloatModifier(IEntity owner, IStat<float> divider, string name = nameof(DivideFloatModifier)) :
+            base(owner,name)
         {
             this.divider = divider;
         }
@@ -27,7 +29,7 @@ namespace DAFP.TOOLS.ECS.BigData.Modifiers.Float
         public override int Priority
         {
             get => 10;
-            set {}
+            set { }
         }
 
         public override void Dispose()

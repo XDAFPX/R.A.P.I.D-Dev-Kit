@@ -1,5 +1,6 @@
 ﻿using BandoWare.GameplayTags;
 using DAFP.TOOLS.Common.Maths;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using Optional;
@@ -35,7 +36,7 @@ namespace DAFP.TOOLS.ECS.Environment.Actions
                 return;
             }
             damageable.TakeDamage(new Damage(new DamageInfo(Owner.Stats.Get(PathToStat,(() => new QuikStat<uint>(123))),
-                new DamageSource(((IEntity)Owner).SomeNotNull(), Option.None<IVectorBase>()),
+                new HealthChangeSource(((IEntity)Owner).SomeNotNull(), Option.None<IVector>()),
                 Tags ?? GameplayTagContainer.Empty)));
         }
     }

@@ -9,4 +9,5 @@ namespace DAFP.TOOLS.ECS.Audio
         public float Pitch { get; }
         public PositionTarget AttachedToPosition();
     }
+    
 }

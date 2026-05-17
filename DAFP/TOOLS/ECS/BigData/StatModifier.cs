@@ -7,7 +7,7 @@ namespace DAFP.TOOLS.ECS.BigData
     /// <summary>
     /// Abstract modifier record for IStat, implementing IPet and IDisposable.
     /// </summary>
-    public interface IStatModifierBase : IDisposable, IPrioritized,IOwnedBy<IEntity>
+    public interface IStatModifierBase : IDisposable, IPrioritized,IOwnedBy<IEntity>, INameable
     {
     }
 
@@ -25,8 +25,9 @@ namespace DAFP.TOOLS.ECS.BigData
 // Abstract base remains but implements the interface
     public abstract class StatModifier<T> : IStatModifier<T>
     {
-        protected StatModifier(IEntity owner)
+        protected StatModifier(IEntity owner, string name)
         {
+            Name = name;
             Owners = new List<IEntity>() { owner };
         }
 
@@ -44,5 +45,6 @@ namespace DAFP.TOOLS.ECS.BigData
 
 
         public abstract void Dispose();
+        public string Name { get; set; }
     }
 }

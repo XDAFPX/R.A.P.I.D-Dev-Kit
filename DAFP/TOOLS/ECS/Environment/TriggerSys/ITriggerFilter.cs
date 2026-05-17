@@ -9,7 +9,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 
         bool IFilter<TriggerContext>.Evaluate(TriggerContext go)
         {
-            var _val = Evaluate(go.Target.GameObject);
+            var _val = Evaluate(go.Target.gameObject);
             LastStatus = _val;
             return _val;
 

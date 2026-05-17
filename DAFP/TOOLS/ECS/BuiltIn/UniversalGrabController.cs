@@ -5,6 +5,7 @@ using DAFP.TOOLS.BTs;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Components.GrabController;
 using PixelRouge.Inspector;
+using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
 using UnityGetComponentCache;
 using Zenject;
@@ -47,9 +48,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             Controller.Detach();
         }
 
-        protected override void OnStart()
-        {
-        }
 
         private IBtNode Los;
 
@@ -82,7 +80,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             {
                 if (CheckForLoS)
                     if (body.TryGetComponent<IEntity>(out var _entity))
-                        Los = new EntBehNodes.LoSCheckNode3D(new BlackBoard(_entity, Host), Mask);
+                        Los = new EntBehNodes.LoSCheckNode3D(Host, new TargetOf<IEntity>(_entity), Mask);
 
                 if (board.Value >= body.mass)
                     Controller.Attach(obj);

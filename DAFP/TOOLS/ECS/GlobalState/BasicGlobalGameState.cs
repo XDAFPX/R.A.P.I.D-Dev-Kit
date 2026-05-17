@@ -4,9 +4,9 @@ using BDeshi.BTSM;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
-    public class BasicGlobalGameState : ModularState, IGlobalGameState
+    public class BasicGameState : ModularState, IGameState
     {
-        public BasicGlobalGameState(string stateName, Action onEnter = null, Action onTick = null, Action onExit = null,
+        public BasicGameState(string stateName, Action onEnter = null, Action onTick = null, Action onExit = null,
             HashSet<IState._stateTags> tags = null) : base(stateName, onEnter, onTick, onExit, tags)
         {
         }

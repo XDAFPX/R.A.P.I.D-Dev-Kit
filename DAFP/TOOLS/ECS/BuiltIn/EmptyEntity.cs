@@ -1,4 +1,5 @@
-﻿using DAFP.TOOLS.Common.Utill;
+﻿using System.Collections.Generic;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.ViewModel;
 using UnityEngine;
 
@@ -6,9 +7,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public class EmptyEntity : Entity
     {
-        public override NonEmptyList<IViewModel> SetupView()
+        public override IEnumerable<IViewModel> SetupView()
         {
-            return new NonEmptyList<IViewModel>(new EmptyView());
+            return new[] { new EmptyView() };
         }
 
         

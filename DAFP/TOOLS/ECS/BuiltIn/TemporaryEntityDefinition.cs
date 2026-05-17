@@ -1,10 +1,11 @@
 ﻿using Bdeshi.Helpers.Utility;
+using DAFP.TOOLS.ECS.Basic.Events;
 using UnityEngine;
 using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class TemporaryEntityDefinition : EntityComponent,IListener<ICommonEntityEvent.EntitySpawnFromAssetsEvent>
+    public class TemporaryEntityDefinition : EntityComponent, IListener<OnEntitySpawnedEvent>
     {
         public FiniteTimer Timer;
         protected override void OnTick()
@@ -25,11 +26,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             Host.Bus.Subscribe(this);
         }
 
-        protected override void OnStart()
-        {
-        }
 
-        public void React(in ICommonEntityEvent.EntitySpawnFromAssetsEvent e)
+        public void React(in OnEntitySpawnedEvent e)
         {
             Timer.reset();
         }

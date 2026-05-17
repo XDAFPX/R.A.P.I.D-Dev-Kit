@@ -7,10 +7,14 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Components
 {
-    public class UniversalHurtBoxControllerOfEntity : UniversalHurtBoxController<IEntity>{}
+    public sealed class UniversalHurtBoxControllerOfEntity : UniversalHurtBoxController<IEntity>
+    {
+    }
+
     public class UniversalHurtBoxController<T> : EntityComponent, IHurtBoxController<T>
     {
-        [ReadOnly(OnlyWhilePlaying = true)][SerializeField] private List<HurtGroup<T>> Groups = new List<HurtGroup<T>>();
+        [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]
+        private List<HurtGroup<T>> Groups = new List<HurtGroup<T>>();
 
         protected override void OnTick()
         {
@@ -28,9 +32,6 @@ namespace DAFP.TOOLS.ECS.Components
             }
         }
 
-        protected override void OnStart()
-        {
-        }
 
         public IEnumerable<HurtGroup<T>> Pets => Groups;
 
@@ -43,6 +44,7 @@ namespace DAFP.TOOLS.ECS.Components
         {
             return GameUtils.RemovePet(pet, ref Groups);
         }
+
         public IEntity GetCurrentOwner()
         {
             return Host;

@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using DAFP.TOOLS.ECS;
+using JetBrains.Annotations;
+using UnityEngine;
 
 namespace DAFP.TOOLS.Common
 {
@@ -9,14 +11,21 @@ namespace DAFP.TOOLS.Common
         public bool IsVector3 { get; }
         public bool IsTransform => !IsVector3;
 
-        private PositionTarget(Vector3 v)
+        public PositionTarget(Vector3 v)
         {
             _vector = v;
             _transform = null;
             IsVector3 = true;
         }
 
-        private PositionTarget(Transform t)
+        public PositionTarget([NotNull]IEntity t)
+        {
+            _transform = t.GetWorldRepresentation().transform;
+            _vector = default;
+            IsVector3 = false;
+        }
+
+        public PositionTarget(Transform t)
         {
             _transform = t;
             _vector = default;

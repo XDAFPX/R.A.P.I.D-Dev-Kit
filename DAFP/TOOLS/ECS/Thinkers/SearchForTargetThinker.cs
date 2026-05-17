@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment.Filters;
@@ -20,9 +21,9 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         protected override void InternalTick(IEntity host, ITickerBase ticker)
         {
-            if (host is ICommonEntityInterface.ITargetDetectable _targetDetectable)
+            if (host is ITargetDetectable _targetDetectable)
             {
-                _targetDetectable.Target = _targetDetectable.ScanForTarget(EntityFilter).Some();
+                _targetDetectable.Target.Value = _targetDetectable.ScanForTarget(EntityFilter).Value;
             }
         }
 

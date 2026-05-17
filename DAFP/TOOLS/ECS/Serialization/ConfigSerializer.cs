@@ -70,7 +70,7 @@ namespace DAFP.TOOLS.ECS.Serialization
 
                     if (comp_data.TryGetValue(_entityComponent.Key.FullName, out var _o))
                         if (_entityComponent.Value is ISavable saveable)
-                            saveable.Load(_o as Dictionary<string, object>);
+                            saveable.Load(new GenericSaveData(_o as Dictionary<string, object>));
                 }
             }
         }

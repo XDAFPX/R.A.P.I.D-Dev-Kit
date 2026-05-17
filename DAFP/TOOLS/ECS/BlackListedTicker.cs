@@ -7,14 +7,14 @@ namespace DAFP.TOOLS.ECS
 {
     public abstract class BlackListedTicker<T> : ITicker<T> where T : ITickable
     {
-        protected HashSet<IGlobalGameState> BlackList;
+        protected HashSet<IGameState> BlackList;
 
-        protected BlackListedTicker(HashSet<IGlobalGameState> blackList, int priority)
+        protected BlackListedTicker(HashSet<IGameState> blackList, int priority)
         {
             BlackList = blackList;
         }
 
-        public bool IsAllowedToTick(IGlobalGameState state)
+        public bool IsAllowedToTick(IGameState state)
         {
             if (BlackList.Contains(state))
                 return false;

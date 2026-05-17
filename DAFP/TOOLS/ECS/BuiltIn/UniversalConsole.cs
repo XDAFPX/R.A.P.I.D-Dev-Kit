@@ -1,19 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Codice.Utils;
+using System.Text.RegularExpressions;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common;
-using DAFP.TOOLS.Common.Colors;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
-using PixelRouge.Colors;
+using R3;
 using RapidLib.DAFP.TOOLS.Common;
 using TMPro;
 using TripleA.Utils.Extensions;
 using UGizmo;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -27,39 +27,49 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     {
         [Inject]
         public UniversalConsole([Inject(Id = "ConsoleUnlocked")] bool unlocked,
-            [Inject(Id = "ConsoleFont")] Font consoleFont, [Inject(Id = "ConsoleTextSize")] float fontSize,
-            [Inject(Id = "ConsoleCommandInterpriter")]
-            ICommandInterpreter interpreter, UniversalInputControllerManager controllerManager,
-            [Inject(Id = "ConsoleColor")] Color consoleColor)
+            [Inject(Id = "ConsoleCommandInterpreter")]
+            ICommandInterpreter interpreter, ControllerManager controllerManager)
         {
             ConsoleUnlocked = unlocked;
-            ConsoleFont = consoleFont;
-            this.fontSize = fontSize;
-            TMPConsoleFont = TMP_FontAsset.CreateFontAsset(ConsoleFont);
             Interpreter = interpreter;
             this.controllerManager = controllerManager;
-            this.consoleColor = consoleColor;
             Interpreter.ChangeOwner(this);
+
+            this.ConsoleColor = Color.white;
+
+            this.ConsoleFontSize = 23;
+            ConsoleFont = Font.CreateDynamicFontFromOSFont(Font.GetOSInstalledFontNames()[0], 32);
+            TMPConsoleFont = TMP_FontAsset.CreateFontAsset(ConsoleFont);
         }
 
         protected ICommandInterpreter Interpreter;
-        private readonly UniversalInputControllerManager controllerManager;
-        private readonly Color consoleColor;
+        private readonly ControllerManager controllerManager;
+        protected readonly Color ConsoleColor;
         public bool ConsoleUnlocked;
         protected readonly Font ConsoleFont;
-        private readonly float fontSize;
-        protected readonly TMP_FontAsset TMPConsoleFont;
+        protected float ConsoleFontSize;
+        protected TMP_FontAsset TMPConsoleFont;
         private bool initialized;
 
 
         protected Canvas Root;
         protected VerticalLayoutGroup CommandLineContainer;
-        protected Transform SampleInputLineContainer;
+        protected Transform CurrentInputLineContainer;
         protected TMP_InputField CurrentInput;
         protected Transform SampleSetInputLineContainer;
         protected Transform SampleOutputLineContainer;
         protected readonly List<string> Inputs = new();
         protected int CurrentInputIndex;
+
+        // protected IEnumerable<Transform> AllPrintedLines =>
+        //     collect_all_printed_lines(CommandLineContainer.transform); //all lines including set ones not including
+
+        protected IEnumerable<Transform> AllProcessPrintedLines =>
+            collect_all_process_printed_lines(CommandLineContainer
+                .transform).Values; //all lines including set ones not including
+
+        //lines like the console's current input nor the first 2 disabled ones
+        protected int CursorY = 0;
 
         public virtual void Print(IMessage message)
         {
@@ -69,15 +79,74 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             var _results = new List<string>();
             SplitMessageIntoLines(_val, _results);
 
-            foreach (var _result in _results)
-                SpawnOutputCommand(SampleOutputLineContainer, CommandLineContainer.GetComponent<RectTransform>(),
-                    _result
-                );
+            MoveInputToLast(CurrentInputLineContainer);
 
-            MoveInputToLast(SampleInputLineContainer);
+            handle_each_output(_results);
+
+            MoveInputToLast(CurrentInputLineContainer);
 
             CheckIfCommandsDontFit(CommandLineContainer.GetComponent<RectTransform>(),
                 Root.GetComponent<RectTransform>());
+        }
+
+        private void handle_each_output(List<string> _results)
+        {
+            foreach (var _result in _results)
+            {
+                var _finalResult = handle_cursor_logic(_result);
+                if (CursorY > collect_all_process_printed_lines(CommandLineContainer.transform).Count)
+                {
+                    SpawnOutputCommandOrOverride(SampleOutputLineContainer, CommandLineContainer.transform,
+                        _finalResult
+                    );
+                }
+                else
+                {
+                    SpawnOutputCommandOrOverride(SampleOutputLineContainer, CommandLineContainer.transform,
+                        _finalResult, CursorY
+                    );
+                }
+            }
+        }
+
+        private string handle_cursor_logic(string _val)
+        {
+            CursorToBottom();
+            _val = ParseANSI(_val);
+            return _val;
+        }
+
+        protected virtual string ParseANSI(string raw) //--cursor control
+        {
+            var up = Regex.Match(raw, @"\x1b\[(\d+)A");
+            if (up.Success) CursorUp(int.Parse(up.Groups[1].Value));
+
+            var down = Regex.Match(raw, @"\x1b\[(\d+)B");
+            if (down.Success) CursorDown(int.Parse(down.Groups[1].Value));
+
+            // strip remaining escape codes and print clean text
+            var clean = Regex.Replace(raw, @"\x1b\[[^m]*m|\x1b\[\d+[AB]", "");
+            return clean;
+        }
+
+        public void MoveCursor(int delta)
+        {
+            CursorY = Mathf.Clamp(CursorY + delta, 0, AllProcessPrintedLines.Count() + 1);
+        }
+
+        public void CursorUp(int n = 1) => MoveCursor(-n);
+        public void CursorDown(int n = 1) => MoveCursor(n);
+        public void CursorToBottom() => MoveCursor(10000);
+
+        public static bool ContainsANSI(string input)
+        {
+            return Regex.IsMatch(input, @"\x1b\[[^a-zA-Z]*[a-zA-Z]");
+        }
+
+// strips all ANSI escape codes from string
+        public static string StripANSI(string input)
+        {
+            return Regex.Replace(input, @"\x1b\[[^a-zA-Z]*[a-zA-Z]", "");
         }
 
         protected virtual string ExtractStringFromMessage(IMessage message)
@@ -91,22 +160,45 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             clear(CommandLineContainer.transform);
         }
 
-        private void clear(Transform container)
+        private Dictionary<int, Transform> collect_all_process_printed_lines(Transform container)
+        {
+            var _result = new Dictionary<int, Transform>();
+            for (int _i = 0; _i < container.childCount; _i++)
+            {
+                var _child = container.GetChild(_i);
+                if (_child.gameObject.name == "SetInput line")
+                    continue;
+                bool _isLast = _child.gameObject == CurrentInput.gameObject ||
+                               _child.gameObject == CurrentInputLineContainer.gameObject;
+                if (!_isLast && _child.gameObject.activeSelf)
+                    _result.Add(_i, _child);
+            }
+
+            return _result;
+        }
+
+        private IEnumerable<Transform> collect_all_printed_lines(Transform container)
         {
             for (int _i = container.childCount - 1; _i >= 0; _i--)
             {
                 var _child = container.GetChild(_i);
-                bool _isLast = _child.gameObject == CurrentInput.gameObject || _child.gameObject == SampleInputLineContainer.gameObject;
+                bool _isLast = _child.gameObject == CurrentInput.gameObject ||
+                               _child.gameObject == CurrentInputLineContainer.gameObject;
                 if (!_isLast && _child.gameObject.activeSelf)
-                    Object.Destroy(_child.gameObject);
+                    yield return _child;
             }
         }
 
-        public string Procces(string input)
+        private void clear(Transform container)
         {
-            var _result = Interpreter.Procces(input);
+            collect_all_printed_lines(container).ForEach((transform => GameObject.Destroy(transform.gameObject)));
+        }
+
+        public virtual ITextProcess Process(string input)
+        {
+            var _result = Interpreter.Process(input);
             if (_result == null)
-                return @$" '{input}' is not recognized as an internal or external command";
+                return ITextProcess.Literal($" '{input}' is not recognized as an internal or external command");
             return _result;
         }
 
@@ -114,29 +206,31 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             if (!initialized)
             {
-                init();
+                Init();
             }
 
             UpdateTerminal();
         }
 
-        private void init()
+        protected virtual void Init()
         {
             var _data = Setup();
             Root = _data.Item2;
             CommandLineContainer = _data.Item1;
             SampleSetInputLineContainer = _data.Item3;
             SampleOutputLineContainer = _data.Item4;
-            SampleInputLineContainer = _data.Item5;
+            CurrentInputLineContainer = _data.Item5;
 
-            SampleInputLineContainer.gameObject.SetActive(true);
+            CurrentInputLineContainer.gameObject.SetActive(true);
             SampleOutputLineContainer.gameObject.SetActive(false);
             SampleSetInputLineContainer.gameObject.SetActive(false);
 
-            CurrentInput = SampleInputLineContainer.GetComponentInChildren<TMP_InputField>();
+            CurrentInput = CurrentInputLineContainer.GetComponentInChildren<TMP_InputField>();
             EnsureEventSystemExists(Root);
-            update_enableability();
             ensure_visibility();
+            Disable();
+            OutputStream = new Subject<IMessage>();
+            OutputStream.Subscribe(Print);
         }
 
         protected virtual void UpdateTerminal()
@@ -155,39 +249,94 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             if (Input.GetKeyDown(KeyCode.BackQuote))
             {
                 Enabled = !Enabled;
-                update_enableability();
             }
 
             CommandLineContainer.transform.localPosition = new Vector3(CommandLineContainer.transform.localPosition.x,
                 CommandLineContainer.transform.localPosition.y, 0);
             if (!Enabled)
                 return;
+            if (CurrentProcess != null)
+            {
+                if (_ctrl && Input.GetKeyDown(KeyCode.C))
+                {
+                    cts.Cancel();
+                    dispose_of_current_process();
+                    Debug.Log("[Console] Process canceled");
+                }
+
+                return;
+            }
 
 
-            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.UpArrow)) paste_command(-1);
+            UpdateTerminalEnabled(_ctrl);
+        }
 
-            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.DownArrow)) paste_command(1);
+        protected ITextProcess CurrentProcess;
+        private CancellationTokenSource cts;
+        public Subject<IMessage> OutputStream;
+
+
+        protected virtual void UpdateTerminalEnabled(bool ctrl)
+        {
+            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.UpArrow)) PasteCommand(-1);
+
+            if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.DownArrow)) PasteCommand(1);
 
             if (CurrentInput.isFocused && Input.GetKeyDown(KeyCode.Return))
             {
-                var _input = CurrentInput.text;
-                RefreshInput(CurrentInput);
-                SpawnSetCmdLine(SampleSetInputLineContainer, CommandLineContainer.transform, _input);
-                save_input_for_later(_input);
-                var result = Procces(_input);
-                if (result != "pass")
-                    Print(IMessage.Literal(result));
-                MoveInputToLast(SampleInputLineContainer);
-                CheckIfCommandsDontFit(CommandLineContainer.GetComponent<RectTransform>(),
-                    Root.GetComponent<RectTransform>());
+                HandleInput().Forget();
             }
 
-            if (CurrentInput.isFocused && _ctrl && Input.GetKeyDown(KeyCode.L))
+            if (CurrentInput.isFocused && ctrl && Input.GetKeyDown(KeyCode.L))
             {
                 clear(CommandLineContainer.transform);
             }
 
             select_field(CurrentInput);
+        }
+
+        protected virtual async UniTask HandleInput()
+        {
+            cts = new CancellationTokenSource();
+            var _input = CurrentInput.text;
+            var _result = Process(_input);
+            CurrentProcess = _result;
+            var _ctx = new TextProcessContext() { Log = OutputStream };
+
+
+            save_input_for_later(_input);
+            RefreshInput(CurrentInput);
+            SpawnSetCmdLine(SampleSetInputLineContainer, CommandLineContainer.transform, _input);
+
+            MoveInputToLast(CurrentInputLineContainer);
+
+            CurrentInputLineContainer.gameObject.SetActive(false);
+
+            try
+            {
+                await CurrentProcess.Execute(_ctx, cts.Token);
+                Print(IMessage.Literal("  "));
+            }
+            catch (OperationCanceledException)
+            {
+                Print(IMessage.Literal("  ^C"));
+            }
+
+
+            CurrentInputLineContainer.gameObject.SetActive(true);
+            dispose_of_current_process();
+            //--meta
+            RefreshInput(CurrentInput);
+            MoveInputToLast(CurrentInputLineContainer);
+            CheckIfCommandsDontFit(CommandLineContainer.GetComponent<RectTransform>(),
+                Root.GetComponent<RectTransform>());
+        }
+
+
+        private void dispose_of_current_process()
+        {
+            CurrentProcess = null;
+            cts.Dispose();
         }
 
         private void save_input_for_later(string input)
@@ -207,7 +356,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        private void paste_command(int i)
+        protected virtual void PasteCommand(int i)
         {
             if (Inputs.IsInBounds(CurrentInputIndex + i))
                 CurrentInputIndex += i;
@@ -237,13 +386,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        private void update_enableability()
-        {
-            if (Enabled)
-                Enable();
-            else
-                Disable();
-        }
 
         protected void CheckIfCommandsDontFit(RectTransform container, RectTransform root)
         {
@@ -269,19 +411,47 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         protected void SpawnSetCmdLine(Transform setInput, Transform container, string txt)
         {
             var _dupl = GameObject.Instantiate(setInput, container);
-
+            _dupl.gameObject.name = "SetInput line";
             _dupl.GetComponentsInChildren<TextMeshProUGUI>()[1].text = txt;
             _dupl.gameObject.SetActive(true);
             LayoutRebuilder.ForceRebuildLayoutImmediate(_dupl.GetChild(0).GetComponent<RectTransform>());
         }
 
-        protected void SpawnOutputCommand(Transform output, Transform container, string txt)
+        protected virtual bool IsTheOutputSpace(string output)
         {
-            var _dupl = GameObject.Instantiate(output, container);
+            return output.IsNullOrWhiteSpace();
+        }
 
-            _dupl.GetComponentsInChildren<TextMeshProUGUI>()[0].text = txt;
-            _dupl.gameObject.SetActive(true);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(_dupl.GetChild(0).GetComponent<RectTransform>());
+        protected void SpawnOutputCommandOrOverride(Transform output, Transform container,
+            string txt, int? childIndex = null)
+        {
+            try //--log any errors cuz they will be ignored if not 
+            {
+                if (IsTheOutputSpace(txt))
+                    txt = "";
+                var _lines = collect_all_process_printed_lines(CommandLineContainer.transform);
+
+                int _convertedChildIndex = 0;
+                if (childIndex.HasValue)
+                {
+                    _convertedChildIndex = _lines.Keys.ElementAt(childIndex.Value - 1);
+                    GameObject.Destroy(_lines[_convertedChildIndex].gameObject);
+                }
+
+                var _dupl = GameObject.Instantiate(output, container);
+                _dupl.GetComponentsInChildren<TextMeshProUGUI>()[0].text = txt;
+                _dupl.gameObject.SetActive(true);
+                _dupl.gameObject.name = "Command line " + Guid.NewGuid().ToString();
+
+                if (childIndex.HasValue)
+                    _dupl.SetSiblingIndex(_convertedChildIndex);
+
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_dupl.GetChild(0).GetComponent<RectTransform>());
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
         }
 
         protected void RefreshInput(TMP_InputField input)
@@ -298,10 +468,16 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
 
-        protected virtual string GetDefaultPrefix()
+        protected virtual string GetDefaultInputFieldPrefix()
         {
             return @"C:\Users\Admin > ";
         }
+
+        protected virtual int GetDefaultCommandLineHight()
+        {
+            return 40;
+        }
+
 
         protected (VerticalLayoutGroup, Canvas, Transform, Transform, Transform)
             Setup()
@@ -315,10 +491,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             configure_cmd_line_container(_cmdcontainer, out var _sampleCommandInput, out var _sampleInputRect);
             configure_cmd_line_container(_cmdcontainer, out var _sampleCommand, out var _sampleRect);
             configure_cmd_line_container(_cmdcontainer, out var _sampleComman, out var _sampleOutputRect);
-            var _sampleText = configure_set_input_field(_sampleRect, GetDefaultPrefix(), consoleColor);
-            var _sampleOutput = configure_output(_sampleOutputRect, GetDefaultPrefix(), consoleColor);
+            var _sampleText = configure_set_input_field(_sampleRect, GetDefaultInputFieldPrefix(), ConsoleColor);
+            var _sampleOutput = configure_output(_sampleOutputRect, GetDefaultInputFieldPrefix(), ConsoleColor);
 
-            var _sampleInput = configure_input_field(_sampleInputRect, GetDefaultPrefix(), consoleColor);
+            var _sampleInput = configure_input_field(_sampleInputRect, GetDefaultInputFieldPrefix(), ConsoleColor);
 
 
             return (_vertical, _canvas, _sampleRect, _sampleOutputRect, _sampleInputRect);
@@ -333,8 +509,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             _sampleInput.gameObject.AddOrGetComponent<RectTransform>();
             _sampleInput.transform.SetParent(_sampleText.transform.parent);
             GameObject.Destroy(_sampleText.gameObject);
+            sampleRect.gameObject.name = "Input continer";
             ConfigureInputFieldForText(_sampleInput, TMPConsoleFont, _textContainer, _sampleDir, color, "", "",
-                fontSize);
+                ConsoleFontSize);
             _textContainer.transform.localScale = Vector3.one;
             _sampleDir.transform.localScale = Vector3.one;
             _sampleInput.transform.localScale = Vector3.one;
@@ -348,7 +525,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 configure_text_line(sampleRect, prefix, color, out var _sampleDir, out var _textContainer);
             GameObject.Destroy(_sampleDir.gameObject);
 
-            configure_text(_sampleText, TMPConsoleFont, "sample output", fontSize, color);
+            configure_text(_sampleText, TMPConsoleFont, "sample output", ConsoleFontSize, color);
             _textContainer.transform.localScale = Vector3.one;
             _sampleText.transform.localScale = Vector3.one;
             LayoutRebuilder.ForceRebuildLayoutImmediate(_textContainer.GetComponent<RectTransform>());
@@ -359,7 +536,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             var _sampleText =
                 configure_text_line(sampleRect, prefix, color, out var _sampleDir, out var _textContainer);
-            configure_text(_sampleText, TMPConsoleFont, "sample input", fontSize, color);
+            configure_text(_sampleText, TMPConsoleFont, "sample input", ConsoleFontSize, color);
             _textContainer.transform.localScale = Vector3.one;
             _sampleText.transform.localScale = Vector3.one;
             _sampleDir.transform.localScale = Vector3.one;
@@ -367,7 +544,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return _sampleText;
         }
 
-        private TextMeshProUGUI configure_text_line(RectTransform sampleRect, string prefix, Color color,
+        protected virtual TextMeshProUGUI configure_text_line(RectTransform sampleRect, string prefix, Color color,
             out TextMeshProUGUI sampleDir,
             out HorizontalLayoutGroup textContainer)
         {
@@ -378,26 +555,32 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             textContainer.transform.SetParent(sampleRect);
             textContainer.GetComponent<RectTransform>().AnchorTopLeft();
             configure_layout(textContainer);
-            var _a = textContainer.padding;
-            _a.left += 5;
-            textContainer.padding = _a;
+            adjust_text_container_padding(textContainer, out var _a);
 
             sampleDir.transform.SetParent(textContainer.transform);
-            configure_text(sampleDir, TMPConsoleFont, prefix, fontSize, color);
+            configure_text(sampleDir, TMPConsoleFont, prefix, ConsoleFontSize, color);
             _sampleText.transform.SetParent(textContainer.transform);
             return _sampleText;
         }
 
-        private static void configure_cmd_line_container(GameObject cmdcontainer, out GameObject sampleCommandInput,
+        protected virtual void adjust_text_container_padding(HorizontalLayoutGroup textContainer, out RectOffset _a)
+        {
+            _a = textContainer.padding;
+            _a.left += 5;
+            textContainer.padding = _a;
+        }
+
+        protected virtual void configure_cmd_line_container(GameObject cmdcontainer, out GameObject sampleCommandInput,
             out RectTransform sampleRect)
         {
             sampleCommandInput = new GameObject("CMD 101");
             // sample_command_input.SetActive(false);
             sampleCommandInput.transform.SetParent(cmdcontainer.transform);
             sampleRect = sampleCommandInput.AddOrGetComponent<RectTransform>();
-            sampleRect.sizeDelta = new Vector2(0, 40);
+            sampleRect.sizeDelta = new Vector2(0, GetDefaultCommandLineHight());
             sampleRect.localScale = Vector3.one;
         }
+
 
         private static void configure_text(TextMeshProUGUI text, TMP_FontAsset font, string txt, float size,
             Color color,
@@ -436,7 +619,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         /// <param name="placeholderText">Optional placeholder text.</param>
         /// <param name="initialText">Optional initial text.</param>
         /// <param name="fontSize">Font size.</param>
-        public static void ConfigureInputFieldForText(
+        protected virtual void ConfigureInputFieldForText(
             TMP_InputField inputField,
             TMP_FontAsset font, HorizontalOrVerticalLayoutGroup group,
             TextMeshProUGUI dir, Color color,
@@ -450,16 +633,13 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 return;
             }
 
-
+            inputField.gameObject.name = "Console's Input";
             inputField.transform.GetComponent<RectTransform>().sizeDelta =
                 new Vector2(2000, dir.GetPreferredValues().y);
             var _img = inputField.gameObject.AddComponent<Image>();
             _img.color = new Color(0, 0, 0, 0);
             _img.sprite = Sprite.Create(new Texture2D(2, 2), new Rect(Vector2.one, Vector2.one), Vector2.zero);
-            inputField.caretWidth = 10;
-            inputField.customCaretColor = true;
-            inputField.caretColor = color;
-            inputField.caretBlinkRate = (float)(Math.PI * 0.3);
+            ConfigureCaretAppearance(inputField, color);
             inputField.onValueChanged.AddListener(arg0 =>
                 LayoutRebuilder.ForceRebuildLayoutImmediate(group.GetComponent<RectTransform>()));
             inputField.transition = Selectable.Transition.None;
@@ -508,6 +688,14 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             // }
         }
 
+        protected virtual void ConfigureCaretAppearance(TMP_InputField inputField, Color color)
+        {
+            inputField.caretWidth = 10;
+            inputField.customCaretColor = true;
+            inputField.caretColor = color;
+            inputField.caretBlinkRate = (float)(Math.PI * 0.3);
+        }
+
         public static void ResizeToFitText(TextMeshProUGUI tmp)
         {
             if (tmp == null) return;
@@ -520,7 +708,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             // Get preferred size of the text
         }
 
-        protected virtual Canvas root_init(out GameObject root, out GameObject cmdcontainer, out VerticalLayoutGroup vertical)
+        protected virtual Canvas root_init(out GameObject root, out GameObject cmdcontainer,
+            out VerticalLayoutGroup vertical)
         {
             root = new GameObject("ConsoleRoot");
 
@@ -562,7 +751,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return _canvas;
         }
 
-        private static void configure_layout(HorizontalOrVerticalLayoutGroup layout, bool stretch = false)
+        protected virtual void configure_layout(HorizontalOrVerticalLayoutGroup layout, bool stretch = false)
         {
             if (layout == null)
             {
@@ -581,12 +770,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             // layout.childAlignment = TextAnchor.UpperCenter;
 
             // Apply padding
-            var _padding = layout.padding;
-            _padding.top = 5;
-            layout.padding = _padding;
+            apply_padding_spacing_for_layout(layout, out var _padding);
+
+
             var _rect = layout.GetComponent<RectTransform>();
             // Apply spacing
-            layout.spacing = 5;
             if (stretch)
             {
                 _rect.anchorMin = new Vector2(0, 0);
@@ -596,6 +784,15 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
 
             _rect.localScale = Vector3.one;
+        }
+
+        protected virtual void apply_padding_spacing_for_layout(HorizontalOrVerticalLayoutGroup layout,
+            out RectOffset _padding)
+        {
+            _padding = layout.padding;
+            _padding.top = 5;
+            layout.padding = _padding;
+            layout.spacing = 5;
         }
 
 
@@ -650,26 +847,43 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        public bool Enabled { set; get; }
+        public bool Enabled
+        {
+            set
+            {
+                if (value) Enable();
+                else Disable();
+            }
+            get => enabled;
+        }
+
+        private bool enabled;
+
         private List<IInputController> controllers_that_were_disabled;
 
         public void Enable()
         {
-            Enabled = true;
+            enabled = true;
             Root.gameObject.SetActive(true);
 
 
             controllers_that_were_disabled =
                 controllerManager.Controllers.Enabled().ToList();
             controllerManager.Controllers.DisableAll();
+
+            CheckIfCommandsDontFit(CommandLineContainer.GetComponent<RectTransform>(),
+                Root.GetComponent<RectTransform>());
         }
 
         public void Disable()
         {
-            Enabled = false;
+            enabled = false;
             Root.gameObject.SetActive(false);
 
             controllers_that_were_disabled?.EnableAll();
+
+            CheckIfCommandsDontFit(CommandLineContainer.GetComponent<RectTransform>(),
+                Root.GetComponent<RectTransform>());
         }
 
         public List<ICommandInterpreter> Children { get; } = new List<ICommandInterpreter>();

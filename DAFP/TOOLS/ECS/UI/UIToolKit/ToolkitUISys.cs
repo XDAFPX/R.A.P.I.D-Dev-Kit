@@ -19,7 +19,7 @@ namespace DAFP.TOOLS.ECS.UIToolKit
             set => name = value;
         }
 
-        [GetComponentCache] protected UIDocument Document;
+        [GetComponent] protected UIDocument Document;
         protected HashSet<TElement> Elements = new();
 
 

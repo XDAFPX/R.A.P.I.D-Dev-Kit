@@ -10,7 +10,10 @@ using DAFP.TOOLS.ECS.Audio;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.GlobalState;
+using DAFP.TOOLS.ECS.GlobalState.CursorSates;
+using DAFP.TOOLS.ECS.GlobalState.GameStates;
 using DAFP.TOOLS.ECS.Serialization;
+using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.UI;
 using NRandom;
@@ -27,20 +30,20 @@ using Random = UnityEngine.Random;
 namespace DAFP.TOOLS.Injection
 {
     public abstract class
-        VideoGame<TGameStateService, TCursorService, TSaveService, TConfigService, TSettingsSaveService,
+        VideoGame<TWorld, TGameStateService, TCursorService, TSaveService, TSettingsSaveService,
             TAudioService, TRandomService, TConsoleService, TGizmosService, TDebugService,
-            TConsoleInterpriter, TAssetManager, TModManager> : MonoInstaller
+            TCommandInterpreter, TAssetManager, TModManager> : MonoInstaller, IVideoGame
+        where TWorld : World
         where TGameStateService : IGlobalGameStateHandler
-        where TCursorService : IGlobalCursorStateHandler
+        where TCursorService : ICursorStateHandler
         where TSaveService : ISaveSystem
-        where TConfigService : IGlobalConfigStateHandler
         where TSettingsSaveService : IGlobalSettingsSaveSystem
         where TAudioService : IAudioSystem
         where TRandomService : IRandom, new()
         where TConsoleService : IConsoleMessenger
         where TGizmosService : IGlobalGizmos
         where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IConsoleMessenger>
-        where TConsoleInterpriter : ICommandInterpreter
+        where TCommandInterpreter : ICommandInterpreter
         where TAssetManager : IAssetManager
         where TModManager : IModManager
 
@@ -50,19 +53,7 @@ namespace DAFP.TOOLS.Injection
         [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]
         private SerializableInterface<IMod>[] Mods;
 
-        protected abstract Dictionary<Type, Type> GetServices();
-        protected abstract string GetGameDefaultGameState(InjectContext arg);
-        protected abstract string GetDefaultDifficultyState(InjectContext arg);
-        protected abstract string GetDefaultCursorState(InjectContext arg);
-        protected abstract string GetDefaultDifficultyStateDomainName(InjectContext arg);
-        protected abstract bool GetDefaultConsoleUnlockState(InjectContext arg);
-
-        protected virtual Color GetDefaultConsoleColor()
-        {
-            return Color.white;
-        }
-
-        protected abstract Font GetDefaultConsoleFont(InjectContext arg);
+        protected virtual bool GetDefaultConsoleUnlockState(InjectContext arg) => Application.isEditor;
 
 
         protected IList<DebugDrawLayer> GetDefaultDebugDrawLayers(InjectContext arg)
@@ -98,10 +89,6 @@ namespace DAFP.TOOLS.Injection
             return UISystemPrefabs ?? Array.Empty<GameObject>();
         }
 
-        protected virtual float GetDefaultConsoleFontSize()
-        {
-            return 23;
-        }
 
         protected virtual IEnumerable<Type> GetDefaultConsoleCommands()
         {
@@ -117,6 +104,10 @@ namespace DAFP.TOOLS.Injection
                 typeof(BuiltInCommands.NoclipCommand),
                 typeof(BuiltInCommands.PlayersCommand),
                 typeof(BuiltInCommands.ClearCommand),
+                typeof(BuiltInCommands.GodCommand),
+                typeof(BuiltInCommands.Buddha),
+                typeof(BuiltInCommands.ShowFPSCommand),
+                typeof(BuiltInCommands.ShowPosCommand)
             };
         }
 
@@ -126,23 +117,26 @@ namespace DAFP.TOOLS.Injection
                 Container.Bind<IConsoleCommand>().To(_consoleCommand).AsTransient().Lazy();
         }
 
-        protected virtual void InstallTickers()
+        protected virtual void InstallTickers() //--TODO organize this mess 
         {
             Container.Bind<ITickerBase>().WithId("DefaultPhysicsComponentGameplayTicker")
-                .FromMethod(_ => new FixedUpdateTicker<IEntityComponent>(new HashSet<IGlobalGameState>())).AsTransient()
+                .FromMethod(_ => new FixedUpdateTicker<IEntityComponent>(new HashSet<IGameState>())).AsTransient()
                 .Lazy();
 
             Container.Bind<ITicker<IEntity>>().WithId("DefaultEffectsEntityGameplayTicker")
-                .FromMethod(_ => new FixedUpdateTicker<IEntity>(new HashSet<IGlobalGameState>())).AsTransient().Lazy();
+                .FromMethod(_ => new FixedUpdateTicker<IEntity>(new HashSet<IGameState>())).AsTransient().Lazy();
             Container.Bind<ITicker<IEntity>>().WithId("DefaultUpdateEntityGameplayTicker")
-                .FromMethod(_ => new UpdateTicker<IEntity>(new HashSet<IGlobalGameState>())).AsTransient().Lazy();
+                .FromMethod(_ => new UpdateTicker<IEntity>(new HashSet<IGameState>())).AsTransient().Lazy();
+            Container.Bind<ITickerBase>().WithId("ViewModelUpdate")
+                .FromMethod(_ => new UpdateTicker<IEntityComponent>(new(), 10)).AsCached();
         }
 
         protected abstract void InstallAdditional();
 
         public sealed override void InstallBindings()
         {
-            bind_default_strings();
+            bind_constants();
+            bind_info_system();
             bind_asset_manager();
             bind_input_manager();
             bind_debug_systems();
@@ -150,10 +144,9 @@ namespace DAFP.TOOLS.Injection
             bind_cursor_systems();
             bind_game_state_systems();
             bind_audio();
-            bind_config();
             bind_global_boards();
             InstallTickers();
-            bind_dynamic_services();
+            bind_world();
             bind_save_systems();
             bind_ui_systems();
             bind_console();
@@ -161,29 +154,29 @@ namespace DAFP.TOOLS.Injection
             InstallAdditional();
         }
 
-
-        private void bind_default_strings()
+        protected virtual void bind_constants()
         {
-            Container.Bind<string>().WithId("DefaultGameState").FromMethod(GetGameDefaultGameState).AsCached();
-            Container.Bind<string>().WithId("DefaultDifficulty").FromMethod(GetDefaultDifficultyState).AsCached();
-            Container.Bind<string>().WithId("DefaultDifficultyDomain").FromMethod(GetDefaultDifficultyStateDomainName)
-                .AsCached();
-            Container.Bind<string>().WithId("DefaultCursorState").FromMethod(GetDefaultCursorState).AsCached();
-            Container.Bind<float>().WithId("ConsoleTextSize").FromMethod(GetDefaultConsoleFontSize).AsCached();
-            Container.Bind<Font>().WithId("ConsoleFont").FromMethod(GetDefaultConsoleFont).AsCached();
+            // Container.Bind<>().WithId("DefaultGameState").FromMethod(GetGameDefaultGameState).AsCached();
+            // Container.Bind<string>().WithId("DefaultDifficulty").FromMethod(GetDefaultDifficultyState).AsCached();
+            // Container.Bind<string>().WithId("DefaultDifficultyDomain").FromMethod(GetDefaultDifficultyStateDomainName)
+            //     .AsCached();
+            // Container.Bind<string>().WithId("DefaultCursorState").FromMethod(GetDefaultCursorState).AsCached();
             Container.Bind<bool>().WithId("ConsoleUnlocked").FromMethod(GetDefaultConsoleUnlockState).AsCached();
-            Container.Bind<Color>().WithId("ConsoleColor").FromMethod(GetDefaultConsoleColor).AsCached();
-            Container.Bind<IEventBus>().WithId("GlobalStateBus")
-                .FromMethod(_ => new GlobalStateBus()).AsCached().NonLazy();
 
-            Container.Bind<IEventBus>().WithId("GlobalGameEventsBus")
+            Container.Bind<IEventBus>().WithId(IVideoGame.GAME_BUS_NAME)
                 .FromMethod(_ => new GlobalStateBus()).AsCached().NonLazy();
+            
         }
-
+        
+        private void bind_info_system()
+        {
+            Container.Bind<InfoSystem>().AsSingle();
+            Container.Bind<ITickable>().To<InfoSystem>().FromResolve();
+        }
 
         private void bind_input_manager()
         {
-            Container.Bind<UniversalInputControllerManager>().AsSingle().NonLazy();
+            Container.Bind<ControllerManager>().AsSingle().NonLazy();
         }
 
         private void bind_debug_systems()
@@ -211,20 +204,34 @@ namespace DAFP.TOOLS.Injection
 
         private void bind_cursor_systems()
         {
+            Container.Bind<IGlobalCursorState>().WithId("DefaultCursorState").FromMethod(GetDefaultCursor);
             Container.Bind<TCursorService>().AsSingle().NonLazy();
-            Container.Bind<IGlobalCursorStateHandler>().To<TCursorService>().FromResolve();
+            Container.Bind<ICursorStateHandler>().To<TCursorService>().FromResolve();
             Container.Bind<IGlobalStateHandlerBase>().To<TCursorService>().FromResolve();
             Container.Bind<ITickable>().To<TCursorService>().FromResolve();
             Container.Bind<IInitializable>().To<TCursorService>().FromResolve();
         }
 
+        protected virtual IGlobalCursorState GetDefaultCursor(InjectContext context)
+        {
+            return new BasicCursorState(null, new CursorSettings() { IsVisible = true, Mode = CursorLockMode.None },
+                "Default");
+        }
+
         private void bind_game_state_systems()
         {
+            Container.Bind<IGameState>().WithId("DefaultGameState").FromMethod(GetDefaultGameState);
             Container.Bind<TGameStateService>().AsSingle().NonLazy();
             Container.Bind<IGlobalGameStateHandler>().To<TGameStateService>().FromResolve();
             Container.Bind<IGlobalStateHandlerBase>().To<TGameStateService>().FromResolve();
             Container.Bind<ITickable>().To<TGameStateService>().FromResolve();
             Container.Bind<IInitializable>().To<TGameStateService>().FromResolve();
+        }
+
+
+        protected virtual IGameState GetDefaultGameState(InjectContext ctx)
+        {
+            return ctx.Container.Instantiate<NormalGameState<NormalCursorState>>();
         }
 
         private void bind_audio()
@@ -233,14 +240,6 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<IAudioSystem>().To<TAudioService>().FromResolve();
         }
 
-        private void bind_config()
-        {
-            Container.Bind<TConfigService>().AsSingle().NonLazy();
-            Container.Bind<IGlobalConfigStateHandler>().To<TConfigService>().FromResolve();
-            Container.Bind<ITickable>().To<TConfigService>().FromResolve();
-            Container.Bind<IInitializable>().To<TConfigService>().FromResolve();
-            Container.Bind<IGlobalStateHandlerBase>().To<TConfigService>().FromResolve();
-        }
 
         private void bind_global_boards()
         {
@@ -249,16 +248,13 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<ITickable>().To<UtillGlobalBoard>().FromResolve();
         }
 
-        private void bind_dynamic_services()
+        private void bind_world()
         {
-            if (GetServices().Count == 0) return;
-
-            foreach (var _kv in GetServices())
-                Container.Bind(_kv.Key)
-                    .To(_kv.Value)
-                    .FromNewComponentOnNewGameObject()
-                    .AsSingle()
-                    .NonLazy();
+            Container.Bind<World>()
+                .To<TWorld>()
+                .FromNewComponentOnNewGameObject()
+                .AsSingle()
+                .NonLazy();
         }
 
         private void bind_save_systems()
@@ -285,10 +281,10 @@ namespace DAFP.TOOLS.Injection
         {
             bind_commands();
 
-            Container.BindInterfacesAndSelfTo<TConsoleInterpriter>().AsSingle().NonLazy();
+            Container.BindInterfacesAndSelfTo<TCommandInterpreter>().AsSingle().NonLazy();
             Container.Bind<ICommandInterpreter>()
-                .WithId("ConsoleCommandInterpriter")
-                .To<TConsoleInterpriter>()
+                .WithId("ConsoleCommandInterpreter")
+                .To<TCommandInterpreter>()
                 .FromResolve();
 
             Container.Bind<TConsoleService>().AsSingle().NonLazy();
@@ -312,5 +308,10 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<IMod[]>().FromMethod((context => Mods.ToValues().ToArray())).AsCached();
             Container.Bind<IModManager>().To<TModManager>().FromResolve();
         }
+    }
+
+    public interface IVideoGame
+    {
+        public const string GAME_BUS_NAME = "GameBus";
     }
 }

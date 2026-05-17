@@ -3,7 +3,7 @@ using DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
-    public interface IStat<T> : INameable, IStatBase, IRandomizeable 
+    public interface IStat<T> : INameable, IStatBase, IRandomizeable
 
     {
         public T Value { get; set; }
@@ -78,6 +78,6 @@ namespace DAFP.TOOLS.ECS.BigData
 
         void AddModifier(StatModifier<T> modifier);
         void RemoveModifier(StatModifier<T> modifier);
-
+        void RemoveModifier(string name);
     }
 }

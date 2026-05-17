@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace UnityGetComponentCache
 {
-    [CustomPropertyDrawer(typeof(GetComponentCacheAttribute))]
+    [CustomPropertyDrawer(typeof(GetComponentAttribute))]
     public class GetComponentCacheDrawer : PropertyDrawer
     {
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)

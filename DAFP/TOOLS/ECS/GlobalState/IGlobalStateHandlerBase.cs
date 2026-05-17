@@ -1,9 +1,10 @@
-﻿using DAFP.TOOLS.Common;
+﻿using BDeshi.BTSM;
+using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.Serialization;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
-    public interface IGlobalStateHandlerBase : IResetable, ISavable
+    public interface IGlobalStateHandlerBase : IResetable, ISavable 
     {
     }
 }

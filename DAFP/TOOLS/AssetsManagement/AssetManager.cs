@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using DAFP.TOOLS.ECS;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
 using JetBrains.Annotations;
 using UnityEngine;
@@ -54,6 +55,7 @@ namespace DAFP.GAME.Assets
             GameObject.Destroy(obj);
         }
 
+
         public async void Spawn<T>(string prefix, string uName, Action<T> onComplete) where T : IGamePoolableBase
         {
             foreach (var _pool in _pools)
@@ -70,7 +72,16 @@ namespace DAFP.GAME.Assets
                     if (_result is T _typedObj)
                     {
                         _result.OnSpawn();
+
+
                         onComplete?.Invoke(_typedObj);
+
+                        if (_result is IEntity _ent)
+                        {
+                            var _e = new OnEntitySpawnedEvent(_ent);
+                            _ent.BroadcastEvent(_e);
+                        }
+
                         break;
                     }
                     else

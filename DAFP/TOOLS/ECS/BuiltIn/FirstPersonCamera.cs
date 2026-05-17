@@ -5,6 +5,7 @@ using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
+using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.ViewModel;
 using UnityEngine;
@@ -162,9 +163,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 SwaySpeed * Time.deltaTime);
         }
 
-        public override NonEmptyList<IViewModel> SetupView()
+        public override IEnumerable<IViewModel> SetupView()
         {
-            return new NonEmptyList<IViewModel> { new EmptyView() };
+            return new EmptyView().ToEnumerable();
         }
 
         [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
@@ -211,9 +212,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             LastInput = vector2;
         }
 
-        public override void Load(Dictionary<string, object> save)
+        public override void Load(ISaveData saveData)
         {
-            base.Load(save);
+            base.Load(saveData);
             xRotation = transform.localRotation.eulerAngles.x;
         }
     }

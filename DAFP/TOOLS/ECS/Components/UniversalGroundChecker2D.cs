@@ -67,9 +67,6 @@ namespace DAFP.TOOLS.ECS.Components
         {
         }
 
-        protected override void OnStart()
-        {
-        }
 
 #if UNITY_EDITOR
         private void OnDrawGizmos()

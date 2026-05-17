@@ -13,12 +13,12 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 {
     public class TriggerEntity : CollidableFilterActionEntity<TriggerContext>
     {
-        private void OnTriggerEnter(Collider other) => handle(TriggerEvent.Enter, new TriggerCollider(other));
-        private void OnTriggerEnter2D(Collider2D other) => handle(TriggerEvent.Enter, new TriggerCollider(other));
-        private void OnTriggerExit(Collider other) => handle(TriggerEvent.Exit, new TriggerCollider(other));
-        private void OnTriggerExit2D(Collider2D other) => handle(TriggerEvent.Exit, new TriggerCollider(other));
+        private void OnTriggerEnter(Collider other) => handle(TriggerEvent.Enter, new UniversalCollider(other));
+        private void OnTriggerEnter2D(Collider2D other) => handle(TriggerEvent.Enter, new UniversalCollider(other));
+        private void OnTriggerExit(Collider other) => handle(TriggerEvent.Exit, new UniversalCollider(other));
+        private void OnTriggerExit2D(Collider2D other) => handle(TriggerEvent.Exit, new UniversalCollider(other));
 
-        private void handle(TriggerEvent triggerEvent, TriggerCollider collider)
+        private void handle(TriggerEvent triggerEvent, UniversalCollider collider)
         {
             var ctx = new TriggerContext(triggerEvent, collider);
             Eval(ctx);

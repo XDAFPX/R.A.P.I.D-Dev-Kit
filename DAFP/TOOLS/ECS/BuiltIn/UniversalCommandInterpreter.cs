@@ -12,6 +12,7 @@ using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using ModestTree;
 using NRandom;
+using RapidLib.DAFP.TOOLS.Common;
 using UGizmo;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -29,11 +30,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 _ownable.ChangeOwner(this);
         }
 
-        public virtual string Procces(string input)
+        public virtual ITextProcess Process(string input)
         {
             foreach (var _ownable in Children)
             {
-                var result = _ownable.Procces(input);
+                var result = _ownable.Process(input);
                 if (result != null)
                     return result;
             }
@@ -41,7 +42,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return null;
         }
 
-        public List<ICommandInterpreter> Children { get; } = new();
+        public List<ICommandInterpreter> Children { get; } 
         public List<ICommandInterpreter> Owners { get; } = new();
 
     }

@@ -23,7 +23,6 @@ namespace DAFP.TOOLS.ECS.Thinkers
     {
         // -- Dependencies
         [Inject] public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
-        [Inject(Id = "GlobalStateBus")] protected IEventBus GlobalStateBus;
 
         [Inject] protected DiContainer Injector;
         [Inject] protected World World;

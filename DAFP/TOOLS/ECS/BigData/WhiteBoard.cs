@@ -28,7 +28,7 @@ namespace DAFP.TOOLS.ECS.BigData
         public abstract T MinValue { get; set; }
         public abstract T DefaultValue { get; set; }
 
-        protected IEntity Host => ((IPetOf<IEntity,IStatBase>)this).GetCurrentOwner();
+        protected IEntity Host => ((IPetOf<IEntity, IStatBase>)this).GetCurrentOwner();
 
 
 #if UNITY_EDITOR
@@ -156,6 +156,11 @@ namespace DAFP.TOOLS.ECS.BigData
                 return;
             OnModifierRemoved?.Invoke(modifier);
             Modifiers.RemoveAll((@interface => @interface.Value.Equals(modifier)));
+        }
+
+        public void RemoveModifier(string name)
+        {
+            RemoveModifier(Modifiers.ToValues().OfType<StatModifier<T>>().FindByName(Name));
         }
 
         protected abstract void ResetInternal();

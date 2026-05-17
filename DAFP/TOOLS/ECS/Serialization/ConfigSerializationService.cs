@@ -8,6 +8,7 @@ using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Serialization
 {
+    [Obsolete("Remenants of the old config system. Will be removed")]
     public class ConfigSerializationService : ISerializationService
     {
         public string GetFullSavePath(string domainName, string stateName, string name)
@@ -56,10 +57,10 @@ namespace DAFP.TOOLS.ECS.Serialization
 
         public void Save(Dictionary<string, object> data, string domainName, string stateName, string name)
         {
-            var path = ISerializationService.ConstructSavePath(domainName, stateName, name);
-            ResourceSaver.SaveTextToResources(path.FolderPath, path.FileName,
-                JsonConvert.SerializeObject(data, Formatting.Indented,
-                    new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }));
+            // var path = ISerializationService.ConstructSavePath(domainName, stateName, name);
+            // ResourceSaver.SaveTextToResources(path.FolderPath, path.FileName,
+            //     JsonConvert.SerializeObject(data, Formatting.Indented,
+            //         new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }));
         }
 
         public Dictionary<string, object> Load(string domainName, string stateName, string name)
