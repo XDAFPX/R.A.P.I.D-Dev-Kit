@@ -22,7 +22,11 @@ namespace DAFP.TOOLS.ECS.GlobalState
 
         public override string StateName { get; }
         public override BtStatus LastStatus { get; } = BtStatus.Success;
-        
+        public bool CanTransitionTo(IState state)
+        {
+            return true;
+        }
+
         private readonly CursorSettings settings;
 
         public override void EnterState()
@@ -58,7 +62,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
         public bool IsVisible { get; init; }
     }
 
-    public interface IGlobalCursorState : IState
+    public interface IGlobalCursorState : IState,IDefinedState
     {
         public CursorAnimation2D Animation { get; }
     }

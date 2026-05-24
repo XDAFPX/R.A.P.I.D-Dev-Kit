@@ -7,7 +7,7 @@ namespace DAFP.TOOLS.ECS
 {
     public interface IEntityComponent : ITickable, IGameObjectProvider
     {
-        public ITickerBase EntityComponentTicker { get; }
+        public ITicker EntityComponentTicker { get; }
         public void Register(IEntity entity);
         public void Initialize();
         public IEnumerable<IDebugDrawer> SetupDebugDrawers();

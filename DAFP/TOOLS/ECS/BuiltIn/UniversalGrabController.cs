@@ -27,7 +27,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private LayerMask Mask;
 
         [Inject(Id = "DefaultPhysicsComponentGameplayTicker")]
-        public override ITickerBase EntityComponentTicker { get; }
+        public override ITicker EntityComponentTicker { get; }
 
         protected override void OnTick()
         {

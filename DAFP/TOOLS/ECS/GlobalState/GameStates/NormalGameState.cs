@@ -12,12 +12,17 @@ namespace DAFP.TOOLS.ECS.GlobalState.GameStates
     {
         public override string StateName { get; } = "Normal";
         public override BtStatus LastStatus { get; } = BtStatus.Success;
+        public bool CanTransitionTo(IState state)
+        {
+            return true;
+        }
+
         [Inject] private ICursorStateHandler cursor;
         [Inject] private ControllerManager controller_manager;
 
         public override void EnterState()
         {
-            cursor.TransitionTo<TCursorState>();
+            cursor.TryTransitionTo<TCursorState>();
             controller_manager.Controllers.OfType<GameplayInputController>().EnableAll();
         }
 

@@ -4,7 +4,7 @@ using DAFP.TOOLS.ECS.Serialization;
 
 namespace DAFP.TOOLS.ECS.GlobalState
 {
-    public interface IGlobalStateHandlerBase : IResetable, ISavable 
+    public interface IGlobalStateHandlerBase : IResetable, ISavable
     {
     }
 }

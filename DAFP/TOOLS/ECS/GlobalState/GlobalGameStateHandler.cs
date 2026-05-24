@@ -7,8 +7,8 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.GlobalState
 {
     // 3) Your specialized handler now simply derives from the generic manager
-    public abstract class GlobalGameStateHandler
-        : GlobalStateHandler<IGameState>, IGlobalGameStateHandler
+    public abstract class GameStateHandler
+        : GlobalStateHandler<IGameState>, IGameStateHandler
     {
         [Inject(Id = IVideoGame.GAME_BUS_NAME)]
         private IEventBus bus;
@@ -19,11 +19,11 @@ namespace DAFP.TOOLS.ECS.GlobalState
     }
 
     // 4) The game‐specific interfaces
-    public interface IGameState : IState
+    public interface IGameState : IState,IDefinedState
     {
     }
 
-    public interface IGlobalGameStateHandler : Zenject.ITickable, IInitializable,
+    public interface IGameStateHandler : Zenject.ITickable, IInitializable,
         IGlobalStateHandler<IGameState>
     {
     }

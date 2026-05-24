@@ -20,7 +20,7 @@ namespace RapidLib.DAFP.TOOLS.ECS.Components.Movement.Overrides
 
             // if (wish_speed > 30)
             //     wish_speed = 30;
-            var _currentSpeed = ctx.Velocity.DotProduct(_wishVelocity);
+            var _currentSpeed = ctx.Velocity.Dot(_wishVelocity);
 
             float _addSpeed = _wishSpeed - _currentSpeed;
             if (_addSpeed <= 0)

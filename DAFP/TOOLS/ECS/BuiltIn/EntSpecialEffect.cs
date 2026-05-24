@@ -24,10 +24,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return new[] { new RendererView() };
         }
 
-        public override ITicker<IEntity> EntityTicker => DoTick ? realTicker : World.EmptyTicker;
+        public override ITicker EntityTicker => DoTick ? realTicker : World.EmptyTicker;
 
-        [Inject(Id = "DefaultEffectsEntityGameplayTicker")]
-        private ITicker<IEntity> realTicker;
+        private ITicker realTicker => World.DefaultUpdate;
 
         protected ParticleSystem ParticleSystem;
         protected Animator Animator;

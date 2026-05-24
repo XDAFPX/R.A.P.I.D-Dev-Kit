@@ -28,14 +28,24 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.Services
 {
-    public abstract class World : MonoBehaviour, IEntity, IService, IOwnerOf<Ticker<IEntity>>
+    public abstract class World : MonoBehaviour, IEntity, IService, IOwnerOf<Ticker>
 
     {
-        public static readonly Ticker<IEntity> EMPTY_TICKER = new(0, new HashSet<IGameState>());
-        public readonly Ticker<IEntity> EmptyTicker = EMPTY_TICKER;
+        public static readonly Ticker EMPTY_TICKER = new(0, new HashSet<IGameState>());
+        public readonly Ticker EmptyTicker = EMPTY_TICKER;
 
-        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
-        public ITicker<IEntity> DefaultGameplayTicker { get; }
+        [Inject(Id = IVideoGame.DEFAULT_UPDATE)]
+        public ITicker DefaultUpdate;
+
+        [Inject(Id = IVideoGame.EFFECTS_UPDATE)]
+        public ITicker EffectsUpdate;
+
+        [Inject(Id = IVideoGame.VIEW_MODEL_UPDATE)]
+        public ITicker ViewUpdate;
+
+        [Inject(Id = IVideoGame.PHYSICS_UPDATE)]
+        public ITicker PhysicsUpdate;
+
 
         public readonly List<IEntity> Entities = new();
         public IEnumerable<IPlayer> Players => players;
@@ -116,7 +126,7 @@ namespace DAFP.TOOLS.ECS.Services
         //-- Other stuff -----------------------------------------------------------------
 
 
-        public void RegisterEntity(IEntity ent, ITicker<IEntity> ticker)
+        public void RegisterEntity(IEntity ent, ITicker ticker)
         {
             if (ReferenceEquals(ent, this))
                 return;
@@ -160,7 +170,7 @@ namespace DAFP.TOOLS.ECS.Services
         }
 
         public void RegisterCustomComponentTicker([NotNull] IEntityComponent ent,
-            [NotNull] ITicker<IEntityComponent> ticker)
+            [NotNull] ITicker ticker)
         {
             RegisterTicker(ticker);
             ticker.Subscribed.Add(ent);
@@ -172,9 +182,8 @@ namespace DAFP.TOOLS.ECS.Services
 
         public void FixedTick()
         {
-            foreach (var _ticker in Tickers.OfType<FixedUpdateTicker<IEntity>>()) SafeTick(_ticker);
+            foreach (var _ticker in Tickers.OfType<FixedUpdateTicker>()) SafeTick(_ticker);
 
-            foreach (var _ticker in Tickers.OfType<FixedUpdateTicker<IEntityComponent>>()) SafeTick(_ticker);
         }
 
         public void SafeTick(ITickerBase ticker)
@@ -186,11 +195,11 @@ namespace DAFP.TOOLS.ECS.Services
 
         public void Tick()
         {
-            foreach (var _ticker in Tickers.OfType<UpdateTicker<IEntity>>()) SafeTick(_ticker);
+            foreach (var _ticker in Tickers.OfType<UpdateTicker>()) SafeTick(_ticker);
 
-            foreach (var _ticker in Tickers.OfType<UpdateTicker<IEntityComponent>>()) SafeTick(_ticker);
+            foreach (var _ticker in Tickers.OfType<UpdateTicker>()) SafeTick(_ticker);
 
-            foreach (var _tickerBase in Tickers.OfType<Ticker<ITickable>>())
+            foreach (var _tickerBase in Tickers.OfType<Ticker>())
             {
                 if (_tickerBase.UpdatesPerSecond == 0)
                     continue;
@@ -228,7 +237,6 @@ namespace DAFP.TOOLS.ECS.Services
             var _newPlayer = newOwner.GetWorldRepresentation().AddComponent<Player>();
             _newPlayer.Data = _oldData.SetData(new BlackBoard(newOwner, _oldData.Memory.GetFullData()));
             register_player(_newPlayer);
-
         }
 
         public IEntity SpawnEmptyEntity(Vector3 pos)
@@ -244,7 +252,9 @@ namespace DAFP.TOOLS.ECS.Services
                 return;
 
             Tickers.Add(ticker);
-            Tickers.Sort();
+
+            // it sorts highest-to-lowest.
+            Tickers.Sort((a, b) => b.Priority.CompareTo(a.Priority));
         }
 
         public void SubscribeToOnTickEntities<T>(IEntity.TickCallBack callBack) where T : IEntity
@@ -280,7 +290,7 @@ namespace DAFP.TOOLS.ECS.Services
         }
 
         public bool HasInitialized { get; set; }
-        public ITicker<IEntity> EntityTicker => EmptyTicker;
+        public ITicker EntityTicker => EmptyTicker;
         public string ID => id;
         public event IEntity.TickCallBack OnTick;
 
@@ -314,8 +324,10 @@ namespace DAFP.TOOLS.ECS.Services
         private IEnumerable<IEntityAccessory> pets5 = new List<IEntityAccessory>();
 
 
-        [Inject(Id = IVideoGame.GAME_BUS_NAME)] public IEventBus GameBus;
-        [Inject] public IGlobalGameStateHandler GameState { get; set; }
+        [Inject(Id = IVideoGame.GAME_BUS_NAME)]
+        public IEventBus GameBus;
+
+        [Inject] public IGameStateHandler GameState { get; set; }
 
         [Inject] public ICursorStateHandler CursorState { get; set; }
         [Inject] public IAssetFactory.DefaultAssetFactory AssetFactory { get; set; }
@@ -330,14 +342,14 @@ namespace DAFP.TOOLS.ECS.Services
 
         IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => pets;
 
-        public void AddPet(Ticker<IEntity> pet)
+        public void AddPet(Ticker pet)
         {
-            throw new NotImplementedException();
+            RegisterTicker(pet);
         }
 
-        public bool RemovePet(Ticker<IEntity> pet)
+        public bool RemovePet(Ticker pet)
         {
-            throw new NotImplementedException();
+            return false;
         }
 
         public void AddPet(IEntityAccessory pet)
@@ -410,7 +422,7 @@ namespace DAFP.TOOLS.ECS.Services
 
         IEnumerable<IEntityAccessory> IOwnerOf<IEntityAccessory>.Pets => pets5;
 
-        IEnumerable<Ticker<IEntity>> IOwnerOf<Ticker<IEntity>>.Pets => Tickers.OfType<Ticker<IEntity>>();
+        IEnumerable<Ticker> IOwnerOf<Ticker>.Pets => Tickers.OfType<Ticker>();
 
         public IEnumerable<object> AbsolutePets => Tickers.Cast<object>().Union(Entities);
         public List<IEntity> Children => Entities;

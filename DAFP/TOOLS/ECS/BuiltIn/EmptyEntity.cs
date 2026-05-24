@@ -14,7 +14,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         
         
-        public override ITicker<IEntity> EntityTicker { get; } = Services.World.EMPTY_TICKER;
+        public override ITicker EntityTicker  => Services.World.EMPTY_TICKER;
 
 
         protected override Bounds CalculateBounds()

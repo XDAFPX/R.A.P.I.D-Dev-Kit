@@ -41,12 +41,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public void AddPet(IDebugDrawable pet)
         {
-            GameUtils.AddPet(pet, ref debugDrawers);
+            GameUtils.AddPet(pet, debugDrawers);
         }
 
         public bool RemovePet(IDebugDrawable pet)
         {
-            return GameUtils.RemovePet(pet, ref debugDrawers);
+            return GameUtils.RemovePet(pet, debugDrawers);
         }
 
         public void AddPet(IDebugSubSys pet)

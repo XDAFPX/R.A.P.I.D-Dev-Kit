@@ -168,8 +168,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return new EmptyView().ToEnumerable();
         }
 
-        [Inject(Id = "DefaultUpdateEntityGameplayTicker")]
-        public override ITicker<IEntity> EntityTicker { get; }
+        public override ITicker EntityTicker => World.DefaultUpdate;
 
         protected override void SetInitialData()
         {

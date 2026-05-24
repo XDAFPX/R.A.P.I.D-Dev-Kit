@@ -10,6 +10,7 @@ using ModestTree;
 using RapidLib.DAFP.TOOLS.Common;
 using TripleA.Utils.Extensions;
 using UGizmo;
+using UnityEngine.UI;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
@@ -51,7 +52,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 }
             }
 
-            public static char[] BOUNDS_STYLES = new[] { '[', '<',  };
+            public static char[] BOUNDS_STYLES = new[] { '[', '<', };
             public static char[] FILLING_STYLES = new[] { '=', '#', '%' };
         }
 
@@ -72,7 +73,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 var _player = _enumerable.FindByName(plName);
                 if (_player == null)
                     error = IMessage.Literal($"Player '{plName}' does not exist");
-                return _player; 
+                return _player;
             }
 
             var _local = _enumerable.Local().FirstOrDefault() ?? _enumerable.FirstOrDefault();
@@ -96,6 +97,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     return ownable.GetCurrentOwner();
             return null;
         }
+
+        public static void GenericException(TextProcessContext contx)
+            => contx.Log.OnNext(GenericException());
 
         public static IMessage GenericException()
             => IMessage.Literal($"Error happened");
@@ -122,6 +126,23 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             value = false;
             return false;
+        }
+
+        public static string GetArgument(string input, string command)
+        {
+            if (string.IsNullOrWhiteSpace(input) || string.IsNullOrWhiteSpace(command))
+                return null;
+
+            input = input.Trim();
+
+            if (!input.StartsWith(command, StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            if (input.Length <= command.Length || input[command.Length] != ' ')
+                return null;
+
+            string argument = input.Substring(command.Length + 1).Trim();
+            return string.IsNullOrWhiteSpace(argument) ? null : argument;
         }
 
         public static bool CheckIfInputContainsCommand(string input, string command)
@@ -152,6 +173,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             if (result.Count > 0 && result[0].StartsWith("/"))
                 result.RemoveAt(0);
             return result;
+        }
+
+        public static void PrintInDev(TextProcessContext ctx)
+        {
+            ctx.Log.OnNext(IMessage.Literal("Under construction..."));
         }
 
         public static string GetSingleCommandArgument(string input, string command)

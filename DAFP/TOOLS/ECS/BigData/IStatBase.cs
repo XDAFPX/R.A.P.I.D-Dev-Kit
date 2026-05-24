@@ -6,7 +6,7 @@ using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
-    public interface IStatBase : IResetable, INameable, IPetOwnerTreeOf<IStatBase>,IPetOf<IEntity,IStatBase>
+    public interface IStatBase : IResetable, INameable, IPetOwnerTreeOf<IStatBase>, IPetOf<IHaveStats, IStatBase>
     {
         public bool SyncToBlackBoard { get; }
         public object GetAbsoluteValue();
@@ -21,10 +21,15 @@ namespace DAFP.TOOLS.ECS.BigData
         public void SetAbsoluteMin(object value);
         public void SetAbsoluteDefault(object value);
 
-        public delegate void UpdateValueCallBack(IStatBase stat);
+        void RemoveModifier(string name);
+        bool HasModifier(string name);
+
+        public void SetToMax();
+        public void SetToMin();
+        public void ForceUpdate();
+        public delegate void UpdateValueCallBack(IStatBase stat, object pvalue);
 
 
-
-        public event UpdateValueCallBack OnUpdateValue;
+        public event UpdateValueCallBack OnValueUpdateGeneric;
     }
 }

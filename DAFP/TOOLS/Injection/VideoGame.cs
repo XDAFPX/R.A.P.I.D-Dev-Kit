@@ -9,6 +9,7 @@ using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.Audio;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
+using DAFP.TOOLS.ECS.Environment;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.GlobalState.CursorSates;
 using DAFP.TOOLS.ECS.GlobalState.GameStates;
@@ -34,7 +35,7 @@ namespace DAFP.TOOLS.Injection
             TAudioService, TRandomService, TConsoleService, TGizmosService, TDebugService,
             TCommandInterpreter, TAssetManager, TModManager> : MonoInstaller, IVideoGame
         where TWorld : World
-        where TGameStateService : IGlobalGameStateHandler
+        where TGameStateService : IGameStateHandler
         where TCursorService : ICursorStateHandler
         where TSaveService : ISaveSystem
         where TSettingsSaveService : IGlobalSettingsSaveSystem
@@ -119,16 +120,17 @@ namespace DAFP.TOOLS.Injection
 
         protected virtual void InstallTickers() //--TODO organize this mess 
         {
-            Container.Bind<ITickerBase>().WithId("DefaultPhysicsComponentGameplayTicker")
-                .FromMethod(_ => new FixedUpdateTicker<IEntityComponent>(new HashSet<IGameState>())).AsTransient()
-                .Lazy();
+            Container.Bind<ITicker>().WithId(IVideoGame.PHYSICS_UPDATE)
+                .FromMethod(_ => new FixedUpdateTicker(new HashSet<IGameState>())).AsTransient().Lazy();
 
-            Container.Bind<ITicker<IEntity>>().WithId("DefaultEffectsEntityGameplayTicker")
-                .FromMethod(_ => new FixedUpdateTicker<IEntity>(new HashSet<IGameState>())).AsTransient().Lazy();
-            Container.Bind<ITicker<IEntity>>().WithId("DefaultUpdateEntityGameplayTicker")
-                .FromMethod(_ => new UpdateTicker<IEntity>(new HashSet<IGameState>())).AsTransient().Lazy();
-            Container.Bind<ITickerBase>().WithId("ViewModelUpdate")
-                .FromMethod(_ => new UpdateTicker<IEntityComponent>(new(), 10)).AsCached();
+            Container.Bind<ITicker>().WithId(IVideoGame.VIEW_MODEL_UPDATE)
+                .FromMethod(_ => new UpdateTicker(new(), 10)).AsTransient().Lazy();
+
+            Container.Bind<ITicker>().WithId(IVideoGame.DEFAULT_UPDATE)
+                .FromMethod(_ => new UpdateTicker(new HashSet<IGameState>())).AsTransient().Lazy();
+
+            Container.Bind<ITicker>().WithId(IVideoGame.EFFECTS_UPDATE)
+                .FromMethod(_ => new FixedUpdateTicker(new HashSet<IGameState>())).AsTransient().Lazy();
         }
 
         protected abstract void InstallAdditional();
@@ -150,8 +152,17 @@ namespace DAFP.TOOLS.Injection
             bind_save_systems();
             bind_ui_systems();
             bind_console();
+            BindCameraManager();
             bind_mod_manager();
+
             InstallAdditional();
+        }
+
+        protected virtual void BindCameraManager()
+        {
+            Container.Bind<ICameraManager>().To<UniversalCameraManager>().AsSingle();
+            Container.Bind<IInitializable>().To<ICameraManager>().FromResolve();
+            Container.Bind<ITickable>().To<ICameraManager>().FromResolve();
         }
 
         protected virtual void bind_constants()
@@ -165,9 +176,8 @@ namespace DAFP.TOOLS.Injection
 
             Container.Bind<IEventBus>().WithId(IVideoGame.GAME_BUS_NAME)
                 .FromMethod(_ => new GlobalStateBus()).AsCached().NonLazy();
-            
         }
-        
+
         private void bind_info_system()
         {
             Container.Bind<InfoSystem>().AsSingle();
@@ -222,7 +232,7 @@ namespace DAFP.TOOLS.Injection
         {
             Container.Bind<IGameState>().WithId("DefaultGameState").FromMethod(GetDefaultGameState);
             Container.Bind<TGameStateService>().AsSingle().NonLazy();
-            Container.Bind<IGlobalGameStateHandler>().To<TGameStateService>().FromResolve();
+            Container.Bind<IGameStateHandler>().To<TGameStateService>().FromResolve();
             Container.Bind<IGlobalStateHandlerBase>().To<TGameStateService>().FromResolve();
             Container.Bind<ITickable>().To<TGameStateService>().FromResolve();
             Container.Bind<IInitializable>().To<TGameStateService>().FromResolve();
@@ -313,5 +323,9 @@ namespace DAFP.TOOLS.Injection
     public interface IVideoGame
     {
         public const string GAME_BUS_NAME = "GameBus";
+        public const string PHYSICS_UPDATE = "PhysicsUpdate";
+        public const string DEFAULT_UPDATE = "DefaultUpdate";
+        public const string VIEW_MODEL_UPDATE = "ViewModelUpdate";
+        public const string EFFECTS_UPDATE = "EffectsUpdate";
     }
 }

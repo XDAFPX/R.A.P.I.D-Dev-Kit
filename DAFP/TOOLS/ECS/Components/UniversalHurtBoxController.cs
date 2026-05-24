@@ -37,12 +37,12 @@ namespace DAFP.TOOLS.ECS.Components
 
         public void AddPet(HurtGroup<T> pet)
         {
-            GameUtils.AddPet(pet, ref Groups);
+            GameUtils.AddPet(pet, Groups);
         }
 
         public bool RemovePet(HurtGroup<T> pet)
         {
-            return GameUtils.RemovePet(pet, ref Groups);
+            return GameUtils.RemovePet(pet, Groups);
         }
 
         public IEntity GetCurrentOwner()

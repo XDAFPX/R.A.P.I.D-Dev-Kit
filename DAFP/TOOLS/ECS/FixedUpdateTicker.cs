@@ -6,7 +6,7 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {
-    public class FixedUpdateTicker<T> : BlackListedTicker<T> where T : ITickable
+    public class FixedUpdateTicker : BlackListedTicker
     {
         public override void Tick()
         {
@@ -17,7 +17,7 @@ namespace DAFP.TOOLS.ECS
 
         public override float UpdatesPerSecond => 1 / Time.fixedDeltaTime;
         public override float DeltaTime => Time.fixedDeltaTime;
-        public override HashSet<T> Subscribed { get; } = new();
+        public override HashSet<ITickable> Subscribed { get; } = new();
 
         public FixedUpdateTicker(HashSet<IGameState> blackList, int pr = 0) : base(blackList, pr)
         {

@@ -10,5 +10,10 @@ namespace DAFP.TOOLS.ECS.GlobalState
             HashSet<IState._stateTags> tags = null) : base(stateName, onEnter, onTick, onExit, tags)
         {
         }
+
+        public bool CanTransitionTo(IState state)
+        {
+            return true;
+        }
     }
 }

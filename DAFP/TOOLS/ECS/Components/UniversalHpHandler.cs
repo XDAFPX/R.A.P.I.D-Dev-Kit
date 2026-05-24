@@ -72,7 +72,7 @@ namespace DAFP.TOOLS.ECS.Components
             Host.BroadcastEvent(_e);
         }
 
-        public override ITickerBase EntityComponentTicker => World.EMPTY_TICKER;
+        public override ITicker EntityComponentTicker => World.EMPTY_TICKER;
 
         protected sealed override void OnTick()
         {

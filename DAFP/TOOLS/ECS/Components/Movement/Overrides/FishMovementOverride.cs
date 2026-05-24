@@ -20,7 +20,7 @@ namespace RapidLib.DAFP.TOOLS.ECS.Components.Movement.Overrides
             // Project push onto wish direction (the "get up to speed" part)
             // and the remainder is perpendicular (the "kill old momentum" part)
             var _wishDir = _wishvel.Normalized;
-            var _parallelMag = _pushvec.DotProduct(_wishDir);
+            var _parallelMag = _pushvec.Dot(_wishDir);
             var _parallel = _wishDir.Scale(_parallelMag);
             var _perp = _pushvec.Subtract(_parallel);
 

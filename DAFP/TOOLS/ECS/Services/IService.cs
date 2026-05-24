@@ -5,6 +5,6 @@ namespace DAFP.TOOLS.ECS.Services
 {
     public interface IService
     {
-        [Inject] IGlobalGameStateHandler GameState { get; set; }
+        [Inject] IGameStateHandler GameState { get; set; }
     }
 }

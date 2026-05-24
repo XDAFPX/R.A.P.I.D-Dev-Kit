@@ -10,8 +10,6 @@ namespace DAFP.TOOLS.ECS.BigData
         public T MaxValue { get; set; }
         public T MinValue { get; set; }
         public T DefaultValue { get; set; }
-        public void SetToMax();
-        public void SetToMin();
 
         void IStatBase.SetAbsoluteValue(object value)
         {
@@ -78,6 +76,9 @@ namespace DAFP.TOOLS.ECS.BigData
 
         void AddModifier(StatModifier<T> modifier);
         void RemoveModifier(StatModifier<T> modifier);
-        void RemoveModifier(string name);
+
+        public delegate void OnUpdateValueConcreteCallback(IStat<T> stat, T pvalue);
+
+        public event OnUpdateValueConcreteCallback OnUpdateValue;
     }
 }

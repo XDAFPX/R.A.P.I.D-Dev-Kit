@@ -25,6 +25,32 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public static class BuiltInCommands
     {
+        public abstract class AliasCommand<TCommand> : ConsoleCommand where TCommand : IConsoleCommand
+        {
+            private IMessage description;
+            [Inject] private DiContainer injector;
+            public abstract override string Name { get; set; }
+            private TCommand instance;
+
+            public override IMessage Description
+            {
+                get
+                {
+                    instance ??= injector.Instantiate<TCommand>();
+                    description ??= instance.Description;
+                    return description;
+                }
+                set => description = value;
+            }
+
+            public override async UniTask Execute(TextProcessContext context, CancellationToken ct)
+            {
+                instance ??= injector.Instantiate<TCommand>();
+                SourceInput = SourceInput.Replace(Name, instance.Name);
+                await instance.Process(SourceInput).Execute(context, ct);
+            }
+        }
+
         public class ClearCommand : ConsoleCommand //--fixed 
         {
             public override string Name { get; set; } = "cls";
@@ -332,7 +358,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        public class QuitCommand : ConsoleCommand
+        public class ExitCommand : AliasCommand<QuitCommand>
+        {
+            public override string Name { get; set; } = "exit";
+        }
+        public class QuitCommand : ConsoleCommand,IHiddenCommand
         {
             public override string Name { get; set; } = "q";
             public override IMessage Description { get; set; } = IMessage.Literal("Exits from the game");
@@ -393,7 +423,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        public class ShowPosCommand : ConsoleCommand,IHiddenCommand
+        public class ShowPosCommand : ConsoleCommand, IHiddenCommand
         {
             private readonly World world;
             public override string Name { get; set; } = "cl_show_pos";
@@ -446,6 +476,44 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
 
+        public class EchoCommand : ConsoleCommand
+        {
+            public override string Name { get; set; } = "echo";
+
+            public override IMessage Description { get; set; } =
+                IMessage.Literal("Displays messages, or turns command-echoing on or off.");
+
+            public override async UniTask Execute(TextProcessContext context, CancellationToken ct)
+            {
+                var _arg1 = CommandParserUtils.GetArgument(SourceInput, Name);
+
+                if (CommandParserUtils.GetRoot(this) is not IConsoleMessenger _root)
+                {
+                    CommandParserUtils.GenericException(context);
+                    return;
+                }
+
+                if (_arg1 == null)
+                {
+                    context.Log.OnNext(IMessage.Literal($"ECHO is {(_root.Echo ? "on" : "off")}."));
+                    return;
+                }
+
+                switch (_arg1.ToLower())
+                {
+                    case "on":
+                        _root.Echo = true;
+                        return;
+                    case "off":
+                        _root.Echo = false;
+                        return;
+                    default:
+                        context.Log.OnNext(IMessage.Literal(_arg1));
+                        break;
+                }
+            }
+        }
+
         public class HelpCommand : ConsoleCommand
         {
             public override string Name { get; set; } = "help";
@@ -455,9 +523,18 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             {
                 var _cmds = new List<IConsoleCommand>();
                 GetPets(CommandParserUtils.GetRoot(this), _cmds);
-                context.Log.OnNext(IMessage.Literal(
-                    string.Join("\n \n", _cmds.Select(cmd => $"  {cmd.Name} : ({cmd.Description.Print()})")) + "\n "));
+                context.Log.OnNext(IMessage.Literal("   "));
+                var formated = format(_cmds);
+                context.Log.OnNext(IMessage.Literal(formated));
                 return UniTask.CompletedTask;
+            }
+
+            protected static string format(List<IConsoleCommand> _cmds)
+            {
+                var formated =
+                    string.Join("\n \n", _cmds.Select(cmd => $"{cmd.Name} : ({cmd.Description.Print()}) " +
+                                                             $"{(cmd is IHiddenCommand ? "[HIDDEN]" : "")} ")) + "\n ";
+                return formated;
             }
 
             protected virtual void GetPets(ICommandInterpreter interpreter, List<IConsoleCommand> commands)
@@ -471,7 +548,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             protected virtual bool Filter(IConsoleCommand cmd)
             {
-                return cmd is not IHiddenCommand;
+                // return cmd is not IHiddenCommand;
+                return true;
             }
         }
     }

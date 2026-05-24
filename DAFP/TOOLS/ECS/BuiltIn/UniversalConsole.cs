@@ -85,8 +85,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             MoveInputToLast(CurrentInputLineContainer);
 
-            CheckIfCommandsDontFit(CommandLineContainer.GetComponent<RectTransform>(),
-                Root.GetComponent<RectTransform>());
+            // fix_layout();
         }
 
         private void handle_each_output(List<string> _results)
@@ -160,6 +159,21 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             clear(CommandLineContainer.transform);
         }
 
+        public bool Echo
+        {
+            get => echo;
+            set
+            {
+                echo = value;
+                echo_updated();
+            }
+        }
+
+        private void echo_updated()
+        {
+            MoveInputToLast(CurrentInput.transform);
+        }
+
         private Dictionary<int, Transform> collect_all_process_printed_lines(Transform container)
         {
             var _result = new Dictionary<int, Transform>();
@@ -196,6 +210,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public virtual ITextProcess Process(string input)
         {
+            if (input.IsNullOrEmpty())
+                return ITextProcess.Empty;
             var _result = Interpreter.Process(input);
             if (_result == null)
                 return ITextProcess.Literal($" '{input}' is not recognized as an internal or external command");
@@ -315,7 +331,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             try
             {
                 await CurrentProcess.Execute(_ctx, cts.Token);
-                Print(IMessage.Literal("  "));
+                if (CurrentProcess is not BuiltInCommands.ClearCommand && !_input.IsNullOrEmpty())
+                    Print(IMessage.Literal("  "));
             }
             catch (OperationCanceledException)
             {
@@ -405,13 +422,20 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         protected void MoveInputToLast(Transform currentInput)
         {
+            currentInput.GetComponentsInChildren<TextMeshProUGUI>()[0].text =
+                echo ? GetInputFieldPrefix() : String.Empty;
             currentInput.transform.SetAsLastSibling();
+            fix_layout();
         }
 
         protected void SpawnSetCmdLine(Transform setInput, Transform container, string txt)
         {
+            // if(!echo)
+            //     return;
             var _dupl = GameObject.Instantiate(setInput, container);
             _dupl.gameObject.name = "SetInput line";
+            _dupl.GetComponentsInChildren<TextMeshProUGUI>()[0].text =
+                echo ? GetInputFieldPrefix() : String.Empty;
             _dupl.GetComponentsInChildren<TextMeshProUGUI>()[1].text = txt;
             _dupl.gameObject.SetActive(true);
             LayoutRebuilder.ForceRebuildLayoutImmediate(_dupl.GetChild(0).GetComponent<RectTransform>());
@@ -468,7 +492,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
 
-        protected virtual string GetDefaultInputFieldPrefix()
+        protected virtual string GetInputFieldPrefix()
         {
             return @"C:\Users\Admin > ";
         }
@@ -491,10 +515,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             configure_cmd_line_container(_cmdcontainer, out var _sampleCommandInput, out var _sampleInputRect);
             configure_cmd_line_container(_cmdcontainer, out var _sampleCommand, out var _sampleRect);
             configure_cmd_line_container(_cmdcontainer, out var _sampleComman, out var _sampleOutputRect);
-            var _sampleText = configure_set_input_field(_sampleRect, GetDefaultInputFieldPrefix(), ConsoleColor);
-            var _sampleOutput = configure_output(_sampleOutputRect, GetDefaultInputFieldPrefix(), ConsoleColor);
+            var _sampleText = configure_set_input_field(_sampleRect, GetInputFieldPrefix(), ConsoleColor);
+            var _sampleOutput = configure_output(_sampleOutputRect, GetInputFieldPrefix(), ConsoleColor);
 
-            var _sampleInput = configure_input_field(_sampleInputRect, GetDefaultInputFieldPrefix(), ConsoleColor);
+            var _sampleInput = configure_input_field(_sampleInputRect, GetInputFieldPrefix(), ConsoleColor);
 
 
             return (_vertical, _canvas, _sampleRect, _sampleOutputRect, _sampleInputRect);
@@ -860,6 +884,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private bool enabled;
 
         private List<IInputController> controllers_that_were_disabled;
+        private bool echo = true;
 
         public void Enable()
         {
@@ -871,6 +896,15 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 controllerManager.Controllers.Enabled().ToList();
             controllerManager.Controllers.DisableAll();
 
+
+            fix_layout();
+        }
+
+        private void fix_layout()
+        {
+            var _check = new GameObject("ASS"); //--hack because that other func below doesnt does shit
+            _check.transform.SetParent(CommandLineContainer.transform);
+            GameObject.Destroy(_check);
             CheckIfCommandsDontFit(CommandLineContainer.GetComponent<RectTransform>(),
                 Root.GetComponent<RectTransform>());
         }

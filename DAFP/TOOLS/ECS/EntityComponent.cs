@@ -2,14 +2,21 @@
 using System.Collections.Generic;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.DebugSystem;
+using DAFP.TOOLS.ECS.Services;
+using NRandom;
 using UnityEngine;
 using UnityGetComponentCache;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {
     // [RequireComponent(typeof(Entity))]
     public abstract class EntityComponent : MonoBehaviour, IEntityComponent
     {
+        [Inject] protected World World;
+
+        [Inject] protected IRandom RandomSys;
+        
         public IEntity Host;
         protected abstract void OnTick();
         protected abstract void OnInitialize();
@@ -28,17 +35,18 @@ namespace DAFP.TOOLS.ECS
 
 
         public void Tick()
-        {if(enabled)
-            OnTick();
+        {
+            if (enabled)
+                OnTick();
         }
 
-        public virtual ITickerBase EntityComponentTicker => Host.EntityTicker;
+        public virtual ITicker EntityComponentTicker => Host.EntityTicker;
 
         public void Register(IEntity entity)
         {
             Host = entity;
             if (EntityComponentTicker != Host.EntityTicker &&
-                EntityComponentTicker is ITicker<IEntityComponent> customTicker)
+                EntityComponentTicker is ITicker customTicker)
                 Host.GetWorld().RegisterCustomComponentTicker(this, customTicker);
         }
 

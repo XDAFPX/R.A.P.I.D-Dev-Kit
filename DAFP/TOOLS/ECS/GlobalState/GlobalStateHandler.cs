@@ -17,7 +17,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
 
     // 2) The generic state‐manager
     public abstract class GlobalStateHandler<T> : Zenject.ITickable, Zenject.IInitializable,
-        IGlobalStateHandler<T>, ISavable where T : class, IState
+        IGlobalStateHandler<T>, ISavable where T : class, IDefinedState
     {
         public abstract T Default { get; }
         public T Current => StateMachine.CurTypedState;
@@ -54,13 +54,18 @@ namespace DAFP.TOOLS.ECS.GlobalState
             //--TODO Implement
         }
 
-        public IGlobalStateHandler<T> TransitionTo<TConcreteState>() where TConcreteState : T, new()
+
+        public bool TryTransitionTo<TConcreteState>() where TConcreteState : T, new()
         {
             var _pstate = StateMachine.CurTypedState;
             var _state = injector.Instantiate<TConcreteState>();
+
+            if (!_pstate.CanTransitionTo(_state))
+                return false;
+
             StateMachine.ForceTakeTransition(new SimpleTransition<T>(_state));
             OnTransition(_pstate, _state);
-            return this;
+            return true;
         }
 
         public IGlobalStateHandler<T> TransitionToDefault()

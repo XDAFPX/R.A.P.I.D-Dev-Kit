@@ -16,7 +16,7 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.BigData
 {
     [Serializable]
-    public abstract class WhiteBoard<T> : IStat<T>, IInitializable, ITickable, IPetOf<IEntity, IStatBase>
+    public abstract class WhiteBoard<T> : IStat<T>, IInitializable, ITickable, IPetOf<IHaveStats, IStatBase>
     {
         [SerializeField] protected List<SerializableInterface<IPegStatModifier<T>>> PegModifiers = new();
         [field: SerializeField] public string Name { get; set; }
@@ -28,7 +28,7 @@ namespace DAFP.TOOLS.ECS.BigData
         public abstract T MinValue { get; set; }
         public abstract T DefaultValue { get; set; }
 
-        protected IEntity Host => ((IPetOf<IEntity, IStatBase>)this).GetCurrentOwner();
+        protected IEntity Host => ((IPetOf<IHaveStats, IStatBase>)this).GetCurrentOwner() as IEntity;
 
 
 #if UNITY_EDITOR
@@ -53,7 +53,9 @@ namespace DAFP.TOOLS.ECS.BigData
         public event ModifierAddedCallBack OnModifierAdded;
         public event ModifierRemovedCallBack OnModifierRemoved;
 
-        public event IStatBase.UpdateValueCallBack OnUpdateValue;
+        public event IStatBase.UpdateValueCallBack OnValueUpdateGeneric;
+
+        public event IStat<T>.OnUpdateValueConcreteCallback OnUpdateValue;
 
         public T Value
         {
@@ -121,19 +123,24 @@ namespace DAFP.TOOLS.ECS.BigData
 
         private void set_value(T value)
         {
-            OnValueChanged?.Invoke(value, InternalValue);
+            var pval = Value;
             InternalValue = ClampAndProcessValue(value);
-            OnUpdateValue?.Invoke(this);
+            invoke_change_events(pval);
         }
 
         protected abstract T ClampAndProcessValue(T value);
 
+
         public abstract void SetToMax();
         public abstract void SetToMin();
+        public void ForceUpdate()
+        {
+            invoke_change_events(Value);
+        }
 
 
         private List<IStatBase> statParents = new();
-        private List<IEntity> owners = new();
+        private List<IHaveStats> owners = new();
 
         public void AddModifier(StatModifier<T> modifier)
         {
@@ -143,8 +150,10 @@ namespace DAFP.TOOLS.ECS.BigData
             var _mods = Modifiers.ToValues().ToList();
             if (_mods.Contains(modifier))
                 return;
-            OnModifierAdded?.Invoke(modifier);
+            var pVal = Value;
             Modifiers.Add(new SerializableInterface<IStatModifier<T>>(modifier));
+            OnModifierAdded?.Invoke(modifier);
+            invoke_change_events(pVal);
         }
 
         public void RemoveModifier(StatModifier<T> modifier)
@@ -154,14 +163,30 @@ namespace DAFP.TOOLS.ECS.BigData
             var _mods = Modifiers.ToValues().ToList();
             if (!_mods.Contains(modifier))
                 return;
+
+            var pVal = Value;
             OnModifierRemoved?.Invoke(modifier);
             Modifiers.RemoveAll((@interface => @interface.Value.Equals(modifier)));
+            invoke_change_events(pVal);
+        }
+
+        private void invoke_change_events(T pVal)
+        {
+            OnValueChanged?.Invoke(Value, pVal);
+            OnValueUpdateGeneric?.Invoke(this, pVal);
+            OnUpdateValue?.Invoke(this, pVal);
         }
 
         public void RemoveModifier(string name)
         {
-            RemoveModifier(Modifiers.ToValues().OfType<StatModifier<T>>().FindByName(Name));
+            RemoveModifier(Modifiers.ToValues().OfType<StatModifier<T>>().FindByName(name));
         }
+
+        public bool HasModifier(string name)
+        {
+            return Modifiers.ToValues().OfType<StatModifier<T>>().FindByName(name) != null;
+        }
+
 
         protected abstract void ResetInternal();
 
@@ -170,8 +195,7 @@ namespace DAFP.TOOLS.ECS.BigData
             RemoveAllModifiers();
             var _old = Value;
             ResetInternal();
-            OnValueChanged?.Invoke(Value, _old);
-            OnUpdateValue?.Invoke(this);
+            invoke_change_events(_old);
         }
 
         public virtual object GetAbsoluteValue()
@@ -242,6 +266,6 @@ namespace DAFP.TOOLS.ECS.BigData
 
         List<IStatBase> IPetOwnerTreeOf<IStatBase>.Owners => statParents;
 
-        List<IEntity> IPetOf<IEntity, IStatBase>.Owners => owners;
+        List<IHaveStats> IPetOf<IHaveStats, IStatBase>.Owners => owners;
     }
 }

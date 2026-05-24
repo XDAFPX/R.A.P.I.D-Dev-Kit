@@ -13,9 +13,10 @@ namespace DAFP.TOOLS.ECS.BigData
     [CreateAssetMenu(fileName = "Stats", menuName = "R.A.P.I.D/StatContainer")]
     public class StatContainer : ScriptableObject, ITickable, IStatContainer
     {
-        [SerializeField] private List<SerializableInterface<IStatBase>> Stats;
+        [SerializeField] private List<SerializableInterface<IStatBase>> Stats = new();
 
         private IEnumerable<IStatBase> cachedNodes;
+        protected IHaveStats Host;
         private bool isDirty = true;
 
         private IEnumerable<IStatBase> get_nodes()
@@ -40,8 +41,9 @@ namespace DAFP.TOOLS.ECS.BigData
             return this;
         }
 
-        public IStatContainer Construct(IEntity parent)
+        public IStatContainer Construct(IHaveStats parent)
         {
+            Host = parent;
             foreach (var _statBase in get_nodes())
             {
                 _statBase.ChangeOwner(parent);
@@ -180,8 +182,21 @@ namespace DAFP.TOOLS.ECS.BigData
         public IStatContainer Add(IStatBase stat)
         {
             Stats.Add(new SerializableInterface<IStatBase>(stat));
+            stat.ChangeOwner(Host);
             InvalidateCache();
             return this;
+        }
+
+        public IStatContainer Remove(IStatBase stat)
+        {
+            Stats.RemoveAll((@interface => @interface.Value == stat));
+            InvalidateCache();
+            return this;
+        }
+
+        public IEnumerable<IStatBase> All()
+        {
+            return get_nodes();
         }
 
         public bool Add(StatInjector.PathBuilder pathBuilder, IStatBase statToAdd)

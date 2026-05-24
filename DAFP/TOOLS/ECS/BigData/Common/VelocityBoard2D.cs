@@ -49,7 +49,11 @@ namespace DAFP.TOOLS.ECS.BigData.Common
             return _val;
         }
 
-        public override Vector3 MaxValue => Vector3.one * topVelocity;
+        public override Vector3 MaxValue
+        {
+            get => new (topVelocity, topVelocity, topVelocity);
+            set => topVelocity = value.x;
+        }
 
         public override void Tick()
         {

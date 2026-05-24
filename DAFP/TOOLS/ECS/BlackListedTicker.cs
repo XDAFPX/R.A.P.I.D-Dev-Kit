@@ -5,7 +5,7 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {
-    public abstract class BlackListedTicker<T> : ITicker<T> where T : ITickable
+    public abstract class BlackListedTicker :ITicker
     {
         protected HashSet<IGameState> BlackList;
 
@@ -31,7 +31,7 @@ namespace DAFP.TOOLS.ECS
             if (tt != null) Subscribed.Remove(tt);
         }
 
-        public abstract HashSet<T> Subscribed { get; }
+        public abstract HashSet<ITickable> Subscribed { get; }
         public int Priority { get; }
 
         public void ResetToDefault()

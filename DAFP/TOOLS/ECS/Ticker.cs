@@ -4,7 +4,7 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {
-    public class Ticker<T> : BlackListedTicker<T> where T : ITickable
+    public class Ticker : BlackListedTicker
     {
         public Ticker(float updatesPerSecond, HashSet<IGameState> blackList, int pr = 0) : base(blackList, pr)
         {
@@ -21,6 +21,6 @@ namespace DAFP.TOOLS.ECS
         public float Elapsed = 0;
         public override float UpdatesPerSecond { get; }
         public override float DeltaTime => 1 / UpdatesPerSecond;
-        public override HashSet<T> Subscribed { get; } = new();
+        public override HashSet<ITickable> Subscribed { get; } = new();
     }
 }

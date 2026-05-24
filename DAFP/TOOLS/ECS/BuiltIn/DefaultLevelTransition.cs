@@ -71,7 +71,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return new[] { new EmptyView() };
         }
 
-        public override ITicker<IEntity> EntityTicker { get; } = null;
+        public override ITicker EntityTicker => World.EMPTY_TICKER;
 
         protected override void TickInternal()
         {

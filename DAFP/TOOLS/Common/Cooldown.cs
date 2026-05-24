@@ -48,7 +48,8 @@ namespace DAFP.TOOLS.Common
             return Value;
         }
 
-        public event IStatBase.UpdateValueCallBack OnUpdateValue;
+        public event IStatBase.UpdateValueCallBack OnValueUpdateGeneric;
+        public event IStat<float>.OnUpdateValueConcreteCallback OnUpdateValue;
 
         public void Randomize(NRandom.IRandom rng, float margin01)
         {
@@ -60,8 +61,10 @@ namespace DAFP.TOOLS.Common
             get => timer;
             set
             {
+                var _old = timer;
                 timer = value;
-                OnUpdateValue?.Invoke(this);
+                OnValueUpdateGeneric?.Invoke(this, _old);
+                OnUpdateValue?.Invoke(this, _old);
             }
         }
 
@@ -97,6 +100,7 @@ namespace DAFP.TOOLS.Common
             set { }
         }
 
+
         public void SetToMax()
         {
             complete();
@@ -105,6 +109,16 @@ namespace DAFP.TOOLS.Common
         public void SetToMin()
         {
             Reset();
+        }
+
+        public void ForceUpdate()
+        {
+            maxStat.Value.ForceUpdate();
+        }
+
+        public bool HasModifier(string name)
+        {
+            return maxStat.Value.HasModifier(name);
         }
 
         public void AddModifier(StatModifier<float> modifier)
@@ -122,6 +136,7 @@ namespace DAFP.TOOLS.Common
             maxStat.Value.RemoveModifier(name);
         }
 
+
         public float TrueCoolDownTime => ReverseRatio * MaxValue;
         public bool IsOnCooldown => !isComplete;
 
@@ -136,6 +151,6 @@ namespace DAFP.TOOLS.Common
         public List<IStatBase> Children { get; } = new();
         public List<IStatBase> Owners { get; } = new List<IStatBase>();
 
-        List<IEntity> IPetOf<IEntity, IStatBase>.Owners { get; } = new();
+        List<IHaveStats> IPetOf<IHaveStats, IStatBase>.Owners { get; } = new();
     }
 }

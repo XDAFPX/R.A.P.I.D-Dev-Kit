@@ -34,7 +34,7 @@ namespace RapidLib.DAFP.TOOLS.Common
         {
         }
 
-        public override ITickerBase EntityComponentTicker => World.EMPTY_TICKER;
+        public override ITicker EntityComponentTicker => World.EMPTY_TICKER;
 
         public void SetCollisionState(bool active)
         {

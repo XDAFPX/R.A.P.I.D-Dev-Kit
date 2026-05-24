@@ -16,35 +16,11 @@ namespace DAFP.TOOLS.Common.Maths
         IVector Normalize();
 
         IVector Scale(float scalar);
-
         IVector Reverse()
         {
             return Scale(-1);
         }
 
-        V2 TryGetVector2()
-        {
-            var x = GetValueAtDimension(1) ?? 0f;
-            var y = GetValueAtDimension(2) ?? 0f;
-            return new V2(x, y);
-        }
-
-        V3 TryGetVector3()
-        {
-            var x = GetValueAtDimension(1) ?? 0f;
-            var y = GetValueAtDimension(2) ?? 0f;
-            var z = GetValueAtDimension(3) ?? 0f;
-            return new V3(x, y, z);
-        }
-
-        V4 TryGetVector4()
-        {
-            var x = GetValueAtDimension(1) ?? 0f;
-            var y = GetValueAtDimension(2) ?? 0f;
-            var z = GetValueAtDimension(3) ?? 0f;
-            var w = GetValueAtDimension(4) ?? 0f;
-            return new V4(x, y, z, w);
-        }
     }
 
     public interface IVector<TSelf> : IVector where TSelf : struct, IVector<TSelf>

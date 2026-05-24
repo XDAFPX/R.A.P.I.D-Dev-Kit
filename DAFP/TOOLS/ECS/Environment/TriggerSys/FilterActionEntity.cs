@@ -68,7 +68,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
             return this;
         }
 
-        public override ITicker<IEntity> EntityTicker { get; } = Services.World.EMPTY_TICKER;
+        public override ITicker EntityTicker { get; } = Services.World.EMPTY_TICKER;
 
         protected override void InitializeInternal()
         {

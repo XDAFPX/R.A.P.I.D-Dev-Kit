@@ -148,7 +148,7 @@ namespace DAFP.TOOLS.ECS
         IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => debugDrawablePets;
         IEnumerable<IViewModel> IOwnerOf<IViewModel>.Pets => viewModels;
 
-        IEnumerable<IStatBase> IOwnerOf<IStatBase>.Pets => OwnedStats;
+        IEnumerable<IStatBase> IOwnerOf<IStatBase>.Pets => Stats.All();
 
         IEnumerable<IStatModifierBase> IOwnerOf<IStatModifierBase>.Pets => OwnedModifiers;
 
@@ -158,52 +158,52 @@ namespace DAFP.TOOLS.ECS
 
         public void AddPet(IEntityAccessory pet)
         {
-            GameUtils.AddPet(pet, ref Accessories);
+            GameUtils.AddPet(pet, Accessories);
         }
 
         public bool RemovePet(IEntityAccessory pet)
         {
-            return GameUtils.RemovePet(pet, ref Accessories);
+            return GameUtils.RemovePet(pet, Accessories);
         }
 
         public void AddPet(PegModifier pet)
         {
-            GameUtils.AddPet(pet, ref ownedPegs);
+            GameUtils.AddPet(pet, ownedPegs);
         }
 
         public bool RemovePet(PegModifier pet)
         {
-            return GameUtils.RemovePet(pet, ref ownedPegs);
+            return GameUtils.RemovePet(pet, ownedPegs);
         }
 
         public void AddPet(IStatModifierBase pet)
         {
-            GameUtils.AddPet(pet, ref OwnedModifiers);
+            GameUtils.AddPet(pet, OwnedModifiers);
         }
 
         public bool RemovePet(IStatModifierBase pet)
         {
-            return GameUtils.RemovePet(pet, ref OwnedModifiers);
+            return GameUtils.RemovePet(pet, OwnedModifiers);
         }
 
         public void AddPet(IStatBase pet)
         {
-            GameUtils.AddPet(pet, ref OwnedStats);
+            GameUtils.AddPet(pet, OwnedStats);
         }
 
         public bool RemovePet(IStatBase pet)
         {
-            return GameUtils.RemovePet(pet, ref OwnedStats);
+            return GameUtils.RemovePet(pet, OwnedStats);
         }
 
         public void AddPet(IViewModel pet)
         {
-            GameUtils.AddPet(pet, ref viewModels);
+            GameUtils.AddPet(pet, viewModels);
         }
 
         public bool RemovePet(IViewModel pet)
         {
-            return GameUtils.RemovePet(pet, ref viewModels);
+            return GameUtils.RemovePet(pet, viewModels);
         }
 
         public List<IEntity> Owners { get; } = new();
@@ -285,7 +285,7 @@ namespace DAFP.TOOLS.ECS
         // Abstract Members
 
         public abstract IEnumerable<IViewModel> SetupView();
-        public abstract ITicker<IEntity> EntityTicker { get; }
+        public abstract ITicker EntityTicker { get; }
         protected abstract void InitializeInternal();
         protected abstract void TickInternal();
 
@@ -566,6 +566,7 @@ namespace DAFP.TOOLS.ECS
         // Component Management
         private void gather_components()
         {
+            
             if (Components == null)
                 return;
             Components.Clear();
@@ -578,14 +579,14 @@ namespace DAFP.TOOLS.ECS
             if (component is IStatBase _stat && _stat.SyncToBlackBoard && Memory != null)
             {
                 Memory.Set(_stat.Name, _stat.GetAbsoluteValue());
-                _stat.OnUpdateValue += OnUpdateStat;
+                _stat.OnValueUpdateGeneric += value_update_stat;
             }
 
             Components[component.GetType()] = component;
             component.Register(this);
         }
 
-        private void OnUpdateStat(IStatBase stat)
+        private void value_update_stat(IStatBase stat, object old)
         {
             if (stat.SyncToBlackBoard)
                 Memory.Set(stat.Name, stat.GetAbsoluteValue());

@@ -59,7 +59,8 @@ namespace DAFP.TOOLS.ECS.BigData
             return value;
         }
 
-        public event IStatBase.UpdateValueCallBack OnUpdateValue;
+        public event IStatBase.UpdateValueCallBack OnValueUpdateGeneric;
+        public event IStat<T>.OnUpdateValueConcreteCallback OnUpdateValue;
 
         public void Randomize(NRandom.IRandom rng, float margin01)
         {
@@ -80,8 +81,10 @@ namespace DAFP.TOOLS.ECS.BigData
             }
             set
             {
+                var _old = this.value;
                 this.value = value;
-                OnUpdateValue?.Invoke(this);
+                OnValueUpdateGeneric?.Invoke(this, _old);
+                OnUpdateValue?.Invoke(this, _old);
             }
         }
 
@@ -99,12 +102,22 @@ namespace DAFP.TOOLS.ECS.BigData
         public T MinValue { get; set; }
         public T DefaultValue { get; set; }
 
+
         public void SetToMax()
         {
+            Value = MaxValue;
         }
 
         public void SetToMin()
         {
+            Value = MinValue;
+        }
+
+        public void ForceUpdate()
+        {
+            var _old = Value;
+            OnValueUpdateGeneric?.Invoke(this, _old);
+            OnUpdateValue?.Invoke(this, _old);
         }
 
         public void AddModifier(StatModifier<T> modifier)
@@ -113,7 +126,11 @@ namespace DAFP.TOOLS.ECS.BigData
                 return;
             if (StatModifiers.Contains(modifier))
                 return;
+            var _old = Value;
             StatModifiers.Add(modifier);
+
+            OnValueUpdateGeneric?.Invoke(this, _old);
+            OnUpdateValue?.Invoke(this, _old);
         }
 
         public void RemoveModifier(StatModifier<T> modifier)
@@ -122,13 +139,23 @@ namespace DAFP.TOOLS.ECS.BigData
                 return;
             if (!StatModifiers.Contains(modifier))
                 return;
+            var _old = Value;
             StatModifiers.Remove(modifier);
+
+            OnValueUpdateGeneric?.Invoke(this, _old);
+            OnUpdateValue?.Invoke(this, _old);
+        }
+
+        public bool HasModifier(string name)
+        {
+            return StatModifiers.FindByName(Name) != null;
         }
 
         public void RemoveModifier(string name)
         {
             RemoveModifier(StatModifiers.FindByName(Name));
         }
+
 
         public static implicit operator QuikStat<T>(T stat)
         {
@@ -143,6 +170,6 @@ namespace DAFP.TOOLS.ECS.BigData
         public List<IStatBase> Children { get; } = new();
         public List<IStatBase> Owners { get; } = new List<IStatBase>();
 
-        List<IEntity> IPetOf<IEntity, IStatBase>.Owners { get; } = new List<IEntity>();
+        List<IHaveStats> IPetOf<IHaveStats, IStatBase>.Owners { get; } = new();
     }
 }

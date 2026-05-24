@@ -5,13 +5,18 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.GlobalState
 {
     public interface IGlobalStateHandler<TState> : Zenject.ITickable, IInitializable, IGlobalStateHandlerBase
-        where TState : class, IState
+        where TState : class, IState,IDefinedState
     {
         public abstract TState Default { get; }
 
         public TState Current { get; }
-        public IGlobalStateHandler<TState> TransitionTo<TConcreteState>() where TConcreteState : TState, new();
+        public bool TryTransitionTo<TConcreteState>() where TConcreteState : TState, new();
 
         public IGlobalStateHandler<TState> TransitionToDefault();
+    }
+
+    public interface IDefinedState : IState
+    {
+        public bool CanTransitionTo(IState state);
     }
 }

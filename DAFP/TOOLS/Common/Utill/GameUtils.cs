@@ -5,18 +5,25 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using BandoWare.GameplayTags;
+using BDeshi.BTSM;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.BigData;
+using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Damage;
 using DAFP.TOOLS.ECS.BigData.Modifiers;
+using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
 using DAFP.TOOLS.ECS.BuiltIn;
+using DAFP.TOOLS.ECS.Components.Movement;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.Filters;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
+using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
@@ -69,6 +76,99 @@ namespace DAFP.TOOLS.Common.Utill
             }
         }
 
+        public static float X(this IVector v) => v.GetValueAtDimension(1) ?? 0f;
+        public static float Y(this IVector v) => v.GetValueAtDimension(2) ?? 0f;
+        public static float Z(this IVector v) => v.GetValueAtDimension(3) ?? 0f;
+        public static float W(this IVector v) => v.GetValueAtDimension(4) ?? 0f;
+
+        public static IVector Cross(this IVector a, IVector b)
+        {
+            float _ax = a.X(), _ay = a.Y(), _az = a.Z();
+            float _bx = b.X(), _by = b.Y(), _bz = b.Z();
+            return a
+                .SetValueAtDimension(1, _ay * _bz - _az * _by)
+                .SetValueAtDimension(2, _az * _bx - _ax * _bz)
+                .SetValueAtDimension(3, _ax * _by - _ay * _bx);
+        }
+
+        public static bool Opposite(this IVector a, IVector b, float k = 0.8f)
+        {
+            if (a.Normalized.Dot(b.Normalized) < -k)
+                return true;
+            return false;
+        }
+
+        public static float Dot(this IVector a, IVector b)
+        {
+            float _sum = 0f;
+            for (int _i = 1; _i <= Mathf.Max(a.Dimensions, b.Dimensions); _i++)
+                _sum += (a.GetValueAtDimension(_i) ?? 0f) * (b.GetValueAtDimension(_i) ?? 0f);
+            return _sum;
+        }
+
+        // Distance
+        public static float Distance(this IVector a, IVector b)
+            => a.Subtract(b).Magnitude;
+
+        // Lerp
+        public static IVector Lerp(this IVector a, IVector b, float t)
+        {
+            var _result = a;
+            for (int _i = 1; _i <= Mathf.Max(a.Dimensions, b.Dimensions); _i++)
+            {
+                float _av = a.GetValueAtDimension(_i) ?? 0f;
+                float _bv = b.GetValueAtDimension(_i) ?? 0f;
+                _result = _result.SetValueAtDimension(_i, Mathf.Lerp(_av, _bv, t));
+            }
+
+            return _result;
+        }
+
+        // Clamp magnitude
+        public static IVector ClampMagnitude(this IVector v, float maxMagnitude)
+            => v.Magnitude > maxMagnitude ? v.Normalized.Scale(maxMagnitude) : v;
+
+        // Angle between
+        public static float Angle(this IVector a, IVector b)
+        {
+            float _dot = a.Dot(b);
+            float _mags = a.Magnitude * b.Magnitude;
+            if (_mags == 0f) return 0f;
+            return Mathf.Acos(Mathf.Clamp(_dot / _mags, -1f, 1f)) * Mathf.Rad2Deg;
+        }
+
+        // Project a onto b
+        public static IVector Project(this IVector a, IVector b)
+            => b.Scale(a.Dot(b) / b.Dot(b));
+
+        // Reflect
+        public static IVector Reflect(this IVector v, IVector normal)
+            => v.Subtract(normal.Scale(2f * v.Dot(normal)));
+
+        public static V2 TryGetVector2(this IVector vec)
+        {
+            var x = vec.GetValueAtDimension(1) ?? 0f;
+            var y = vec.GetValueAtDimension(2) ?? 0f;
+            return new V2(x, y);
+        }
+
+        public static V3 TryGetVector3(this IVector vec)
+        {
+            var x = vec.GetValueAtDimension(1) ?? 0f;
+            var y = vec.GetValueAtDimension(2) ?? 0f;
+            var z = vec.GetValueAtDimension(3) ?? 0f;
+            return new V3(x, y, z);
+        }
+
+        public static V4 TryGetVector4(this IVector vec)
+        {
+            var x = vec.GetValueAtDimension(1) ?? 0f;
+            var y = vec.GetValueAtDimension(2) ?? 0f;
+            var z = vec.GetValueAtDimension(3) ?? 0f;
+            var w = vec.GetValueAtDimension(4) ?? 0f;
+            return new V4(x, y, z, w);
+        }
+
         public static IVector ToGeneric(this Vector4 vector4)
         {
             return (V4)vector4;
@@ -86,44 +186,50 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static IVector Subtract(this IVector a, IVector b)
         {
-            var dims = Math.Max(a.Dimensions, b.Dimensions);
-            var result = a;
-            for (var i = 1; i <= dims; i++)
+            var _dims = Math.Max(a.Dimensions, b.Dimensions);
+            var _result = a;
+            for (var _i = 1; _i <= _dims; _i++)
             {
-                var aVal = a.GetValueAtDimension(i) ?? 0f;
-                var bVal = b.GetValueAtDimension(i) ?? 0f;
-                result = result.SetValueAtDimension(i, aVal - bVal);
+                var _aVal = a.GetValueAtDimension(_i) ?? 0f;
+                var _bVal = b.GetValueAtDimension(_i) ?? 0f;
+                _result = _result.SetValueAtDimension(_i, _aVal - _bVal);
             }
 
-            return result;
+            return _result;
         }
 
         public static IVector Add(this IVector a, IVector b)
         {
-            var dims = Math.Max(a.Dimensions, b.Dimensions);
-            var result = a;
-            for (var i = 1; i <= dims; i++)
+            var _dims = Math.Max(a.Dimensions, b.Dimensions);
+            var _result = a;
+            for (var _i = 1; _i <= _dims; _i++)
             {
-                var aVal = a.GetValueAtDimension(i) ?? 0f;
-                var bVal = b.GetValueAtDimension(i) ?? 0f;
-                result = result.SetValueAtDimension(i, aVal + bVal);
+                var _aVal = a.GetValueAtDimension(_i) ?? 0f;
+                var _bVal = b.GetValueAtDimension(_i) ?? 0f;
+                _result = _result.SetValueAtDimension(_i, _aVal + _bVal);
             }
 
-            return result;
+            return _result;
         }
 
-        public static float DotProduct(this IVector a, IVector b)
-        {
-            var dims = Math.Max(a.Dimensions, b.Dimensions);
-            var result = 0f;
-            for (var i = 1; i <= dims; i++)
-            {
-                var aVal = a.GetValueAtDimension(i) ?? 0f;
-                var bVal = b.GetValueAtDimension(i) ?? 0f;
-                result += aVal * bVal;
-            }
 
-            return result;
+        public static void TransitionOrThrow<TStateConcrete,TState>(this IGlobalStateHandler<TState> handler) where TStateConcrete : TState, new() where TState : class, IDefinedState
+        {
+            if (!handler.TryTransitionTo<TStateConcrete>())
+            {
+                throw new Exception($"Can't transition to state {typeof(TState).Name}");
+            }
+        }
+
+        public static ITextProcess Append(this ITextProcess original, ITextProcess added)
+        {
+            return ITextProcess.Literal((exec));
+
+            async UniTask exec(TextProcessContext arg1, CancellationToken arg2)
+            {
+                await original.Execute(arg1, arg2);
+                await added.Execute(arg1, arg2);
+            }
         }
 
         public static IEnumerable<T> ToEnumerable<T>(this T obj)
@@ -174,7 +280,7 @@ namespace DAFP.TOOLS.Common.Utill
             pets.Add(new SerializableInterface<T>(pet));
         }
 
-        public static bool RemovePet<T>(T pet, ref List<T> pets) where T : class
+        public static bool RemovePet<T>(T pet, List<T> pets) where T : class
         {
             if (pet == null) return false;
             if (!pets.Contains(pet)) return false;
@@ -182,7 +288,7 @@ namespace DAFP.TOOLS.Common.Utill
             return true;
         }
 
-        public static void AddPet<T>(T pet, ref List<T> pets) where T : class
+        public static void AddPet<T>(T pet, List<T> pets) where T : class
         {
             if (pet == null) return;
             if (pets.Contains(pet)) return;
@@ -553,11 +659,6 @@ namespace DAFP.TOOLS.Common.Utill
         }
 
 
-        public static IEnumerable<IViewModel> GetActiveViews(this IEnumerable<IViewModel> models)
-        {
-            return models.Where(viewModel => viewModel.Enabled);
-        }
-
         public static void Do(this IEnumerable<IViewModel> views, IAnimAction action)
         {
             foreach (var _view in views.Enabled())
@@ -674,6 +775,22 @@ namespace DAFP.TOOLS.Common.Utill
             _find.Disable();
         }
 
+        public static void SwitchTo(this IEnumerable<IViewModel> models, int slot)
+        {
+            var _viewModels = models as IViewModel[] ?? models.ToArray();
+            var _find = _viewModels.ElementAtOrDefault(slot);
+            if (_find == null)
+                return;
+            foreach (var _viewModel in _viewModels)
+            {
+                if (_viewModel == _find)
+                    continue;
+                _viewModel.Disable();
+            }
+
+            _find.Enable();
+        }
+
         public static void SwitchTo<T>(this IEnumerable<IViewModel> models)
         {
             var _find = models.FirstOrDefault(model => model.GetType().IsSubclassOf(typeof(T)));
@@ -695,15 +812,16 @@ namespace DAFP.TOOLS.Common.Utill
                 action(_item);
         }
 
+        public static bool ContainsWithName<T>(this IEnumerable<T> nameables, string name) where T : INameable
+        {
+            return nameables.FirstOrDefault(nameable => nameable.Name == name) != null;
+        }
+
         public static T FindByName<T>(this IEnumerable<T> nameables, string name) where T : INameable
         {
             return nameables.FirstOrDefault(nameable => nameable.Name == name);
         }
 
-        public static INameable FindByName(this IEnumerable<INameable> nameables, string name)
-        {
-            return nameables.FirstOrDefault(nameable => nameable.Name == name);
-        }
 
         //-- Cleaned up and it almost works 
 
@@ -729,10 +847,10 @@ namespace DAFP.TOOLS.Common.Utill
 
             //-- stuff---------------------------------
 
-            void handle<T>(Func<T, T> cloneFunc, T original_obj, FieldInfo _f)
+            void handle<T>(Func<T, T> cloneFunc, T originalObj, FieldInfo f)
             {
-                var _result = cloneFunc.Invoke(original_obj);
-                _f.SetValue(_clone, _result);
+                var _result = cloneFunc.Invoke(originalObj);
+                f.SetValue(_clone, _result);
             }
 
             object clone_shit(object item)
@@ -750,61 +868,61 @@ namespace DAFP.TOOLS.Common.Utill
                 }
             }
 
-            object clone_wrapper(object _v)
+            object clone_wrapper(object v)
             {
-                var _valueProp = _v.GetType().GetProperty("Value",
+                var _valueProp = v.GetType().GetProperty("Value",
                     BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
-                if (_valueProp == null) return _v;
+                if (_valueProp == null) return v;
 
-                var inner = _valueProp.GetValue(_v);
-                if (inner is not UnityEngine.ScriptableObject _ob) return _v;
+                var _inner = _valueProp.GetValue(v);
+                if (_inner is not UnityEngine.ScriptableObject _ob) return v;
 
                 var _clonedSo = clone_so(_ob);
 
                 // Create empty instance then set Value via reflection
-                var _newWrapper = Activator.CreateInstance(_v.GetType());
+                var _newWrapper = Activator.CreateInstance(v.GetType());
                 _valueProp.SetValue(_newWrapper, _clonedSo);
                 return _newWrapper;
             }
 
 
-            ScriptableObject clone_so(ScriptableObject _so)
+            ScriptableObject clone_so(ScriptableObject so)
             {
-                return deep_clone(_so);
+                return deep_clone(so);
             }
 
-            IList list_add(IList _list, object _item)
+            IList list_add(IList list, object item)
             {
-                if (_list is Array arr)
+                if (list is Array _arr)
                 {
-                    var newArr = Array.CreateInstance(arr.GetType().GetElementType(), arr.Length + 1);
-                    Array.Copy(arr, newArr, arr.Length);
-                    newArr.SetValue(_item, arr.Length);
-                    return newArr;
+                    var _newArr = Array.CreateInstance(_arr.GetType().GetElementType(), _arr.Length + 1);
+                    Array.Copy(_arr, _newArr, _arr.Length);
+                    _newArr.SetValue(item, _arr.Length);
+                    return _newArr;
                 }
 
-                _list.Add(_item);
-                return _list;
+                list.Add(item);
+                return list;
             }
 
-            IList clone_list(IList _list)
+            IList clone_list(IList list)
             {
                 IList _newList;
 
 
-                if (_list is Array _arrList)
+                if (list is Array _arrList)
                 {
                     var _elementType = _arrList.GetType().GetElementType();
                     _newList = Array.CreateInstance(_elementType, 0);
                 }
                 else
                 {
-                    _newList = (IList)Activator.CreateInstance(_list.GetType());
+                    _newList = (IList)Activator.CreateInstance(list.GetType());
                 }
 
 
-                foreach (var _item in _list)
+                foreach (var _item in list)
                 {
                     _newList = list_add(_newList, (clone_shit(_item)));
                 }
@@ -816,10 +934,10 @@ namespace DAFP.TOOLS.Common.Utill
             {
                 while (type != null && type != typeof(UnityEngine.Object))
                 {
-                    foreach (var f in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic |
-                                                     BindingFlags.Instance))
-                        if (predicate == null || predicate(f))
-                            yield return f;
+                    foreach (var _f in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic |
+                                                      BindingFlags.Instance))
+                        if (predicate == null || predicate(_f))
+                            yield return _f;
                     type = type.BaseType;
                 }
             }
@@ -1213,9 +1331,9 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static void PriorityForeach<T>(this IEnumerable<T> l, Action<T> action) where T : IPrioritized
         {
-            var list = l.ToList();
-            list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-            list.ForEach(action);
+            var _list = l.ToList();
+            _list.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            _list.ForEach(action);
         }
 
         public static IEnumerable<T> Filter<T>(this IFilter<T> filter, IEnumerable<T> ents)
@@ -1356,17 +1474,36 @@ namespace DAFP.TOOLS.Common.Utill
             return a;
         }
 
-        public static float GetRatio01(this IStat<int> a)
+        public static float Ratio01(this IStatBase a)
+        {
+            return a switch
+            {
+                IStat<int> _stat => _stat.ratio01(),
+                IStat<float> _stat => _stat.ratio01(),
+                IStat<Vector3> _stat => _stat.ratio01(),
+                IStat<uint> _stat => _stat.ratio01(),
+                _ => 0
+            };
+        }
+
+        private static float ratio01(this IStat<int> a)
         {
             return (float)a.Value / (float)a.MaxValue;
         }
 
-        public static float GetRatio01(this IStat<float> a)
+        private static float ratio01(this IStat<Vector3> a)
+        {
+            var _result = Clamp(a.Value.magnitude / (a.MaxValue.x * 2), 0f, 1f);
+            // Debug.Log($"mag: {a.Value.magnitude}, max: {a.MaxValue.x}, res: {_result}");
+            return _result;
+        }
+
+        private static float ratio01(this IStat<float> a)
         {
             return (float)a.Value / (float)a.MaxValue;
         }
 
-        public static float GetRatio01(this IStat<uint> a)
+        private static float ratio01(this IStat<uint> a)
         {
             return (float)a.Value / (float)a.MaxValue;
         }
@@ -1425,9 +1562,9 @@ namespace DAFP.TOOLS.Common.Utill
         private static void add_buddha(IEntity ent)
         {
             ent.Memory.Set("Buddha", "_");
-            var stats = GetHpStats(ent);
+            var _stats = GetHpStats(ent);
 
-            stats.ForEach((stat =>
+            _stats.ForEach((stat =>
                 stat.AddModifier(new LockModifier<uint>(ent, 1,
                     "Buddha's will"))));
         }
@@ -1435,8 +1572,8 @@ namespace DAFP.TOOLS.Common.Utill
         private static void remove_buddha(IEntity ent)
         {
             ent.Memory.Delete("Buddha");
-            var stats = GetHpStats(ent);
-            stats.ForEach((stat => stat.RemoveModifier("Buddha's will")));
+            var _stats = GetHpStats(ent);
+            _stats.ForEach((stat => stat.RemoveModifier("Buddha's will")));
         }
 
         public static void God([NotNull] IEntity ent)
@@ -1450,9 +1587,9 @@ namespace DAFP.TOOLS.Common.Utill
         private static void add_god(IEntity ent)
         {
             ent.Memory.Set("God", "_");
-            var stats = GetHpStats(ent);
+            var _stats = GetHpStats(ent);
 
-            stats.ForEach((stat =>
+            _stats.ForEach((stat =>
                 stat.AddModifier(new MaxLockModifier<uint>(ent, MaxLockModifier<uint>.StatValue.Default, stat,
                     "God's will"))));
         }
@@ -1461,18 +1598,18 @@ namespace DAFP.TOOLS.Common.Utill
         private static void remove_god(IEntity ent)
         {
             ent.Memory.Delete("God");
-            var stats = GetHpStats(ent);
-            stats.ForEach((stat => stat.RemoveModifier("God's will")));
+            var _stats = GetHpStats(ent);
+            _stats.ForEach((stat => stat.RemoveModifier("God's will")));
         }
 
         public static List<IStat<uint>> GetHpStats(IEntity ent)
         {
-            var stats = new List<IStat<uint>>();
+            var _stats = new List<IStat<uint>>();
 
-            stats.Add(ent.Stats.Get("Health", () => new QuikStat<uint>(1)));
-            stats.Add(ent.Stats.Get("HP", () => new QuikStat<uint>(1)));
-            stats.Add(ent.Stats.Get("Hp", () => new QuikStat<uint>(1)));
-            return stats;
+            _stats.Add(ent.Stats.Get("Health", () => new QuikStat<uint>(1)));
+            _stats.Add(ent.Stats.Get("HP", () => new QuikStat<uint>(1)));
+            _stats.Add(ent.Stats.Get("Hp", () => new QuikStat<uint>(1)));
+            return _stats;
         }
 
         public static void Noclip([NotNull] IEntity ent)
@@ -1498,12 +1635,16 @@ namespace DAFP.TOOLS.Common.Utill
         {
             ent.Memory.Set("Noclip", "_");
             ent.CollisionManager().SetCollisionState(false);
+            ent.Stats.Get<float>("MovementSpeed", () => new QuikStat<float>(1))
+                .AddModifier(new MultiplyFloatModifier(new QuikStat<float>(2.3f), null, "Noclip"));
         }
 
         private static void remove_noclip(IEntity ent)
         {
             ent.Memory.Delete("Noclip");
             ent.CollisionManager().SetCollisionState(true);
+            ent.Stats.Get<float>("MovementSpeed", () => new QuikStat<float>(1))
+                .RemoveModifier("Noclip");
         }
     }
 }

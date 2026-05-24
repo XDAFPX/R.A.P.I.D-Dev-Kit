@@ -23,11 +23,10 @@ using Zenject;
 namespace DAFP.TOOLS.ECS
 {
     public interface IEntity : ITickable, IGameObjectProvider, IAuthor, INameable, IPetOwnerTreeOf<IEntity>, ISavable,
-        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>, IOwnerOf<IStatBase>,
-        IOwnerOf<IStatModifierBase>, IOwnerOf<PegModifier>, IOwnerOf<IEntityAccessory>
+        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>,  IHaveStats,
+        IOwnerOf<IStatModifierBase>, IOwnerOf<PegModifier>, IOwnerOf<IEntityAccessory>, IDirectionProvider
     {
         public IThinker Brains { get; }
-        public IStatContainer Stats { get; }
 
         public void Initialize();
 
@@ -43,7 +42,7 @@ namespace DAFP.TOOLS.ECS
         public void AddEntComponent(IEntityComponent component);
 
         public bool HasInitialized { get; set; }
-        public ITicker<IEntity> EntityTicker { get; }
+        public ITicker EntityTicker { get; }
         public string ID { get; }
 
         public delegate void TickCallBack(IEntity ent);
@@ -53,9 +52,13 @@ namespace DAFP.TOOLS.ECS
         public IEventBus Bus { get; }
         public Bounds Bounds { get; }
         public Bounds CachedBounds { get; }
-        public IVector EyeVector { get; }
         public void Remove(EntityRemovalReason removalReason);
 
         public void BroadcastEvent<T>(T @event) where T : struct;
+    }
+
+    public interface IDirectionProvider
+    {
+        public IVector EyeVector { get; }
     }
 }

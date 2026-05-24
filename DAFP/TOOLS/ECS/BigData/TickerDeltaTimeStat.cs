@@ -13,8 +13,8 @@ namespace DAFP.TOOLS.ECS.BigData
         }
 
         private readonly ITickerBase based;
-        private List<IStatBase> owners = new List<IStatBase>();
-        private List<IEntity> owners1 = new List<IEntity>();
+        private List<IStatBase> owners = new ();
+        private List<IHaveStats> owners1 = new();
 
         public TickerDeltaTimeStat(ITickerBase based)
         {
@@ -28,7 +28,8 @@ namespace DAFP.TOOLS.ECS.BigData
             return Value;
         }
 
-        public event IStatBase.UpdateValueCallBack OnUpdateValue;
+        public event IStatBase.UpdateValueCallBack OnValueUpdateGeneric;
+        public event IStat<ITickerBase>.OnUpdateValueConcreteCallback OnUpdateValue;
 
         public void Randomize(NRandom.IRandom rng, float margin01)
         {
@@ -44,6 +45,11 @@ namespace DAFP.TOOLS.ECS.BigData
         public ITickerBase MinValue { get; set; }
         public ITickerBase DefaultValue { get; set; }
 
+        public bool HasModifier(string name)
+        {
+            return false;
+        }
+
         public void SetToMax()
         {
         }
@@ -52,9 +58,13 @@ namespace DAFP.TOOLS.ECS.BigData
         {
         }
 
-        public void AddModifier(StatModifier<ITickerBase> modifier)
+        public void ForceUpdate()
         {
             
+        }
+
+        public void AddModifier(StatModifier<ITickerBase> modifier)
+        {
         }
 
         public void RemoveModifier(StatModifier<ITickerBase> modifier)
@@ -63,13 +73,13 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public void RemoveModifier(string name)
         {
-            
         }
+
 
         public List<IStatBase> Children { get; } = new();
 
         List<IStatBase> IPetOwnerTreeOf<IStatBase>.Owners => owners;
 
-        List<IEntity> IPetOf<IEntity, IStatBase>.Owners => owners1;
+        List<IHaveStats> IPetOf<IHaveStats, IStatBase>.Owners => owners1;
     }
 }

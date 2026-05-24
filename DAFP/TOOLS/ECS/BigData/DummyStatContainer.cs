@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
@@ -6,7 +7,7 @@ namespace DAFP.TOOLS.ECS.BigData
     {
         public IStatContainer MarkAsDirty() => this;
         public IStatContainer InvalidateCache() => this;
-        public IStatContainer Construct(IEntity parent) => this;
+        public IStatContainer Construct(IHaveStats parent) => this;
 
         public IStat<T> Get<T>(string name, Func<IStat<T>> fallback) => fallback.Invoke();
 
@@ -27,6 +28,16 @@ namespace DAFP.TOOLS.ECS.BigData
         }
 
         public IStatContainer Add(IStatBase stat) => this;
+        public IStatContainer Remove(IStatBase stat)
+        {
+            return this;
+        }
+
+        public IEnumerable<IStatBase> All()
+        {
+            return Array.Empty<IStatBase>();
+        }
+
         public bool Add(StatInjector.PathBuilder pathBuilder, IStatBase statToAdd) => false;
 
         public void Tick()

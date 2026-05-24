@@ -44,7 +44,7 @@ namespace DAFP.TOOLS.ECS.Components.Movement
         public bool CanFly;
         public bool IsInKnockback { get; protected set; }
         public bool IsInDash { get; protected set; }
-        [SerializeField] private List<SerializableInterface<IMovementOverride>> MovementOverrides; //TODO 
+        [SerializeField] private List<SerializableInterface<IMovementOverride>> MovementOverrides; 
 
         // Explicit interface properties to expose fields without changing existing API
         bool IMover.CanFly
@@ -57,8 +57,7 @@ namespace DAFP.TOOLS.ECS.Components.Movement
 
         private int resetTimer;
 
-        [Inject(Id = "DefaultPhysicsComponentGameplayTicker")]
-        public override ITickerBase EntityComponentTicker { get; }
+        public override ITicker EntityComponentTicker => World.PhysicsUpdate;
 
         [DeclareStat("Acceleration", 70)] private IStat<float> accelerationBoard;
 
