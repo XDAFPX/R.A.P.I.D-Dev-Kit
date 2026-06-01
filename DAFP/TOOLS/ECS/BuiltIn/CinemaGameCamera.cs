@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Bdeshi.Helpers.Utility;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
@@ -7,6 +8,7 @@ using DAFP.TOOLS.ECS.ViewModel;
 using DAFP.TOOLS.Injection;
 using ModestTree;
 using NUnit.Framework;
+using RapidLib.DAFP.TOOLS.Common;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityGetComponentCache;
@@ -133,6 +135,133 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 Settings = settings,
                 TimeOfStart = UnityEngine.Time.time
             });
+        }
+
+        private Camera output => brain.OutputCamera ?? brain.GetComponent<Camera>();
+
+        public void UpdateSubjects(IEnumerable<IEntity> subjects)
+        {
+            set_camera_targets(subjects);
+        }
+
+        public Rect Rect
+        {
+            get => output.rect;
+            set => output.rect = value;
+        } //Implement
+
+
+        private ITargetOf<IEntity> _lockedTarget;
+
+         private static readonly CameraSubjectPolicy policy = CameraSubjectPolicy.FollowAll;
+
+        private void set_camera_targets(IEnumerable<IEntity> subjects)
+        {
+            var _subjects = subjects.ToList();
+            if (_subjects.IsEmpty()) return;
+
+            if (brain.ActiveVirtualCamera is not CinemachineCamera _cam) return;
+
+            switch (policy)
+            {
+                case CameraSubjectPolicy.FollowAll:
+                {
+                    var _group = get_or_create_target_group();
+                    _group.Targets.Clear();
+                    foreach (var _subject in _subjects)
+                    {
+                        var _go = _subject.GetWorldRepresentation();
+                        if (_go == null) continue;
+                        _group.Targets.Add(new CinemachineTargetGroup.Target
+                        {
+                            Object = _go.transform,
+                            Weight = 1f,
+                            Radius = 1f
+                        });
+                    }
+
+                    _cam.Follow = _group.transform;
+                    _cam.LookAt = _group.transform;
+                    break;
+                }
+                case CameraSubjectPolicy.FollowMain:
+                {
+                    var _target = _subjects.Players(GameUtils.PlayerSelectionPolicy.SingleOut)
+                        .Select(p => p?.Body).FirstOrDefault();
+                    set_single_target(_cam, _target);
+                    break;
+                }
+                case CameraSubjectPolicy.FollowOnlyOne:
+                {
+                    if (!_lockedTarget.HasValue || _lockedTarget.Raw?.GetWorldRepresentation() == null)
+                    {
+                        var _first = _subjects.FirstOrDefault(s => s.GetWorldRepresentation() != null);
+                        _lockedTarget = _first != null ? new TargetOf<IEntity>(_first) : null;
+                    }
+
+                    if (_lockedTarget != null)
+                        set_single_target(_cam, _lockedTarget.Raw);
+                    break;
+                }
+                case CameraSubjectPolicy.FollowClosest:
+                {
+                    var _target = _subjects
+                        .Where(s => s.GetWorldRepresentation() != null)
+                        .OrderBy(s =>
+                            Vector3.Distance(transform.position, s.GetWorldRepresentation().transform.position))
+                        .FirstOrDefault();
+                    set_single_target(_cam, _target);
+                    break;
+                }
+                case CameraSubjectPolicy.FollowAverageCentroid:
+                {
+                    var _valid = _subjects.Select(s => s.GetWorldRepresentation()).Where(g => g != null).ToList();
+                    if (_valid.IsEmpty()) break;
+                    var _centroid = _valid.Aggregate(Vector3.zero, (acc, g) => acc + g.transform.position) /
+                                    _valid.Count;
+                    var _dummy = get_or_create_dummy();
+                    _dummy.position = _centroid;
+                    _cam.Follow = _dummy;
+                    _cam.LookAt = _dummy;
+                    break;
+                }
+            }
+        }
+
+        private void set_single_target(CinemachineCamera cam, IEntity target)
+        {
+            var _go = target?.GetWorldRepresentation();
+            if (_go == null) return;
+            cam.Follow = _go.transform;
+            cam.LookAt = _go.transform;
+        }
+
+        private Transform _dummy;
+
+        private Transform get_or_create_dummy()
+        {
+            if (_dummy != null) return _dummy;
+            _dummy = new GameObject("CameraCentroidDummy").transform;
+            _dummy.SetParent(transform);
+            return _dummy;
+        }
+
+        private CinemachineTargetGroup get_or_create_target_group()
+        {
+            var _group = GetComponentInChildren<CinemachineTargetGroup>();
+            if (_group != null) return _group;
+            var _go = new GameObject("CameraTargetGroup");
+            _go.transform.SetParent(transform);
+            return _go.AddComponent<CinemachineTargetGroup>();
+        }
+
+        protected enum CameraSubjectPolicy
+        {
+            FollowAll, // target group, weights all subjects
+            FollowMain, // follows the main/single player
+            FollowOnlyOne, // locks to first valid subject forever
+            FollowClosest, // always follows whoever is closest to camera
+            FollowAverageCentroid // follows the average position without target group
         }
 
         protected override void OnDispose()

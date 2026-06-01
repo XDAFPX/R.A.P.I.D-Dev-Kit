@@ -2,6 +2,6 @@
 {
     public interface IHaveGameplayTag
     {
-        public GameplayTagContainer GameplayTag { get; }
+        public GameplayTagContainer GameplayTag { get; set;  }
     }
 }

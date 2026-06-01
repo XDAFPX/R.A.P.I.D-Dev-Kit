@@ -283,10 +283,14 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     return UniTask.CompletedTask;
                 }
 
+                var _pos = world.Players(GameUtils.PlayerSelectionPolicy.SingleOut).FirstOrDefault()?.Body?.Pos() ??
+                          Vector3.zero;
+                var _transition = world.Create<LevelTransition<SaveWorldTransition>>(_pos.ToGeneric());
+                
                 if (int.TryParse(_result, out var _index))
-                    DefaultLevelTransition.Transition(_index, saveSystem, world, random);
+                    _transition.Transition(_index);
                 else
-                    DefaultLevelTransition.Transition(_result, saveSystem, world, random);
+                    _transition.Transition(_result);
                 context.Log.OnNext(IMessage.Literal($"Loading... {_result}"));
                 return UniTask.CompletedTask;
             }
@@ -524,17 +528,17 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 var _cmds = new List<IConsoleCommand>();
                 GetPets(CommandParserUtils.GetRoot(this), _cmds);
                 context.Log.OnNext(IMessage.Literal("   "));
-                var formated = format(_cmds);
-                context.Log.OnNext(IMessage.Literal(formated));
+                var _formated = Format(_cmds);
+                context.Log.OnNext(IMessage.Literal(_formated));
                 return UniTask.CompletedTask;
             }
 
-            protected static string format(List<IConsoleCommand> _cmds)
+            protected static string Format(List<IConsoleCommand> cmds)
             {
-                var formated =
-                    string.Join("\n \n", _cmds.Select(cmd => $"{cmd.Name} : ({cmd.Description.Print()}) " +
+                var _formated =
+                    string.Join("\n \n", cmds.Select(cmd => $"{cmd.Name} : ({cmd.Description.Print()}) " +
                                                              $"{(cmd is IHiddenCommand ? "[HIDDEN]" : "")} ")) + "\n ";
-                return formated;
+                return _formated;
             }
 
             protected virtual void GetPets(ICommandInterpreter interpreter, List<IConsoleCommand> commands)

@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
-using DAFP.GAME.Assets;
+using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BuiltIn;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -42,20 +43,6 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 
 
         //------------------------------------ STUFFF
-        public static THurtBox Construct<THurtBox>(GameObject obj, T owner, HurtGroup<T> hurtGroup,
-            IAssetFactory factory)
-            where THurtBox : HurtBox<T>
-        {
-            var _hurtBox = obj.AddEntity<THurtBox>(factory);
-            if (_hurtBox is IOwnedBy<T> _pet)
-            {
-                _pet.ChangeOwner(owner);
-            }
-
-            ((IPetOf<HurtGroup<T>, HurtBox<T>>)_hurtBox).ChangeOwner(hurtGroup);
-
-            return _hurtBox;
-        }
 
         public List<HurtGroup<T>> Owners { get; } = new List<HurtGroup<T>>();
     }

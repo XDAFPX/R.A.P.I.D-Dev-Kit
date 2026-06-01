@@ -257,45 +257,6 @@ namespace DAFP.TOOLS.ECS.Components.Movement
             AddForce(_force, DefaultForceMode());
         }
 
-        // private void GroundAccel(TVec inputMovement) Deprecated TODO turn this into overrides
-        // {
-        //     if (movementSpeedBoard.Value == 0)
-        //         return;
-        //     var wishvel = Multiply(inputMovement, movementSpeedBoard.Value);
-        //     var pushvec = Subtract(wishvel, Velocity);
-        //     var addspeed = Magnitude(pushvec);
-        //     var accelspeed = accelerationBoard.Value * EntityComponentTicker.DeltaTime * addspeed;
-        //     pushvec = Normalize(pushvec);
-        //
-        //     if (accelspeed > addspeed)
-        //         accelspeed = addspeed;
-        //     AddForce(Multiply(pushvec,accelspeed));
-        // }
-        //
-        // private void AirAccel(TVec inputMovement)
-        // {
-        //     var wish_velocity = Normalize(inputMovement);
-        //     float wish_speed = movementSpeedBoard.Value;
-        //
-        //     if (wish_speed > 30)
-        //         wish_speed = 30;
-        //     var current_speed = DotProduct(Velocity, wish_velocity);
-        //
-        //     float add_speed = wish_speed - current_speed;
-        //     if (add_speed <= 0)
-        //         return;
-        //     var accel_speed = movementSpeedBoard.Value * accelerationBoard.Value * EntityComponentTicker.DeltaTime;
-        //     if (accel_speed > add_speed)
-        //         accel_speed = add_speed;
-        //     AddForce(Multiply(wish_velocity, accel_speed));
-        // }
-
-        // private void clamp_max_fall_speed()
-        // {
-        //     // only affect downward Y
-        //     var _y = GetComponent(Velocity, 1);
-        //     if (_y < -MaxFallSpeed) Velocity = SetComponent(Velocity, 1, -MaxFallSpeed);
-        // }
 
         private IEnumerator dash_coroutine(TVec force, float time)
         {

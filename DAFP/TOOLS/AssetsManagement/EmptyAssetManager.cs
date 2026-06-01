@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using Zenject;
 
-namespace DAFP.GAME.Assets
-{ // Add a custom AssetManager with all of ur assets
+namespace DAFP.TOOLS.AssetManagement
+{ 
     public class EmptyAssetManager : AssetManager
     {
         protected override HashSet<IAssetPoolBase> GetPools()
@@ -11,9 +11,8 @@ namespace DAFP.GAME.Assets
             return new HashSet<IAssetPoolBase>();
         }
 
-        public override Dictionary<Type, string> AssetPrefixes { get; } = new Dictionary<Type, string>();
 
-        [Inject]public EmptyAssetManager(IAssetFactory.DefaultAssetFactory defaultAssetFactory) : base(defaultAssetFactory)
+        [Inject]public EmptyAssetManager(IAssetFactory assetFactory) : base(assetFactory)
         {
         }
     }

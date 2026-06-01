@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Archon.SwissArmyLib.Utils.Editor;
-using DAFP.GAME.Assets;
+using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.ViewModel;
@@ -26,7 +26,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public override ITicker EntityTicker => DoTick ? realTicker : World.EmptyTicker;
 
-        private ITicker realTicker => World.DefaultUpdate;
+        private ITicker realTicker => World.EffectsUpdate;
 
         protected ParticleSystem ParticleSystem;
         protected Animator Animator;
@@ -105,7 +105,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         protected override void OnDispose()
         {
             // base.OnDispose();
-            AssetManager.ReleaseIGamePoolable(this);
+            AssetManager.Release(this);
         }
 
         public override void Remove(EntityRemovalReason removalReason)

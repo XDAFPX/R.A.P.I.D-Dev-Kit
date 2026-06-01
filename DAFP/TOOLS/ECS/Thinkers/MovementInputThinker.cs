@@ -23,7 +23,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         protected override void InternalInitialize(IEntity host)
         {
-            controller = this.TryGetRootController((() => controller_manager.Create<InputController>("Movement",InputSystem.actions)));
+            controller = this.TryGetRootController((() => controller_manager.Create<GameplayInputController>("Movement",InputSystem.actions)));
             controller.Bind("Move", (context) => OnMovementPerformed(host, context));
             controller.Enable();
         }

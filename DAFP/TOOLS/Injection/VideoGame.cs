@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Archon.SwissArmyLib.Utils.Editor;
-using DAFP.GAME.Assets;
+using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS;
@@ -18,9 +18,8 @@ using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.UI;
 using NRandom;
-using NRandom.Unity;
-using PixelRouge.Direction;
 using TNRD;
+using TripleA.Utils.Extensions;
 using UGizmo;
 using UnityEngine;
 using UnityEventBus;
@@ -33,7 +32,7 @@ namespace DAFP.TOOLS.Injection
     public abstract class
         VideoGame<TWorld, TGameStateService, TCursorService, TSaveService, TSettingsSaveService,
             TAudioService, TRandomService, TConsoleService, TGizmosService, TDebugService,
-            TCommandInterpreter, TAssetManager, TModManager> : MonoInstaller, IVideoGame
+            TCommandInterpreter, TModManager> : MonoInstaller, IVideoGame
         where TWorld : World
         where TGameStateService : IGameStateHandler
         where TCursorService : ICursorStateHandler
@@ -45,7 +44,6 @@ namespace DAFP.TOOLS.Injection
         where TGizmosService : IGlobalGizmos
         where TDebugService : IDebugSys<TGizmosService, TConsoleService>, IDebugSys<IGlobalGizmos, IConsoleMessenger>
         where TCommandInterpreter : ICommandInterpreter
-        where TAssetManager : IAssetManager
         where TModManager : IModManager
 
     {
@@ -118,7 +116,7 @@ namespace DAFP.TOOLS.Injection
                 Container.Bind<IConsoleCommand>().To(_consoleCommand).AsTransient().Lazy();
         }
 
-        protected virtual void InstallTickers() //--TODO organize this mess 
+        protected virtual void InstallTickers()
         {
             Container.Bind<ITicker>().WithId(IVideoGame.PHYSICS_UPDATE)
                 .FromMethod(_ => new FixedUpdateTicker(new HashSet<IGameState>())).AsTransient().Lazy();
@@ -139,13 +137,13 @@ namespace DAFP.TOOLS.Injection
         {
             bind_constants();
             bind_info_system();
+            bind_audio();
             bind_asset_manager();
             bind_input_manager();
             bind_debug_systems();
             bind_random_systems();
             bind_cursor_systems();
             bind_game_state_systems();
-            bind_audio();
             bind_global_boards();
             InstallTickers();
             bind_world();
@@ -154,8 +152,20 @@ namespace DAFP.TOOLS.Injection
             bind_console();
             BindCameraManager();
             bind_mod_manager();
+            bind_compatability_sys();
 
             InstallAdditional();
+        }
+
+        private void bind_compatability_sys()
+        {
+            BindCompatabilitySys();
+            Container.BindInterfacesAndSelfTo<CompatabilityChecker>().AsCached();
+        }
+
+        protected virtual void BindCompatabilitySys()
+        {
+            Container.BindInterfacesAndSelfTo<CompatabilitySys>().AsSingle().Lazy();
         }
 
         protected virtual void BindCameraManager()
@@ -173,10 +183,14 @@ namespace DAFP.TOOLS.Injection
             //     .AsCached();
             // Container.Bind<string>().WithId("DefaultCursorState").FromMethod(GetDefaultCursorState).AsCached();
             Container.Bind<bool>().WithId("ConsoleUnlocked").FromMethod(GetDefaultConsoleUnlockState).AsCached();
+            Container.Bind<string>().WithId("SystemCompatible").FromMethod((context => IsSystemCompatible)).AsCached();
 
             Container.Bind<IEventBus>().WithId(IVideoGame.GAME_BUS_NAME)
                 .FromMethod(_ => new GlobalStateBus()).AsCached().NonLazy();
         }
+
+
+        protected virtual string IsSystemCompatible => null;
 
         private void bind_info_system()
         {
@@ -230,7 +244,7 @@ namespace DAFP.TOOLS.Injection
 
         private void bind_game_state_systems()
         {
-            Container.Bind<IGameState>().WithId("DefaultGameState").FromMethod(GetDefaultGameState);
+            Container.Bind<IGameState>().WithId("DefaultGameState").To(GetDefaultGameState()).AsSingle().NonLazy();
             Container.Bind<TGameStateService>().AsSingle().NonLazy();
             Container.Bind<IGameStateHandler>().To<TGameStateService>().FromResolve();
             Container.Bind<IGlobalStateHandlerBase>().To<TGameStateService>().FromResolve();
@@ -239,15 +253,18 @@ namespace DAFP.TOOLS.Injection
         }
 
 
-        protected virtual IGameState GetDefaultGameState(InjectContext ctx)
+        protected virtual Type GetDefaultGameState()
         {
-            return ctx.Container.Instantiate<NormalGameState<NormalCursorState>>();
+            return typeof(NormalGameState<NormalCursorState>);
         }
 
         private void bind_audio()
         {
             Container.Bind<TAudioService>().AsSingle().NonLazy();
             Container.Bind<IAudioSystem>().To<TAudioService>().FromResolve();
+
+            Container.BindInterfacesAndSelfTo<MusicMan>().AsSingle()
+                .WithArguments("Main").Lazy();
         }
 
 
@@ -262,9 +279,13 @@ namespace DAFP.TOOLS.Injection
         {
             Container.Bind<World>()
                 .To<TWorld>()
-                .FromNewComponentOnNewGameObject()
                 .AsSingle()
                 .NonLazy();
+            Container.Bind<IInitializable>().To<World>().FromResolve();
+            Container.Bind<ITickable>().To<World>().FromResolve();
+            Container.Bind<IFixedTickable>().To<World>().FromResolve();
+
+            // Container.Bind<IInitializable>().To<TWorld>().FromResolve();
         }
 
         private void bind_save_systems()
@@ -306,10 +327,15 @@ namespace DAFP.TOOLS.Injection
 
         private void bind_asset_manager()
         {
-            Container.Bind<IAssetFactory.DefaultAssetFactory>().AsCached();
-            Container.Bind<TAssetManager>().AsSingle().NonLazy();
-            Container.Bind<IAssetManager>().To<TAssetManager>().FromResolve();
-            Container.Bind<IInitializable>().To<TAssetManager>().FromResolve();
+            Container.BindInterfacesAndSelfTo<AssetFactory>().AsCached();
+            BindAssetPools();
+            Container.BindInterfacesAndSelfTo<UniversalAssetManager>().AsSingle().NonLazy();
+        }
+
+        protected virtual void BindAssetPools()
+        {
+            Container.Bind<IAssetPoolBase>().To<AssetPool<EntSpecialEffect,EntSpecialEffect>>().AsSingle()
+                .WithArguments("Effects");
         }
 
         private void bind_mod_manager()
@@ -317,6 +343,19 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<TModManager>().AsSingle().NonLazy();
             Container.Bind<IMod[]>().FromMethod((context => Mods.ToValues().ToArray())).AsCached();
             Container.Bind<IModManager>().To<TModManager>().FromResolve();
+        }
+    }
+
+    internal class CompatabilityChecker : IInitializable
+    {
+        [Inject] private CompatabilitySys sys;
+        [Inject(Id = "SystemCompatible")] private string systemCompatible;
+
+        public void Initialize()
+        {
+            if (systemCompatible.IsNullOrEmpty())
+                return;
+            sys.TriggerIncompatibility(systemCompatible);
         }
     }
 

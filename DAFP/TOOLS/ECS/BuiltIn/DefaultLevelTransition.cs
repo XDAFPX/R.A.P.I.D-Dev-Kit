@@ -11,74 +11,23 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class DefaultLevelTransition : Entity
+    public class LevelTransition<T> : EmptyEntity where T : IWorldTransition
     {
         [Inject] private ISaveSystem saveSystem;
-        [Inject] private IRandom RandomSys;
+        [Inject] private IRandom randomSys;
+        [Inject] private DiContainer container;
 
-        public static void Transition(
-            string sceneName,
-            ISaveSystem saveSystem,
-            World world,
-            IRandom randomSys)
+
+        public void Transition(string sceneName)
         {
-            var sceneIndex = GetSceneIndexByName(sceneName);
-            Transition(sceneIndex, saveSystem, world, randomSys);
+            Transition(GameUtils.GetSceneIndexByName(sceneName));
         }
 
-        public static void Transition(
-            int sceneIndex,
-            ISaveSystem saveSystem,
-            World world,
-            IRandom randomSys)
+        public void Transition(int sceneIndex)
         {
-            var serializationService = new SaveSerializationService();
-            var serializer = new SaveSerializer();
-            var metaSerializer = new SaveMetaSerializer(world, randomSys);
-
-            saveSystem.SaveAll(serializationService, serializer, metaSerializer, 0);
-            saveSystem.TryChangeCurrentScene(serializationService, metaSerializer, sceneIndex, 0);
-            saveSystem.LoadAll(serializationService, serializer, metaSerializer, null, 0);
-        }
-
-        public void Transition(string scenename)
-        {
-            Transition(scenename, SaveSystem, World, RandomSys);
-        }
-
-        public void Transition(int SceneIndex)
-        {
-            Transition(SceneIndex, SaveSystem, World, RandomSys);
-        }
-
-        public static int GetSceneIndexByName(string sceneName)
-        {
-            var count = SceneManager.sceneCountInBuildSettings;
-
-            for (var i = 0; i < count; i++)
-            {
-                var path = SceneUtility.GetScenePathByBuildIndex(i);
-                var name = System.IO.Path.GetFileNameWithoutExtension(path);
-                if (name.Equals(sceneName, System.StringComparison.OrdinalIgnoreCase))
-                    return i;
-            }
-
-            return -1; // not found
-        }
-
-        public override IEnumerable<IViewModel> SetupView()
-        {
-            return new[] { new EmptyView() };
-        }
-
-        public override ITicker EntityTicker => World.EMPTY_TICKER;
-
-        protected override void TickInternal()
-        {
-        }
-
-        protected override void InitializeInternal()
-        {
+            var _tr = container.Instantiate<T>();
+            _tr.Init(sceneIndex);
+            World.Transition(_tr);
         }
     }
 }

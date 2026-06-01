@@ -38,7 +38,12 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
 
         public TriggerEntity.TriggerEvent Event { get; set; }
         public bool? LastStatus { get; set; }
-        public GameplayTagContainer GameplayTag => Tags.Value?.GameplayTag ?? GameplayTagContainer.Empty;
+
+        public GameplayTagContainer GameplayTag
+        {
+            get => Tags.Value?.GameplayTag ?? GameplayTagContainer.Empty;
+            set => Tags.Value = value;
+        }
 
         public bool Evaluate(IEntity go)
         {

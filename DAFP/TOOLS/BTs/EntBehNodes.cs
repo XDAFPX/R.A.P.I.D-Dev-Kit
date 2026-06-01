@@ -160,8 +160,6 @@ namespace DAFP.TOOLS.BTs
 
         public class DashNode : EntNode
         {
-            private readonly Mover2D movement2d;
-            private readonly Mover3D movement;
             private readonly IMover i_mover;
             private readonly string dashDirName;
             private readonly IStat<IVector> dir;
@@ -198,8 +196,6 @@ namespace DAFP.TOOLS.BTs
 
             protected override BtStatus Work()
             {
-                movement?.DoDash(BlackBoard.Get<Vector3>(dashDirName), dur.Value);
-                movement2d?.DoDash(BlackBoard.Get<Vector2>(dashDirName), dur.Value);
                 i_mover.DoDash(BlackBoard.Get<IVector>(dashDirName) ?? dir.Value, dur.Value);
                 return wait.Tick();
             }

@@ -98,7 +98,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public void Draw()
         {
             foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
-                _ownable.Draw();
+                _ownable?.Draw();
         }
     }
 }

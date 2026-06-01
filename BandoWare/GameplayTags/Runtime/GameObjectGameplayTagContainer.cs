@@ -22,6 +22,14 @@ namespace BandoWare.GameplayTags
          return container.GameplayTagContainer;
       }
 
-      public GameplayTagContainer GameplayTag => m_PersistentTags;
+      public GameplayTagContainer GameplayTag
+      {
+         get => new (GameplayTagContainer);
+         set
+         {
+            m_GameplayTagContainer = new GameplayTagCountContainer();
+            m_GameplayTagContainer.AddTags(value);
+         }
+      }
    }
 }

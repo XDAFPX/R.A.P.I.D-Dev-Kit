@@ -1,4 +1,5 @@
-﻿using DAFP.TOOLS.Common.Utill;
+﻿using Archon.SwissArmyLib.Utils.Editor;
+using DAFP.TOOLS.Common.Utill;
 using NRandom;
 using UnityEngine;
 
@@ -15,8 +16,11 @@ namespace DAFP.TOOLS.ECS.BigData
         public override bool SyncToBlackBoard => true;
         [field: SerializeField] public override T MaxValue { get; set; }
         [field: SerializeField] public override T MinValue { get; set; }
-        [field: SerializeField] public override T DefaultValue { get; set; }
-
+        [field : ReadOnly][field: SerializeField] public override T DefaultValue { get; set; }
+        
+        
+        
+        
         protected override void OnInitializeInternal()
         {
         }

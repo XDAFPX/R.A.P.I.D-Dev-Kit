@@ -242,7 +242,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             SampleSetInputLineContainer.gameObject.SetActive(false);
 
             CurrentInput = CurrentInputLineContainer.GetComponentInChildren<TMP_InputField>();
-            EnsureEventSystemExists(Root);
             ensure_visibility();
             Disable();
             OutputStream = new Subject<IMessage>();
@@ -508,6 +507,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             initialized = true;
             var _canvas = root_init(out var _root, out var _cmdcontainer, out var _vertical);
+
+            EnsureEventSystemExists(_canvas);
+            
             configure_layout(_vertical, true);
             _vertical.GetComponent<RectTransform>().AnchorTopLeft();
             _vertical.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;

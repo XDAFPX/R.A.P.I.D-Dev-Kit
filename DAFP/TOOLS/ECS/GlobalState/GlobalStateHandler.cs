@@ -22,7 +22,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
         public abstract T Default { get; }
         public T Current => StateMachine.CurTypedState;
         protected StateMachine<T> StateMachine;
-        [Inject] private DiContainer injector;
+        [Inject] protected DiContainer Injector;
 
         public void Initialize()
         {
@@ -58,7 +58,7 @@ namespace DAFP.TOOLS.ECS.GlobalState
         public bool TryTransitionTo<TConcreteState>() where TConcreteState : T, new()
         {
             var _pstate = StateMachine.CurTypedState;
-            var _state = injector.Instantiate<TConcreteState>();
+            var _state = Injector.Instantiate<TConcreteState>();
 
             if (!_pstate.CanTransitionTo(_state))
                 return false;

@@ -7,6 +7,10 @@ namespace DAFP.TOOLS.ECS.Environment
     public class GameplayTagAsset : ScriptableObject, IHaveGameplayTag
     {
         public GameplayTagContainer Tags;
-        public GameplayTagContainer GameplayTag => Tags;
+        public GameplayTagContainer GameplayTag
+        {
+            get => Tags;
+            set => Tags = value;
+        }
     }
 }

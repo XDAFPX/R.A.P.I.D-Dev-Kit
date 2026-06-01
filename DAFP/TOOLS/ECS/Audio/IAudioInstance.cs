@@ -6,5 +6,7 @@ namespace DAFP.TOOLS.ECS.Audio
     {
         public void Play();
         public void Stop();
+        public float Volume { get; set; } // for runtime control
+        public bool IsPlaying { get; }
     }
 }

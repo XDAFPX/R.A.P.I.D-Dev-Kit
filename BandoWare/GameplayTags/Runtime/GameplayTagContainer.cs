@@ -592,6 +592,10 @@ namespace BandoWare.GameplayTags
          return GetEnumerator();
       }
 
-      public GameplayTagContainer GameplayTag => this;
+      public GameplayTagContainer GameplayTag
+      {
+         get => this;
+         set{ Clear(); AddTags(value);}
+      }
    }
 }

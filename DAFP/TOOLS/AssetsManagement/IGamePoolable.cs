@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace DAFP.GAME.Assets
+namespace DAFP.TOOLS.AssetManagement
 {
     public interface IGamePoolable<TY> : IDisposable, IGamePoolableBase where TY : Component
     {
@@ -9,8 +9,4 @@ namespace DAFP.GAME.Assets
         TY Get();
     }
 
-    public interface IPoolComponentProvider
-    {
-        Component Self();
-    }
 }

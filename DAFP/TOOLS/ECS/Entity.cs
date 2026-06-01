@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using Archon.SwissArmyLib.Utils.Editor;
 using BandoWare.GameplayTags;
-using DAFP.GAME.Assets;
+using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.BTs;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
@@ -120,12 +120,14 @@ namespace DAFP.TOOLS.ECS
         [Inject] protected DiContainer Injector;
         [Inject] protected World World;
         [Inject] protected ISaveSystem SaveSystem;
-        [Inject] protected IRandom RandomSys;
+        [Inject] protected IRandom Rng;
         [Inject] protected IAssetManager AssetManager;
         [Inject] protected IAudioSystem AudioSystem;
 
         [Inject] public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
-        [Inject(Id = IVideoGame.GAME_BUS_NAME)] protected IEventBus GameEventsBus;
+
+        [Inject(Id = IVideoGame.GAME_BUS_NAME)]
+        protected IEventBus GameEventsBus;
 
         // Components & Memory
         public Dictionary<Type, IEntityComponent> Components { get; } = new();
@@ -308,7 +310,7 @@ namespace DAFP.TOOLS.ECS
             boot_strap(World);
         }
 
-        private void Awake()
+        private void Awake() //-- I'm sorry my bad. This sucks
         {
             if (!isInstantiated)
             {
@@ -316,7 +318,7 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
-        private void Update()
+        private void Update() //-- I'm sorry my bad. This sucks
         {
             if (isInstantiated && !HasInitialized)
             {
@@ -358,7 +360,7 @@ namespace DAFP.TOOLS.ECS
             view = _inter.ToList();
         }
 
-        private void OnValidate()
+        protected virtual void OnValidate()
         {
             if (!gameObject.activeInHierarchy)
                 return;
@@ -509,9 +511,6 @@ namespace DAFP.TOOLS.ECS
 
         private void assemble_list_additional_of_code_sources(out object[] additions)
         {
-
-
-
             IEnumerable<object> comps = GetComponents<MonoBehaviour>();
 
             var brains = _brains?.Value;
@@ -523,6 +522,8 @@ namespace DAFP.TOOLS.ECS
 
         public void Tick()
         {
+            if (!HasInitialized)
+                return;
             tick_stats();
             tick_components();
 
@@ -566,7 +567,6 @@ namespace DAFP.TOOLS.ECS
         // Component Management
         private void gather_components()
         {
-            
             if (Components == null)
                 return;
             Components.Clear();
@@ -631,11 +631,11 @@ namespace DAFP.TOOLS.ECS
         private void clone_or_assign_brain(IThinker thinker)
         {
             Brains = thinker;
-            if (Brains is not BaseThinker || thinker is not BaseThinker _t )
+            if (Brains is not BaseThinker || thinker is not BaseThinker _t)
                 return;
 #if UNITY_EDITOR
 
-            if (Brains is BaseThinker { EditMode: false } )
+            if (Brains is BaseThinker { EditMode: false })
                 Brains = _t.DeepClone();
             else
             {
@@ -667,7 +667,8 @@ namespace DAFP.TOOLS.ECS
                 ((IOwnerOf<IDebugDrawable>)this).AddPet(_drawer);
             }
 
-            foreach (var _ownable in ((IOwnerOf<IDebugDrawable>)this).Pets)
+            var debug = ((IOwnerOf<IDebugDrawable>)this).Pets.ToList();
+            foreach (var _ownable in debug)
             {
                 _ownable.ChangeOwner(this);
                 if (_ownable is IDebugDrawer _drawer) _drawer.InitilizeDebugDrawer(DebugSystem);
@@ -676,7 +677,7 @@ namespace DAFP.TOOLS.ECS
             DebugSystem.AddPet(this);
         }
 
-        
+
         public GameObject GetWorldRepresentation()
         {
             return gameObject;
@@ -726,7 +727,6 @@ namespace DAFP.TOOLS.ECS
         {
             Dispose();
         }
-
         public void Dispose()
         {
             Destroy(gameObject);
@@ -793,7 +793,8 @@ namespace DAFP.TOOLS.ECS
 
         public GameplayTagContainer GameplayTag
         {
-            get { return Tag?.Value == null ? GameplayTagContainer.Empty : Tag.Value.GameplayTag; }
+            get => Tag?.Value == null ? GameplayTagContainer.Empty : Tag.Value.GameplayTag;
+            set => Tag = new SerializableInterface<IHaveGameplayTag>(value);
         }
 
 
@@ -843,6 +844,5 @@ namespace DAFP.TOOLS.ECS
 
             return null;
         }
-
     }
 }

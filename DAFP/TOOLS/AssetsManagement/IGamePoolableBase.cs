@@ -1,6 +1,6 @@
-﻿namespace DAFP.GAME.Assets
+﻿namespace DAFP.TOOLS.AssetManagement
 {
-    public interface IGamePoolableBase : IPoolComponentProvider
+    public interface IGamePoolableBase 
     {
         string UName { get; }
         string Prefix { get; }

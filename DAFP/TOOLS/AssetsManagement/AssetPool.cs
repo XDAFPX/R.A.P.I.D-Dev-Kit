@@ -3,47 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Pool;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceProviders;
+using Zenject;
 
-namespace DAFP.GAME.Assets
+namespace DAFP.TOOLS.AssetManagement
 {
-    public class AssetPool<T, TP> : IDisposable, IAssetPool<T, TP>
+    public class AssetPool<T, TP> :  IAssetPool<T, TP>
         where T : IGamePoolable<TP> where TP : Component, IGamePoolable<TP>
     {
-        public Type GetPoolType()
-        {
-            return typeof(TP);
-        }
-
-        public void ReleaseGeneric(Component element)
-        {
-            if (element is T _poolable)
-            {
-                Release(_poolable);
-            }
-        }
-
-        string IAssetPoolBase.Prefix => prefix;
-
-        internal List<T> Assets;
-        private readonly int maxSize;
-        internal T FreshRelease;
-
-        public List<T> GetMembers()
-        {
-            return Assets;
-        }
-
-        private string prefix;
-
-        private readonly IAssetFactory factory;
-        //private string prefix;
-
-        public AssetPool(string prefix, IAssetFactory factory,
+        public AssetPool(string prefix,
             bool collectionCheck = true,
             int defaultCapacity = 100,
             int maxSize = 500)
@@ -57,14 +30,24 @@ namespace DAFP.GAME.Assets
         }
 
 
+        private string prefix;
+
+        [Inject] private IAssetFactory factory;
         public int Count => Assets.Count;
+        internal List<T> Assets;
+        private readonly int maxSize;
+        internal T FreshRelease;
 
-        public async Task<IGamePoolableBase> Get(string uName, string adress)
+        string IAssetPoolBase.Prefix => prefix;
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async UniTask<IGamePoolableBase> Get(GameAssetInfo info)
         {
-            if (just_released_the_same_thing(uName, out var _poolable)) return _poolable;
+            if (just_released_the_same_thing(info.UName, out var _poolable)) return _poolable;
 
 
-            return await spawn_or_find_existing(uName, adress);
+            return await spawn_or_find_existing(info.UName, info.FullAddress);
 
 
             bool just_released_the_same_thing(string uName, out TP poolable)
@@ -93,55 +76,21 @@ namespace DAFP.GAME.Assets
 
                 else
                 {
-                    var _handle = Addressables.InstantiateAsync(adress);
-                    await _handle.Task;
-                    return factory.InjectD(_handle.Result).GetComponent<TP>();
+                    var _obj = await factory.Create(adress);
+                    return _obj.GetComponent<TP>();
                 }
             }
         }
 
-        public async Task<GameObject> GetAsGameObject(string uName, string adress)
+
+        public void ReleaseGeneric(IGamePoolableBase element)
         {
-            if (just_released_the_same_thing(uName, out var _poolable)) return _poolable.gameObject;
-
-
-            return await spawn_or_find_existing(uName, adress);
-
-
-            bool just_released_the_same_thing(string uName, out TP poolable)
+            if (element is T _poolable)
             {
-                if (FreshRelease != null && FreshRelease.UName == uName) // fresh release check
-                {
-                    var _release = FreshRelease.Get();
-                    FreshRelease = default(T);
-                    poolable = _release;
-                    return true;
-                }
-
-                poolable = null;
-                return false;
+                Release(_poolable);
             }
-
-            async Task<GameObject> spawn_or_find_existing(string s, string adress)
-            {
-                int _possibleIndex = Assets.FindIndex((poolable => poolable.UName == s));
-                if (_possibleIndex != -1) //
-                {
-                    var _obj = Assets[_possibleIndex];
-                    Assets.RemoveAt(_possibleIndex);
-                    return _obj.Get().gameObject;
-                }
-
-                else
-                {
-                    var _handle = Addressables.InstantiateAsync(AssetManager.FormatAddress(adress));
-                    await _handle.Task;
-                    return factory.InjectD(_handle.Result);
-                }
-            }
-
-            ;
         }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Release(T element)
@@ -174,9 +123,15 @@ namespace DAFP.GAME.Assets
         {
             if (obj == null)
                 return;
-            if (!Addressables.ReleaseInstance((obj as Component).gameObject))
+
+            if (obj is Component cp && cp.gameObject == null)
+                return;
+
+            obj?.Dispose();
+
+            if (obj is Component c)
             {
-                obj.Dispose();
+                GameObject.Destroy(c.gameObject);
             }
         }
 
@@ -194,6 +149,16 @@ namespace DAFP.GAME.Assets
         public bool HasElement(T element)
         {
             return this.Assets.Contains(element) || (FreshRelease != null && FreshRelease.Equals(element));
+        }
+
+        public Type GetPoolType()
+        {
+            return typeof(TP);
+        }
+
+        public List<T> GetMembers()
+        {
+            return Assets;
         }
     }
 }

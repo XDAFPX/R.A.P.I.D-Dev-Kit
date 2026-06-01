@@ -4,14 +4,17 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using BandoWare.GameplayTags;
 using BDeshi.BTSM;
 using Cysharp.Threading.Tasks;
+using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS;
+using DAFP.TOOLS.ECS.Audio;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Damage;
@@ -23,12 +26,16 @@ using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.Filters;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
+using DAFP.TOOLS.ECS.EventBus;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
+using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.ViewModel;
 using Newtonsoft.Json.Linq;
+using NRandom;
+using NRandom.Unity;
 using NUnit.Framework;
 using Optional;
 using Optional.Unsafe;
@@ -39,13 +46,48 @@ using UGizmo;
 using UGizmo.Internal;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using Object = System.Object;
 using Random = UnityEngine.Random;
 
 namespace DAFP.TOOLS.Common.Utill
 {
     public static class GameUtils
+
     {
+        public static void Log(INameable author, params object[] stuff)
+        {
+            var _source = string.Join(" || ", stuff);
+
+            Debug.Log($"[{author.Name}] :: {_source}");
+        }
+
+
+        public static async UniTask FadeTo(this IAudioInstance instance, float targetVolume, float duration,
+            CancellationToken ct = default)
+        {
+            float startVolume = instance.Volume;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                instance.Volume = Mathf.Lerp(startVolume, targetVolume, elapsed / duration);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
+            instance.Volume = targetVolume;
+        }
+
+        public static async UniTask CrossFadeTo(this IAudioInstance from, IAudioInstance to, float duration,
+            CancellationToken ct = default)
+        {
+            await UniTask.WhenAll(
+                from.FadeTo(0f, duration, ct),
+                to.FadeTo(1f, duration, ct)
+            );
+        }
+
         public static void AddForce(this IMover mover, Vector3 vec, ForceMode forceMode)
         {
             switch (forceMode)
@@ -213,7 +255,8 @@ namespace DAFP.TOOLS.Common.Utill
         }
 
 
-        public static void TransitionOrThrow<TStateConcrete,TState>(this IGlobalStateHandler<TState> handler) where TStateConcrete : TState, new() where TState : class, IDefinedState
+        public static void TransitionOrThrow<TStateConcrete, TState>(this IGlobalStateHandler<TState> handler)
+            where TStateConcrete : TState, new() where TState : class, IDefinedState
         {
             if (!handler.TryTransitionTo<TStateConcrete>())
             {
@@ -243,6 +286,15 @@ namespace DAFP.TOOLS.Common.Utill
                 throw new ArgumentNullException(name);
         }
 
+        public static void ChangeHurtBoxOwner<T>(this HurtBox<T> hurtBox, T owner, HurtGroup<T> hurtGroup)
+        {
+            if (hurtBox is IOwnedBy<T> _pet)
+            {
+                _pet.ChangeOwner(owner);
+            }
+
+            ((IPetOf<HurtGroup<T>, HurtBox<T>>)hurtBox).ChangeOwner(hurtGroup);
+        }
 
         public static IEnumerable<HitBox<T>> RealHitBoxes<T>(this IEnumerable<HitboxSlot<T>> slots)
         {
@@ -678,6 +730,12 @@ namespace DAFP.TOOLS.Common.Utill
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 Point(this Bounds bounds, IRandom random)
+        {
+            return random.NextVector3(bounds.min, bounds.max);
+        }
+
         public static Bounds GetCombinedBounds(this IEnumerable<Collider2D> colliders)
         {
             Bounds? _combined = null;
@@ -733,6 +791,10 @@ namespace DAFP.TOOLS.Common.Utill
             return new Bounds(a.center - b.center, a.size - b.size);
         }
 
+        public static IPlayer TryGetPlayer(this IEntity models)
+        {
+            return models.GetWorldRepresentation().GetComponent<IPlayer>();
+        }
 
         public static IEnumerable<T> Local<T>(this IEnumerable<T> models) where T : IPlayer
         {
@@ -1111,7 +1173,8 @@ namespace DAFP.TOOLS.Common.Utill
             // --- 2D Colliders ---
             var _colliders2D = root.GetComponentsInChildren<Collider2D>();
 
-            if (_colliders3D.Length == 0 && _colliders2D.Length == 0) return new Bounds(Vector3.zero, Vector3.zero);
+            if (_colliders3D.Length == 0 && _colliders2D.Length == 0)
+                return new Bounds(root.transform.position, Vector3.zero);
 
             var _initialized = false;
             var _combined = new Bounds(Vector3.zero, Vector3.zero);
@@ -1243,6 +1306,11 @@ namespace DAFP.TOOLS.Common.Utill
         public static void Pos(this IEntity e, Vector3 pos)
         {
             e.GetWorldRepresentation().transform.position = pos;
+        }
+
+        public static void Pos(this IEntity e, IVector pos)
+        {
+            e.GetWorldRepresentation().transform.position = pos.TryGetVector3();
         }
 
         // -----------------------------
@@ -1646,5 +1714,145 @@ namespace DAFP.TOOLS.Common.Utill
             ent.Stats.Get<float>("MovementSpeed", () => new QuikStat<float>(1))
                 .RemoveModifier("Noclip");
         }
+
+        public static int GetSceneIndexByName(string sceneName)
+        {
+            var count = SceneManager.sceneCountInBuildSettings;
+            for (var i = 0; i < count; i++)
+            {
+                var path = SceneUtility.GetScenePathByBuildIndex(i);
+                var name = System.IO.Path.GetFileNameWithoutExtension(path);
+                if (name.Equals(sceneName, System.StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        public enum PlayerSelectionPolicy
+        {
+            All,
+            LocalOnly,
+            SingleOut,
+        }
+
+        public static IEnumerable<IPlayer> Players(this IEnumerable<IEntity> ents,
+            PlayerSelectionPolicy policy = PlayerSelectionPolicy.All)
+        {
+            var _enumerable = ents as IEntity[] ?? ents.ToArray();
+            var players = _enumerable.Select((entity => entity.TryGetPlayer())).ClearOfNulls();
+            return policy switch
+            {
+                PlayerSelectionPolicy.All => players,
+                PlayerSelectionPolicy.LocalOnly => players.Where((player => player.Data.IsLocal)),
+                PlayerSelectionPolicy.SingleOut => _enumerable.Players(PlayerSelectionPolicy.LocalOnly)
+                    .FirstOrDefault()
+                    .ToEnumerable() ?? players.FirstOrDefault().ToEnumerable() ?? Array.Empty<IPlayer>(),
+                _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, null)
+            };
+        }
+
+        public static IEnumerable<IPlayer> Players(this World world,
+            PlayerSelectionPolicy policy = PlayerSelectionPolicy.All)
+        {
+            return policy switch
+            {
+                PlayerSelectionPolicy.All => world.Players,
+                PlayerSelectionPolicy.LocalOnly => world.Players.Where((player => player.Data.IsLocal)),
+                PlayerSelectionPolicy.SingleOut => world.Players(PlayerSelectionPolicy.LocalOnly)
+                    .FirstOrDefault()
+                    .ToEnumerable() ?? world.Players.FirstOrDefault().ToEnumerable() ?? Array.Empty<IPlayer>(),
+                _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, null)
+            };
+        }
+
+        public static void DoForPlayer(this World world, Action<IPlayer> act,
+            PlayerSelectionPolicy policy = PlayerSelectionPolicy.All, Func<IPlayer, bool> predicate = null)
+        {
+            predicate ??= player => true;
+            world.Players(policy).Where(predicate).ForEach(act);
+        }
+
+
+        public static GameAssetInfo Info(this IGamePoolableBase poolable)
+        {
+            return new GameAssetInfo(poolable);
+        }
+
+        public static UniTask<T> Spawn<T>(this IAssetManager manager, string address)
+            where T : Component
+            => manager.Spawn<T>(new GameAssetInfo(address));
+
+        // Spawn and place at position
+        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Vector3 position)
+            where T : Component
+        {
+            var _result = await manager.Spawn<T>(info);
+            _result.transform.position = position;
+            return _result;
+        }
+
+        // Spawn and place at position + rotation
+        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Vector3 position,
+            Quaternion rotation)
+            where T : Component
+        {
+            var _result = await manager.Spawn<T>(info);
+            _result.transform.SetPositionAndRotation(position, rotation);
+            return _result;
+        }
+
+        // Spawn and parent
+        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Transform parent)
+            where T : Component
+        {
+            var _result = await manager.Spawn<T>(info);
+            _result.transform.SetParent(parent);
+            return _result;
+        }
+
+        // Spawn, parent and place
+        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Transform parent,
+            Vector3 localPosition)
+            where T : Component
+        {
+            var _result = await manager.Spawn<T>(info);
+            _result.transform.SetParent(parent);
+            _result.transform.localPosition = localPosition;
+            return _result;
+        }
+
+        // Spawn as GameObject
+        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info)
+        {
+            var _result = await manager.Spawn<Transform>(info);
+            return _result.gameObject;
+        }
+
+        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info,
+            Vector3 position)
+        {
+            var _result = await manager.Spawn(info);
+            _result.transform.position = position;
+            return _result;
+        }
+
+        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info,
+            Vector3 position, Quaternion rotation)
+        {
+            var _result = await manager.Spawn(info);
+            _result.transform.SetPositionAndRotation(position, rotation);
+            return _result;
+        }
+
+        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info,
+            Transform parent)
+        {
+            var _result = await manager.Spawn(info);
+            _result.transform.SetParent(parent);
+            return _result;
+        }
+
+        // Spawn by string overloads
     }
 }

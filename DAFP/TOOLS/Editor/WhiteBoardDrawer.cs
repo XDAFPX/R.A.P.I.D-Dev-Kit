@@ -5,80 +5,65 @@ using DAFP.TOOLS.ECS.BigData;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace RapidLib.DAFP.TOOLS.Editor
 {
-    /// <summary>
-    /// Drawer for any WhiteBoard<> derived type.
-    /// Ensures the list of Children is always drawn at the very end, using StatListGUI styling.
-    /// Other fields are drawn in their normal order before the Children list.
-    /// </summary>
     [CustomPropertyDrawer(typeof(WhiteBoard<>), true)]
     public class WhiteBoardDrawer : PropertyDrawer
     {
-        private readonly Dictionary<string, ReorderableList> lists = new Dictionary<string, ReorderableList>();
+        private readonly Dictionary<string, ReorderableList> _lists = new();
 
         private string ChildrenListName => nameof(WhiteBoard<uint>.ChildrenStats);
+
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            // Begin property scope
             EditorGUI.BeginProperty(position, label, property);
 
-            // Check if this WhiteBoard is a child of another stat
-            bool _isChildStat = is_child_of_another_stat(property);
+            float y = position.y, x = position.x, width = position.width;
+            bool isChild = is_child_of_another_stat(property);
 
-            // Calculate rects for fields
-            float _y = position.y;
-            float _x = position.x;
-            float _width = position.width;
-
-            // Draw foldout for the root (managed reference types often show a foldout)
-            property.isExpanded = EditorGUI.Foldout(new Rect(_x, _y, _width, EditorGUIUtility.singleLineHeight),
-                property.isExpanded, label, true);
-            _y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+            property.isExpanded = EditorGUI.Foldout(
+                new Rect(x, y, width, EditorGUIUtility.singleLineHeight), property.isExpanded, label, true);
+            y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
 
             if (property.isExpanded)
             {
                 EditorGUI.indentLevel++;
 
-                // Show info box if this is a child stat
-                if (_isChildStat)
+                if (isChild)
                 {
-                    _y = draw_separator_line(_x, _y, _width);
-                    draw_additional_child_properties(ref _y, _x, _width, property);
-                    _y = draw_separator_line(_x, _y, _width);
+                    y = draw_separator_line(x, y, width);
+                    draw_additional_child_properties(ref y, x, width, property);
+                    y = draw_separator_line(x, y, width);
                 }
 
+                var iterator = property.Copy();
+                var end = iterator.GetEndProperty();
+                int targetDepth = property.depth + 1;
 
-                // Iterate direct children excluding 'Children'
-                var _iterator = property.Copy();
-                var _end = _iterator.GetEndProperty();
-
-                // Move to first visible child
-                bool _hasChild = _iterator.NextVisible(true);
-                while (_hasChild && !SerializedProperty.EqualContents(_iterator, _end))
+                if (iterator.NextVisible(true))
                 {
-                    // Only draw direct children of this property
-                    if (_iterator.depth == property.depth + 1 && _iterator.name != ChildrenListName &&
-                        _iterator.name != "PegModifiers")
+                    while (!SerializedProperty.EqualContents(iterator, end))
                     {
-                        float _h = EditorGUI.GetPropertyHeight(_iterator, includeChildren: true);
-                        EditorGUI.PropertyField(new Rect(_x, _y, _width, _h), _iterator, true);
-                        _y += _h + EditorGUIUtility.standardVerticalSpacing;
-                    }
+                        if (iterator.depth == targetDepth &&
+                            iterator.name != ChildrenListName &&
+                            iterator.name != "PegModifiers")
+                        {
+                            float h = EditorGUI.GetPropertyHeight(iterator, includeChildren: true);
+                            EditorGUI.PropertyField(new Rect(x, y, width, h), iterator, true);
+                            y += h + EditorGUIUtility.standardVerticalSpacing;
+                        }
 
-                    _hasChild = _iterator.NextVisible(false);
+                        if (!iterator.NextVisible(false)) break;
+                    }
                 }
 
-                // Draw additional properties for child stats
-
-                // Before drawing Children, enforce numeric constraints if applicable
                 enforce_numeric_constraints(property);
 
-                // Draw Children list at the end
-                var _childrenProp = property.FindPropertyRelative(ChildrenListName);
-                float _listHeight = draw_children_list(new Rect(_x, _y, _width, 0), property, _childrenProp);
-                _y += _listHeight + EditorGUIUtility.standardVerticalSpacing;
+                var childrenProp = property.FindPropertyRelative(ChildrenListName);
+                y += draw_children_list(new Rect(x, y, width, 0), property, childrenProp)
+                     + EditorGUIUtility.standardVerticalSpacing;
 
                 EditorGUI.indentLevel--;
             }
@@ -86,255 +71,285 @@ namespace RapidLib.DAFP.TOOLS.Editor
             EditorGUI.EndProperty();
         }
 
-        private static float draw_separator_line(float _x, float _y, float _width)
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            float _separatorH = EditorGUIUtility.singleLineHeight * 0.1f;
-            EditorGUI.DrawRect(new Rect(_x, _y, _width, _separatorH), Color.crimson);
-            _y += _separatorH + EditorGUIUtility.standardVerticalSpacing;
-            return _y;
-        }
+            float height = EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+            if (!property.isExpanded) return height;
 
-        /// <summary>
-        /// Checks if this property is inside a "Children" array of another stat
-        /// </summary>
-        private bool is_child_of_another_stat(SerializedProperty property)
-        {
-            // Check if the property path contains ".Children.Array.data["
-            // This indicates it's an element within a Children list
-            return property.propertyPath.Contains($".{ChildrenListName}.Array.data[");
-        }
+            bool isChild = is_child_of_another_stat(property);
 
-        /// <summary>
-        /// Draw additional properties that should only appear for child stats
-        /// </summary>
-        private void draw_additional_child_properties(ref float y, float x, float width, SerializedProperty property)
-        {
-            var _iterator = property.FindPropertyRelative("PegModifiers");
-            float _h = EditorGUI.GetPropertyHeight(_iterator, includeChildren: true);
-            EditorGUI.PropertyField(new Rect(x, y, width, _h), _iterator, true);
-            y += _h + EditorGUIUtility.standardVerticalSpacing;
-        }
-
-        // Try normal field name and auto-property backing field name
-        private static SerializedProperty find_by_possible_names(SerializedProperty parent, string baseName)
-        {
-            if (parent == null) return null;
-            // 1) direct field name
-            var p = parent.FindPropertyRelative(baseName);
-            if (p != null) return p;
-            // 2) auto-property backing field generated by compiler: <Name>k__BackingField
-            string backing = "<" + baseName + ">k__BackingField";
-            p = parent.FindPropertyRelative(backing);
-            if (p != null) return p;
-            return null;
-        }
-
-        /// <summary>
-        /// Enforce numeric constraints for WhiteBoard<T> where T is a numeric/comparable type.
-        /// - Ensure MaxValue > MinValue (strict).
-        /// - Ensure MinValue < MaxValue (strict).
-        /// - Ensure DefaultValue is clamped within [MinValue, MaxValue].
-        /// - Skip entirely if all three values equal default(T) (uninitialized state).
-        /// </summary>
-        private void enforce_numeric_constraints(SerializedProperty boardProperty)
-        {
-            if (boardProperty == null)
-                return;
-
-            // Access sub-properties (support auto-property backing fields)
-            var minProp = find_by_possible_names(boardProperty, "MinValue");
-            var maxProp = find_by_possible_names(boardProperty, "MaxValue");
-            var defProp = find_by_possible_names(boardProperty, "DefaultValue");
-
-            // If we cannot access via SerializedProperty, try reflection path
-            if (minProp == null || maxProp == null || defProp == null)
+            if (isChild)
             {
-                try_reflection_constraints(boardProperty, minProp, maxProp, defProp);
-                return;
+                height += (EditorGUIUtility.singleLineHeight * 0.1f + EditorGUIUtility.standardVerticalSpacing) * 2f;
+                var peg = property.FindPropertyRelative("PegModifiers");
+                if (peg != null)
+                    height += EditorGUI.GetPropertyHeight(peg, includeChildren: true)
+                              + EditorGUIUtility.standardVerticalSpacing;
             }
-            
-            // Only handle primitive numeric types Unity exposes directly
-            // Note: For managed references, numeric T appears as Integer or Float
-            if (minProp.propertyType == SerializedPropertyType.Float &&
-                maxProp.propertyType == SerializedPropertyType.Float &&
-                defProp.propertyType == SerializedPropertyType.Float)
+
+            var iterator = property.Copy();
+            var end = iterator.GetEndProperty();
+            int targetDepth = property.depth + 1;
+
+            if (iterator.NextVisible(true))
             {
-                float min = minProp.floatValue;
-                float max = maxProp.floatValue;
-                float def = defProp.floatValue;
-
-                // Skip if all are default(T) == 0
-                if (Mathf.Approximately(min, 0f) && Mathf.Approximately(max, 0f) && Mathf.Approximately(def, 0f))
-                    return;
-
-                bool changed = false;
-
-                // Order enforcement
-                if (max < min)
+                while (!SerializedProperty.EqualContents(iterator, end))
                 {
-                    // swap
-                    (min, max) = (max, min);
-                    changed = true;
-                }
-                if (Mathf.Approximately(max, min))
-                {
-                    // make strictly greater using a tiny epsilon
-                    float step = Mathf.Max(1e-6f, Mathf.Abs(min) * 1e-6f);
-                    max = min + step;
-                    changed = true;
-                }
+                    if (iterator.depth == targetDepth &&
+                        iterator.name != ChildrenListName &&
+                        iterator.name != "PegModifiers")
+                    {
+                        height += EditorGUI.GetPropertyHeight(iterator, includeChildren: true)
+                                  + EditorGUIUtility.standardVerticalSpacing;
+                    }
 
-                // Clamp default
-                float clampedDef = Mathf.Clamp(def, min, max);
-                if (!Mathf.Approximately(clampedDef, def))
-                {
-                    def = clampedDef;
-                    changed = true;
-                }
-
-                if (changed)
-                {
-                    minProp.floatValue = min;
-                    maxProp.floatValue = max;
-                    defProp.floatValue = def;
-                    boardProperty.serializedObject.ApplyModifiedProperties();
+                    if (!iterator.NextVisible(false)) break;
                 }
             }
-            else if (minProp.propertyType == SerializedPropertyType.Integer &&
-                     maxProp.propertyType == SerializedPropertyType.Integer &&
-                     defProp.propertyType == SerializedPropertyType.Integer)
+
+            var childrenProp = property.FindPropertyRelative(ChildrenListName);
+            height += get_children_list_height(property, childrenProp) + EditorGUIUtility.standardVerticalSpacing;
+
+            return height;
+        }
+
+        // ── Constraints ──────────────────────────────────────────────────────────
+
+        private void enforce_numeric_constraints(SerializedProperty board)
+        {
+            if (board == null) return;
+
+            var minProp = find_by_possible_names(board, "MinValue");
+            var maxProp = find_by_possible_names(board, "MaxValue");
+            var intValue = find_by_possible_names(board, "InternalValue");
+
+            if (minProp == null || maxProp == null || intValue == null)
             {
-                // Use long to support large ranges; Unity maps many ints to longValue in newer versions
-#if UNITY_2021_2_OR_NEWER || UNITY_6000_0_OR_NEWER
-                long min = minProp.longValue;
-                long max = maxProp.longValue;
-                long def = defProp.longValue;
-#else
-                long min = minProp.intValue;
-                long max = maxProp.intValue;
-                long def = defProp.intValue;
-#endif
-                // Skip if all are default(T) == 0
-                if (min == 0 && max == 0 && def == 0)
-                    return;
+                try_reflection_constraints(board, minProp, maxProp, intValue);
+                return;
+            }
 
-                bool changed = false;
+            bool changed = false;
 
-                if (max < min)
-                {
-                    (min, max) = (max, min);
-                    changed = true;
-                }
-                if (max == min)
-                {
-                    max = min + 1; // make strictly greater
-                    changed = true;
-                }
-
-                // Clamp default
-                long clampedDef = def < min ? min : (def > max ? max : def);
-                if (clampedDef != def)
-                {
-                    def = clampedDef;
-                    changed = true;
-                }
-
-                if (changed)
-                {
-#if UNITY_2021_2_OR_NEWER || UNITY_6000_0_OR_NEWER
-                    minProp.longValue = min;
-                    maxProp.longValue = max;
-                    defProp.longValue = def;
-#else
-                    minProp.intValue = (int)min;
-                    maxProp.intValue = (int)max;
-                    defProp.intValue = (int)def;
-#endif
-                    boardProperty.serializedObject.ApplyModifiedProperties();
-                }
+            if (minProp.propertyType == SerializedPropertyType.Float)
+            {
+                changed = enforce_float(minProp, maxProp, intValue);
+                sync_edit_mode_copies_float(board, intValue, ref changed);
+            }
+            else if (minProp.propertyType == SerializedPropertyType.Integer)
+            {
+                changed = enforce_int(minProp, maxProp, intValue);
+                sync_edit_mode_copies_int(board, intValue, ref changed);
             }
             else
             {
-                // Not a directly supported numeric type; try reflection path for comparable T
-                try_reflection_constraints(boardProperty, minProp, maxProp, defProp);
+                try_reflection_constraints(board, minProp, maxProp, intValue);
+                return;
+            }
+
+            if (changed)
+                board.serializedObject.ApplyModifiedProperties();
+        }
+
+        private static bool enforce_float(SerializedProperty minP, SerializedProperty maxP, SerializedProperty valP)
+        {
+            float min = minP.floatValue, max = maxP.floatValue, val = valP.floatValue;
+            if (Mathf.Approximately(min, 0f) && Mathf.Approximately(max, 0f) && Mathf.Approximately(val, 0f))
+                return false;
+
+            bool changed = false;
+            if (max < min)
+            {
+                (min, max) = (max, min);
+                changed = true;
+            }
+
+            if (Mathf.Approximately(max, min))
+            {
+                max = min + Mathf.Max(1e-6f, Mathf.Abs(min) * 1e-6f);
+                changed = true;
+            }
+
+            float clamped = Mathf.Clamp(val, min, max);
+            if (!Mathf.Approximately(clamped, val))
+            {
+                val = clamped;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                minP.floatValue = min;
+                maxP.floatValue = max;
+                valP.floatValue = val;
+            }
+
+            return changed;
+        }
+
+        private static bool enforce_int(SerializedProperty minP, SerializedProperty maxP, SerializedProperty valP)
+        {
+#if UNITY_2021_2_OR_NEWER || UNITY_6000_0_OR_NEWER
+            long min = minP.longValue, max = maxP.longValue, val = valP.longValue;
+#else
+            long min = minP.intValue, max = maxP.intValue, val = valP.intValue;
+#endif
+            if (min == 0 && max == 0 && val == 0) return false;
+
+            bool changed = false;
+            if (max < min)
+            {
+                (min, max) = (max, min);
+                changed = true;
+            }
+
+            if (max == min)
+            {
+                max = min + 1;
+                changed = true;
+            }
+
+            long clamped = val < min ? min : val > max ? max : val;
+            if (clamped != val)
+            {
+                val = clamped;
+                changed = true;
+            }
+
+            if (changed)
+            {
+#if UNITY_2021_2_OR_NEWER || UNITY_6000_0_OR_NEWER
+                minP.longValue = min;
+                maxP.longValue = max;
+                valP.longValue = val;
+#else
+                minP.intValue = (int)min; maxP.intValue = (int)max; valP.intValue = (int)val;
+#endif
+            }
+
+            return changed;
+        }
+
+        // ── Edit-mode copies sync (DefaultValue + RealValue) ─────────────────────
+
+        private static void sync_edit_mode_copies_float(SerializedProperty board, SerializedProperty intP,
+            ref bool changed)
+        {
+            if (EditorApplication.isPlaying) return;
+
+            var defP = find_by_possible_names(board, "DefaultValue");
+            var realP = find_by_possible_names(board, "RealValue");
+
+            if (defP != null && defP.propertyType == SerializedPropertyType.Float &&
+                !Mathf.Approximately(defP.floatValue, intP.floatValue))
+            {
+                defP.floatValue = intP.floatValue;
+                changed = true;
+            }
+
+            if (realP != null && realP.propertyType == SerializedPropertyType.Float &&
+                !Mathf.Approximately(realP.floatValue, intP.floatValue))
+            {
+                realP.floatValue = intP.floatValue;
+                changed = true;
             }
         }
 
-        private static void try_reflection_constraints(SerializedProperty boardProperty, SerializedProperty minProp,
-            SerializedProperty maxProp, SerializedProperty defProp)
+        private static void sync_edit_mode_copies_int(SerializedProperty board, SerializedProperty intP,
+            ref bool changed)
+        {
+            if (EditorApplication.isPlaying) return;
+
+            var defP = find_by_possible_names(board, "DefaultValue");
+            var realP = find_by_possible_names(board, "RealValue");
+
+#if UNITY_2021_2_OR_NEWER || UNITY_6000_0_OR_NEWER
+            if (defP != null && defP.propertyType == SerializedPropertyType.Integer &&
+                defP.longValue != intP.longValue)
+            {
+                defP.longValue = intP.longValue;
+                changed = true;
+            }
+
+            if (realP != null && realP.propertyType == SerializedPropertyType.Integer &&
+                realP.longValue != intP.longValue)
+            {
+                realP.longValue = intP.longValue;
+                changed = true;
+            }
+#else
+            if (defP != null && defP.propertyType == SerializedPropertyType.Integer &&
+                defP.intValue != intP.intValue)
+            {
+                defP.intValue = intP.intValue;
+                changed = true;
+            }
+
+            if (realP != null && realP.propertyType == SerializedPropertyType.Integer &&
+                realP.intValue != intP.intValue)
+            {
+                realP.intValue = intP.intValue;
+                changed = true;
+            }
+#endif
+        }
+
+        // ── Reflection fallback ───────────────────────────────────────────────────
+
+        private static void try_reflection_constraints(SerializedProperty board,
+            SerializedProperty minProp, SerializedProperty maxProp, SerializedProperty defProp)
         {
 #if UNITY_2020_1_OR_NEWER
-            // For managedReference, get the runtime instance
-            object instance = boardProperty.managedReferenceValue;
-            if (instance == null)
-                return;
+            object instance = board.managedReferenceValue;
+            if (instance == null) return;
 
-            Type t = instance.GetType();
-            // Walk inheritance to find WhiteBoard<T>
-            Type whiteboardGeneric = null;
-            var cur = t;
-            while (cur != null)
+            Type t = instance.GetType(), whiteboardGeneric = null;
+            for (var cur = t; cur != null; cur = cur.BaseType)
             {
                 if (cur.IsGenericType && cur.GetGenericTypeDefinition().Name.StartsWith("WhiteBoard"))
                 {
                     whiteboardGeneric = cur;
                     break;
                 }
-                cur = cur.BaseType;
             }
-            if (whiteboardGeneric == null)
-                return;
+
+            if (whiteboardGeneric == null) return;
 
             Type valueType = whiteboardGeneric.GetGenericArguments()[0];
-            // Only proceed for IComparable
-            if (!typeof(IComparable).IsAssignableFrom(valueType))
-                return;
+            if (!typeof(IComparable).IsAssignableFrom(valueType)) return;
 
-            var minPi = t.GetProperty("MinValue", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            var maxPi = t.GetProperty("MaxValue", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            var defPi = t.GetProperty("DefaultValue", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (minPi == null || maxPi == null || defPi == null)
-                return;
+            const BindingFlags bf = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var minPi = t.GetProperty("MinValue", bf);
+            var maxPi = t.GetProperty("MaxValue", bf);
+            var defPi = t.GetProperty("InternalValue", bf);
+            if (minPi == null || maxPi == null || defPi == null) return;
 
-            object min = minPi.GetValue(instance);
-            object max = maxPi.GetValue(instance);
-            object def = defPi.GetValue(instance);
-
-            object defaultT = valueType.IsValueType ? Activator.CreateInstance(valueType) : null;
-            // Skip if all defaults
-            if (Equals(min, defaultT) && Equals(max, defaultT) && Equals(def, defaultT))
-                return;
+            object min = minPi.GetValue(instance), max = maxPi.GetValue(instance), def = defPi.GetValue(instance);
+            object zero = valueType.IsValueType ? Activator.CreateInstance(valueType) : null;
+            if (Equals(min, zero) && Equals(max, zero) && Equals(def, zero)) return;
 
             bool changed = false;
             var cmp = (IComparable)max;
+
             if (cmp.CompareTo(min) < 0)
             {
-                // swap
                 (min, max) = (max, min);
                 changed = true;
             }
-            else if (cmp.CompareTo(min) == 0)
+            else if (cmp.CompareTo(min) == 0 && is_numeric(valueType, out var stepKind))
             {
-                // make max greater than min by minimal step if numeric; otherwise leave
-                if (is_numeric(valueType, out var kind))
-                {
-                    object step = numeric_step(min, kind);
-                    max = numeric_add(min, step, kind);
-                    changed = true;
-                }
+                max = numeric_add(min, numeric_step(min, stepKind), stepKind);
+                changed = true;
             }
 
-            // Clamp default into [min, max]
-            if (is_numeric(valueType, out var nKind))
+            if (is_numeric(valueType, out _))
             {
-                var defCmpMin = ((IComparable)def).CompareTo(min);
-                var defCmpMax = ((IComparable)def).CompareTo(max);
-                if (defCmpMin < 0)
+                if (((IComparable)def).CompareTo(min) < 0)
                 {
                     def = min;
                     changed = true;
                 }
-                else if (defCmpMax > 0)
+                else if (((IComparable)def).CompareTo(max) > 0)
                 {
                     def = max;
                     changed = true;
@@ -346,183 +361,104 @@ namespace RapidLib.DAFP.TOOLS.Editor
                 minPi.SetValue(instance, min);
                 maxPi.SetValue(instance, max);
                 defPi.SetValue(instance, def);
-                boardProperty.serializedObject.ApplyModifiedProperties();
-                var targetObj = boardProperty.serializedObject.targetObject as UnityEngine.Object;
-                if (targetObj != null)
+            }
+
+            // Sync DefaultValue and RealValue to InternalValue in Edit Mode
+            if (!EditorApplication.isPlaying)
+            {
+                object current = defPi.GetValue(instance);
+
+                var defltPi = t.GetProperty("DefaultValue", bf);
+                var realPi = t.GetProperty("RealValue", bf);
+
+                if (defltPi != null && defltPi.CanWrite && !Equals(defltPi.GetValue(instance), current))
                 {
-                    EditorUtility.SetDirty(targetObj);
+                    defltPi.SetValue(instance, current);
+                    changed = true;
                 }
+
+                if (realPi != null && realPi.CanWrite && !Equals(realPi.GetValue(instance), current))
+                {
+                    realPi.SetValue(instance, current);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                board.serializedObject.ApplyModifiedProperties();
+                if (board.serializedObject.targetObject is Object target)
+                    EditorUtility.SetDirty(target);
             }
 #endif
         }
 
-        private enum NumericKind { FloatLike, IntLike }
+        // ── Helpers ───────────────────────────────────────────────────────────────
 
-        private static bool is_numeric(Type t, out NumericKind kind)
+        private static SerializedProperty find_by_possible_names(SerializedProperty parent, string name)
         {
-            if (t == typeof(float) || t == typeof(double))
-            {
-                kind = NumericKind.FloatLike;
-                return true;
-            }
-            if (t == typeof(int) || t == typeof(long) || t == typeof(short) ||
-                t == typeof(uint) || t == typeof(ulong) || t == typeof(ushort) || t == typeof(byte) || t == typeof(sbyte))
-            {
-                kind = NumericKind.IntLike;
-                return true;
-            }
-            kind = NumericKind.IntLike;
-            return false;
+            if (parent == null) return null;
+            return parent.FindPropertyRelative(name)
+                   ?? parent.FindPropertyRelative($"<{name}>k__BackingField");
         }
 
-        private static object numeric_step(object min, NumericKind kind)
+        private bool is_child_of_another_stat(SerializedProperty property) =>
+            property.propertyPath.Contains($".{ChildrenListName}.Array.data[");
+
+        private static float draw_separator_line(float x, float y, float width)
         {
-            if (kind == NumericKind.FloatLike)
-            {
-                double v = Convert.ToDouble(min);
-                double step = Math.Max(Math.Abs(v) * 1e-6, 1e-6);
-                return step;
-            }
-            else
-            {
-                return 1L;
-            }
+            float h = EditorGUIUtility.singleLineHeight * 0.1f;
+            EditorGUI.DrawRect(new Rect(x, y, width, h), Color.crimson);
+            return y + h + EditorGUIUtility.standardVerticalSpacing;
         }
 
-        private static object numeric_add(object a, object b, NumericKind kind)
+        private void draw_additional_child_properties(ref float y, float x, float width, SerializedProperty property)
         {
-            if (kind == NumericKind.FloatLike)
-            {
-                double x = Convert.ToDouble(a);
-                double y = Convert.ToDouble(b);
-                return x + y;
-            }
-            else
-            {
-                long x = Convert.ToInt64(a);
-                long y = Convert.ToInt64(b);
-                return x + y;
-            }
+            var peg = property.FindPropertyRelative("PegModifiers");
+            float h = EditorGUI.GetPropertyHeight(peg, includeChildren: true);
+            EditorGUI.PropertyField(new Rect(x, y, width, h), peg, true);
+            y += h + EditorGUIUtility.standardVerticalSpacing;
         }
 
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        // ── ReorderableList ───────────────────────────────────────────────────────
+
+        private float draw_children_list(Rect position, SerializedProperty owner, SerializedProperty childrenProp)
         {
-            float _height = 0f;
-
-            // One line for foldout
-            _height += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
-
-            if (!property.isExpanded)
-                return _height;
-
-            // Check if this is a child stat
-            bool _isChildStat = is_child_of_another_stat(property);
-
-            // Add help box height for child stats
-            if (_isChildStat)
-            {
-                _height += EditorGUIUtility.singleLineHeight * 1.5f + EditorGUIUtility.standardVerticalSpacing;
-            }
-
-            // Sum heights of direct children except 'Children'
-            var _iterator = property.Copy();
-            var _end = _iterator.GetEndProperty();
-            bool _hasChild = _iterator.NextVisible(true);
-            while (_hasChild && !SerializedProperty.EqualContents(_iterator, _end))
-            {
-                if (_iterator.depth == property.depth + 1 && _iterator.name != ChildrenListName)
-                {
-                    _height += EditorGUI.GetPropertyHeight(_iterator, includeChildren: true) +
-                               EditorGUIUtility.standardVerticalSpacing;
-                }
-
-                _hasChild = _iterator.NextVisible(false);
-            }
-
-            // Add additional child properties height
-            if (_isChildStat)
-            {
-                _height += get_additional_child_properties_height(property);
-            }
-
-            // Add Children list height
-            var _childrenProp = property.FindPropertyRelative(ChildrenListName);
-            _height += get_children_list_height(property, _childrenProp) + EditorGUIUtility.standardVerticalSpacing;
-
-            return _height;
-        }
-
-        /// <summary>
-        /// Calculate the height needed for additional child properties
-        /// </summary>
-        private float get_additional_child_properties_height(SerializedProperty property)
-        {
-            float _height = 0f;
-
-            // Height for the label
-            _height += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
-
-            // Add height for any additional properties you draw
-
-            return _height;
-        }
-
-        private float draw_children_list(Rect position, SerializedProperty ownerProperty,
-            SerializedProperty childrenProp)
-        {
-            // Prepare (or show help if missing)
             if (childrenProp == null)
             {
-                float _h = EditorGUIUtility.singleLineHeight * 2f;
-                EditorGUI.HelpBox(new Rect(position.x, position.y, position.width, _h), "Children list not found.",
-                    MessageType.Info);
-                return _h;
+                float h = EditorGUIUtility.singleLineHeight * 2f;
+                EditorGUI.HelpBox(new Rect(position.x, position.y, position.width, h),
+                    "Children list not found.", MessageType.Info);
+                return h;
             }
 
-            var _list = get_or_create_list(ownerProperty, childrenProp);
-
-            float _height = _list.GetHeight();
-            // Draw
-            _list.DoList(new Rect(position.x, position.y, position.width, _height));
-            return _height;
+            var list = get_or_create_list(owner, childrenProp);
+            float height = list.GetHeight();
+            list.DoList(new Rect(position.x, position.y, position.width, height));
+            return height;
         }
 
-        private float get_children_list_height(SerializedProperty ownerProperty, SerializedProperty childrenProp)
+        private float get_children_list_height(SerializedProperty owner, SerializedProperty childrenProp)
         {
-            if (childrenProp == null)
-                return EditorGUIUtility.singleLineHeight * 2f;
-
-            var _list = get_or_create_list(ownerProperty, childrenProp);
-            return _list.GetHeight();
+            if (childrenProp == null) return EditorGUIUtility.singleLineHeight * 2f;
+            return get_or_create_list(owner, childrenProp).GetHeight();
         }
 
-        private ReorderableList get_or_create_list(SerializedProperty ownerProperty, SerializedProperty childrenProp)
+        private ReorderableList get_or_create_list(SerializedProperty owner, SerializedProperty childrenProp)
         {
-            string _key = ownerProperty.propertyPath + $".{ChildrenListName}";
-            if (lists.TryGetValue(_key, out var _existing))
-                return _existing;
+            string key = owner.propertyPath + $".{ChildrenListName}";
+            if (_lists.TryGetValue(key, out var existing)) return existing;
 
-            // Ensure list is an array/list
-            if (!childrenProp.isArray)
+            var list = new ReorderableList(childrenProp.serializedObject, childrenProp, true, true, true, true);
+
+            list.drawHeaderCallback = rect =>
             {
-                // If it's null or not initialized, try to draw an empty list safely
-                // We still create a list object bound to the property for consistent UI
-            }
-
-            var _list = new ReorderableList(childrenProp.serializedObject, childrenProp, true, true, true, true);
-
-            _list.drawHeaderCallback = rect =>
-            {
-                int _count = childrenProp.isArray ? childrenProp.arraySize : 0;
-                // Label
-                EditorGUI.LabelField(rect, $"Children ({_count})");
-
-                // Clear button aligned to the right
-                var _buttonWidth = 60f;
-                var _buttonRect = new Rect(rect.xMax - _buttonWidth, rect.y, _buttonWidth, rect.height);
-                using (new EditorGUI.DisabledScope(_count == 0))
+                int count = childrenProp.isArray ? childrenProp.arraySize : 0;
+                EditorGUI.LabelField(rect, $"Children ({count})");
+                var btnRect = new Rect(rect.xMax - 60f, rect.y, 60f, rect.height);
+                using (new EditorGUI.DisabledScope(count == 0))
                 {
-                    if (GUI.Button(_buttonRect, "Clear"))
+                    if (GUI.Button(btnRect, "Clear"))
                     {
                         Undo.RecordObject(childrenProp.serializedObject.targetObject, "Clear Children");
                         childrenProp.ClearArray();
@@ -532,20 +468,59 @@ namespace RapidLib.DAFP.TOOLS.Editor
                 }
             };
 
-            _list.drawElementCallback = (rect, index, isActive, isFocused) =>
-            {
-                var _element = childrenProp.GetArrayElementAtIndex(index);
-                StatListGUI.DrawSerializableStatElement(rect, _element, index, isActive, isFocused);
-            };
+            list.drawElementCallback = (rect, index, isActive, isFocused) =>
+                StatListGUI.DrawSerializableStatElement(rect, childrenProp.GetArrayElementAtIndex(index), index,
+                    isActive, isFocused);
 
-            _list.elementHeightCallback = index =>
-            {
-                var _element = childrenProp.GetArrayElementAtIndex(index);
-                return EditorGUI.GetPropertyHeight(_element, includeChildren: true) + 4f;
-            };
+            list.elementHeightCallback = index =>
+                EditorGUI.GetPropertyHeight(childrenProp.GetArrayElementAtIndex(index), includeChildren: true) + 4f;
 
-            lists[_key] = _list;
-            return _list;
+            _lists[key] = list;
+            return list;
         }
+
+        // ── Numeric reflection utils ──────────────────────────────────────────────
+
+        private enum NumericKind
+        {
+            FloatLike,
+            IntLike
+        }
+
+        private static bool is_numeric(Type t, out NumericKind kind)
+        {
+            if (t == typeof(float) || t == typeof(double))
+            {
+                kind = NumericKind.FloatLike;
+                return true;
+            }
+
+            if (t == typeof(int) || t == typeof(long) || t == typeof(short) ||
+                t == typeof(uint) || t == typeof(ulong) || t == typeof(ushort) ||
+                t == typeof(byte) || t == typeof(sbyte))
+            {
+                kind = NumericKind.IntLike;
+                return true;
+            }
+
+            kind = NumericKind.IntLike;
+            return false;
+        }
+
+        private static object numeric_step(object min, NumericKind kind)
+        {
+            if (kind == NumericKind.FloatLike)
+            {
+                double v = Convert.ToDouble(min);
+                return Math.Max(Math.Abs(v) * 1e-6, 1e-6);
+            }
+
+            return 1L;
+        }
+
+        private static object numeric_add(object a, object b, NumericKind kind) =>
+            kind == NumericKind.FloatLike
+                ? (object)(Convert.ToDouble(a) + Convert.ToDouble(b))
+                : Convert.ToInt64(a) + Convert.ToInt64(b);
     }
 }

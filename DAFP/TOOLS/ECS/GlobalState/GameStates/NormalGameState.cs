@@ -12,7 +12,7 @@ namespace DAFP.TOOLS.ECS.GlobalState.GameStates
     {
         public override string StateName { get; } = "Normal";
         public override BtStatus LastStatus { get; } = BtStatus.Success;
-        public bool CanTransitionTo(IState state)
+        public virtual bool CanTransitionTo(IState state)
         {
             return true;
         }

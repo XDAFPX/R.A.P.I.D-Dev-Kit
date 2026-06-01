@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
 using BandoWare.GameplayTags;
-using DAFP.GAME.Assets;
+using Cysharp.Threading.Tasks;
+using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.BTs;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
@@ -23,12 +22,17 @@ using JetBrains.Annotations;
 using RapidLib.DAFP.TOOLS.Common;
 using UGizmo;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.SceneManagement;
 using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.Services
 {
-    public abstract class World : MonoBehaviour, IEntity, IService, IOwnerOf<Ticker>
+    //A thing to manage entities without any consideration of any scene nor state
+    public abstract class World : IEntity, IService, IOwnerOf<Ticker>, IInitializable, ITickable, IFixedTickable,
+        IResetable,
+        IFactory<IEntity>, IFactory<IVector, IEntity>, IFactory<string, IVector, IEntity>
 
     {
         public static readonly Ticker EMPTY_TICKER = new(0, new HashSet<IGameState>());
@@ -46,7 +50,6 @@ namespace DAFP.TOOLS.ECS.Services
         [Inject(Id = IVideoGame.PHYSICS_UPDATE)]
         public ITicker PhysicsUpdate;
 
-
         public readonly List<IEntity> Entities = new();
         public IEnumerable<IPlayer> Players => players;
         private readonly HashSet<IPlayer> players = new();
@@ -54,17 +57,35 @@ namespace DAFP.TOOLS.ECS.Services
 
         public string Name
         {
-            get => name;
-            set => name = value;
+            get => GetType().Name;
+            set { }
         }
 
         //--So let me break it down for ya
-        //-- First comes Awake so all entities register;
+        //-- First comes Awake, so all entities register;
         //--Then FINALLY comes Start and calls init_world that initializes every entity. But those with more priority go first.
 
-
-        public void Start()
+        public void Initialize()
         {
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            OnSceneLoaded(default, LoadSceneMode.Single);
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            load_world().Forget();
+        }
+
+        // private UniTask load_world()
+        // {
+        //     
+        //     init_world();
+        //     return UniTask.CompletedTask;
+        // }
+
+        private async UniTask load_world()
+        {
+            await UniTask.DelayFrame(3); //--wait for everybody to catch up
             init_world();
         }
 
@@ -85,6 +106,8 @@ namespace DAFP.TOOLS.ECS.Services
 
         private void init_world()
         {
+            if (shutDowned)
+                return;
             prepare_world();
             var _prioritized = Entities.OfType<IPrioritized>();
             var _nonPrioritized = Entities.Except(_prioritized.Cast<IEntity>()).Cast<IPetOwnerTreeOf<IEntity>>();
@@ -103,28 +126,21 @@ namespace DAFP.TOOLS.ECS.Services
             // DebugSystem.Log(this, $"the World ({this.Name}) initialized and loaded. ");
         }
 
+        private bool shutDowned;
+
         public void Shutdown()
         {
-            //--Do stuff
+            foreach (var _entity in Entities)
+            {
+                _entity.Remove(EntityRemovalReason.DEFAULT);
+            }
+
+            ResetToDefault();
+            shutDowned = true;
+            Debug.Log($"[World] ({this.Name}) has shutdown ");
         }
-
-
-        //-- Stuff
-
-        private void FixedUpdate()
-        {
-            FixedTick();
-        }
-
-
-        private void Update()
-        {
-            Tick();
-        }
-
 
         //-- Other stuff -----------------------------------------------------------------
-
 
         public void RegisterEntity(IEntity ent, ITicker ticker)
         {
@@ -179,11 +195,9 @@ namespace DAFP.TOOLS.ECS.Services
                 $"Registered CustomComponentTicker... ComponentName: {ent.GetType().Name}  ,WorldEntityName: {(ent.GetWorldRepresentation() ? ent.GetWorldRepresentation().name : "NoName")} ");
         }
 
-
         public void FixedTick()
         {
             foreach (var _ticker in Tickers.OfType<FixedUpdateTicker>()) SafeTick(_ticker);
-
         }
 
         public void SafeTick(ITickerBase ticker)
@@ -191,7 +205,6 @@ namespace DAFP.TOOLS.ECS.Services
             if (ticker.IsAllowedToTick(GameState.Current))
                 ticker.Tick();
         }
-
 
         public void Tick()
         {
@@ -212,16 +225,17 @@ namespace DAFP.TOOLS.ECS.Services
             }
         }
 
-        public void MakePlayer(PlayerData data)
+        public IPlayer MakePlayer(PlayerData data)
         {
             var _ent = data.Memory.GetSelf();
             if (_ent == null)
-                return;
+                return null;
             if (_ent.GetWorldRepresentation().GetComponent<IPlayer>() != null)
-                return;
+                return null;
             var _player = _ent.GetWorldRepresentation().AddComponent<Player>();
             _player.Data = data;
             register_player(_player);
+            return _player;
         }
 
         public void MovePlayer([NotNull] Player player, [NotNull] IEntity newOwner)
@@ -233,17 +247,10 @@ namespace DAFP.TOOLS.ECS.Services
 
 
             var _oldData = player.Data;
-            Destroy(player);
+            GameObject.Destroy(player);
             var _newPlayer = newOwner.GetWorldRepresentation().AddComponent<Player>();
             _newPlayer.Data = _oldData.SetData(new BlackBoard(newOwner, _oldData.Memory.GetFullData()));
             register_player(_newPlayer);
-        }
-
-        public IEntity SpawnEmptyEntity(Vector3 pos)
-        {
-            var _obj = new GameObject("EntEmpty");
-            _obj.transform.position = pos;
-            return _obj.AddEmptyEntity(AssetFactory);
         }
 
         public void RegisterTicker([NotNull] ITickerBase ticker)
@@ -264,14 +271,9 @@ namespace DAFP.TOOLS.ECS.Services
                     _breed.OnTick += callBack;
         }
 
-
         //--Ent Stuff -----------------------------------------------------------------------------------------------------------------------------------
-
-
         public IThinker Brains => null;
         public IStatContainer Stats => new DummyStatContainer();
-
-        public void Initialize() => init_world();
 
         public void DeInitializeBrains(IThinker thinker)
         {
@@ -283,7 +285,7 @@ namespace DAFP.TOOLS.ECS.Services
 
         public ICollection<IViewModel> View { get; } = new EmptyView().ToEnumerable().Cast<IViewModel>().ToList();
         public BlackBoard Memory { get; private set; }
-        public Dictionary<Type, IEntityComponent> Components { get; }
+        public Dictionary<Type, IEntityComponent> Components { get; } = new();
 
         public void AddEntComponent(IEntityComponent component)
         {
@@ -314,7 +316,6 @@ namespace DAFP.TOOLS.ECS.Services
             ((IEventBus)Bus).Send(@event);
         }
 
-
         private string id;
         private IEnumerable<IDebugDrawable> pets = new List<IDebugDrawable>();
         private IEnumerable<IViewModel> pets1 = new List<IViewModel>();
@@ -323,22 +324,18 @@ namespace DAFP.TOOLS.ECS.Services
         private IEnumerable<PegModifier> pets4 = new List<PegModifier>();
         private IEnumerable<IEntityAccessory> pets5 = new List<IEntityAccessory>();
 
-
         [Inject(Id = IVideoGame.GAME_BUS_NAME)]
         public IEventBus GameBus;
 
         [Inject] public IGameStateHandler GameState { get; set; }
-
         [Inject] public ICursorStateHandler CursorState { get; set; }
-        [Inject] public IAssetFactory.DefaultAssetFactory AssetFactory { get; set; }
+        [Inject] public IAssetFactory AssetFactory { get; set; }
         public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
-
 
         public GameObject GetWorldRepresentation()
         {
-            return gameObject;
+            return new GameObject();
         }
-
 
         IEnumerable<IDebugDrawable> IOwnerOf<IDebugDrawable>.Pets => pets;
 
@@ -413,17 +410,11 @@ namespace DAFP.TOOLS.ECS.Services
         }
 
         IEnumerable<IViewModel> IOwnerOf<IViewModel>.Pets => pets1;
-
         IEnumerable<IStatBase> IOwnerOf<IStatBase>.Pets => pets2;
-
         IEnumerable<IStatModifierBase> IOwnerOf<IStatModifierBase>.Pets => pets3;
-
         IEnumerable<PegModifier> IOwnerOf<PegModifier>.Pets => pets4;
-
         IEnumerable<IEntityAccessory> IOwnerOf<IEntityAccessory>.Pets => pets5;
-
         IEnumerable<Ticker> IOwnerOf<Ticker>.Pets => Tickers.OfType<Ticker>();
-
         public IEnumerable<object> AbsolutePets => Tickers.Cast<object>().Union(Entities);
         public List<IEntity> Children => Entities;
 
@@ -435,7 +426,6 @@ namespace DAFP.TOOLS.ECS.Services
         public void Load(ISaveData saveData)
         {
         }
-
 
         public List<IEntity> Owners => new List<IEntity>();
 
@@ -460,7 +450,93 @@ namespace DAFP.TOOLS.ECS.Services
             Shutdown();
         }
 
+        public void Transition(IWorldTransition transition)
+        {
+            if (shutDowned)
+                return;
+            if (transition is not IWorldTransitionInternal _internal)
+                return;
+            _internal.Transition(this);
+        }
 
-        public GameplayTagContainer GameplayTag => GameplayTagContainer.Empty;
+        public GameplayTagContainer GameplayTag {get => GameplayTagContainer.Empty; set {}}
+
+        public void ResetToDefault()
+        {
+            Debug.Log($"[World]: The world was reset");
+            Tickers.ForEach((@base => @base.ResetToDefault()));
+            Entities.Clear();
+            players.Clear();
+            HasInitialized = false;
+            shutDowned = false;
+        }
+
+        public T Create<T>() where T : Component, IEntity
+        {
+            return Create<T>(Vector3.zero.ToGeneric());
+        }
+
+        public T Create<T>(IVector pos) where T : Component, IEntity
+        {
+            return Create<T>(typeof(T).Name, pos);
+        }
+
+        public T Create<T>(string name, IVector pos) where T : Component, IEntity
+        {
+            return Create<T>(name, (entity => entity.Pos(pos)));
+        }
+
+        public T Create<T>(string name, Action<T> process) where T : Component, IEntity
+        {
+            var _obj = new GameObject(name);
+            var _ent = _obj.AddComponent<T>();
+            process.Invoke(_ent);
+            AssetFactory.Create(_obj);
+            return _ent;
+        }
+
+        public async UniTask<T> Clone<T>(T ent) where T : IEntity //--TODO make this better
+        {
+            var clone = await GameObject.InstantiateAsync(ent.GetWorldRepresentation());
+            AssetFactory.Create(clone.FirstOrDefault());
+            return clone.FirstOrDefault()!.GetComponent<T>();
+        }
+
+
+        public IEntity Create()
+        {
+            return Create<EmptyEntity>();
+        }
+
+        public IEntity Create(IVector param)
+        {
+            return Create<EmptyEntity>(param);
+        }
+
+        public IEntity Create(string param1, IVector param2)
+        {
+            return Create<EmptyEntity>(param1, param2);
+        }
+    }
+
+    [Serializable]
+    public class WorldEntityFactory<T> : IAsyncFactory<T> where T : Component, IEntity
+    {
+        [Inject] private World world;
+        [Inject] private IAssetManager manager;
+        [SerializeField]private AssetReferenceT<T> reff;
+
+        public async UniTask<T> Create()
+        {
+            if (reff == null)
+                return world.Create<T>();
+            if (reff.editorAsset is IGamePoolableBase _poolable)
+            {
+                return await manager.Spawn<T>(_poolable.Info());
+            }
+            return await manager.Spawn<T>(new GameAssetInfo(reff.RuntimeKey.ToString()));
+                
+            
+        }
     }
 }

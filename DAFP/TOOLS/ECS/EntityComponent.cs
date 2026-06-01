@@ -36,7 +36,7 @@ namespace DAFP.TOOLS.ECS
 
         public void Tick()
         {
-            if (enabled)
+            if (enabled && Host.HasInitialized )
                 OnTick();
         }
 
@@ -45,9 +45,8 @@ namespace DAFP.TOOLS.ECS
         public void Register(IEntity entity)
         {
             Host = entity;
-            if (EntityComponentTicker != Host.EntityTicker &&
-                EntityComponentTicker is ITicker customTicker)
-                Host.GetWorld().RegisterCustomComponentTicker(this, customTicker);
+            if (EntityComponentTicker != Host.EntityTicker )
+                Host.GetWorld().RegisterCustomComponentTicker(this, EntityComponentTicker);
         }
 
         public virtual IEnumerable<IDebugDrawer> SetupDebugDrawers()

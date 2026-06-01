@@ -26,6 +26,8 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public abstract T MaxValue { get; set; }
         public abstract T MinValue { get; set; }
+
+
         public abstract T DefaultValue { get; set; }
 
         protected IEntity Host => ((IPetOf<IHaveStats, IStatBase>)this).GetCurrentOwner() as IEntity;
@@ -34,8 +36,8 @@ namespace DAFP.TOOLS.ECS.BigData
 #if UNITY_EDITOR
         [ReadOnly] [SerializeField] private T RealValue;
 #endif
-        [ReadOnly] [SerializeField] protected T InternalValue;
 
+        [SerializeField] protected T InternalValue;
 
         [SerializeField] protected List<SerializableInterface<IStatModifier<T>>> Modifiers = new();
 
@@ -67,10 +69,14 @@ namespace DAFP.TOOLS.ECS.BigData
         {
             configure_stat_owner();
             configure_peg_modifiers();
-
+            #if UNITY_EDITOR
+            RealValue = Value;
+            OnUpdateValue += (stat, pvalue) => RealValue = stat.Value;
+            #endif
             ResetToDefault();
             OnInitializeInternal();
         }
+
 
         private void configure_stat_owner()
         {
@@ -133,6 +139,7 @@ namespace DAFP.TOOLS.ECS.BigData
 
         public abstract void SetToMax();
         public abstract void SetToMin();
+
         public void ForceUpdate()
         {
             invoke_change_events(Value);

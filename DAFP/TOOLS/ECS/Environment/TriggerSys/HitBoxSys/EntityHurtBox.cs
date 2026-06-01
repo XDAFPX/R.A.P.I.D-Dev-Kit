@@ -5,7 +5,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 {
     public class EntityHurtBox : HurtBox<IEntity> , IOwnedBy<IEntity>
     {
-        public Entity Reference;
+        [SerializeField]private Entity Reference;
         public override HurtBoxData<IEntity> GetCtx()
         {
             var ownable = ((IOwnedBy<IEntity>)this);

@@ -16,7 +16,7 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.Thinkers
 {
     [CreateAssetMenu(menuName = "R.A.P.I.D/BuiltIn/Thinker/" + nameof(WonderingThinker),fileName = nameof(WonderingThinker))]
-    public class WonderingThinker : BaseThinker
+    public class WonderingThinker : BaseThinker //--TODO Fix
     {
         [Inject] private IRandom random;
         [SerializeField] private float RadiusOfSearch = 10;
@@ -41,26 +41,26 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
 
             tryToAssignNewTarget.reset();
-            if (try_gen_new_waypoint(host).TryGetValue(out var val))
-            {
-                var world = val.GetWorldRepresentation(); 
-
-                if (world == null)
-                    return;
-
-                var pos = world.transform.position;
-
-                val.AddPet(new ActionDebugDrawer("Thinkers",
-                    gizmos => { gizmos.DrawCircle2D(pos, ReachedTargetRadius, ColorsForUnity.FireBrick); }));
-
-                host.Target.Value = val.Some();
-            }
+            // if (try_gen_new_waypoint(host).TryGetValue(out var val))
+            // {
+            //     var world = val.GetWorldRepresentation(); 
+            //
+            //     if (world == null)
+            //         return;
+            //
+            //     var pos = world.transform.position;
+            //
+            //     val.AddPet(new ActionDebugDrawer("Thinkers",
+            //         gizmos => { gizmos.DrawCircle2D(pos, ReachedTargetRadius, ColorsForUnity.FireBrick); }));
+            //
+            //     host.Target.Value = val.Some();
+            // }
         }
 
-        private Option<IEntity> try_gen_new_waypoint(IEntity host) =>
-            host.TryToFindARandomWaypoint2D(random, RadiusOfSearch).TryGetValue(out Vector2 _val)
-                ? World.SpawnEmptyEntity(_val).Some()
-                : Option.None<IEntity>();
+        // private Option<IEntity> try_gen_new_waypoint(IEntity host) =>
+        //     host.TryToFindARandomWaypoint2D(random, RadiusOfSearch).TryGetValue(out Vector2 _val)
+        //         ? World.Create(_val).Some()
+        //         : Option.None<IEntity>();
 
         private FiniteTimer tryToAssignNewTarget = new FiniteTimer(2);
         private FiniteTimer walkToTarget = new FiniteTimer(10);
