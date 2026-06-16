@@ -150,11 +150,29 @@ namespace DAFP.TOOLS.Injection
             bind_save_systems();
             bind_ui_systems();
             bind_console();
+            BindSpawnPointMangers();
             BindCameraManager();
             bind_mod_manager();
             bind_compatability_sys();
 
             InstallAdditional();
+        }
+
+        protected virtual void BindSpawnPointMangers()
+        {
+            Container.Bind<ISpawnPointManager>().To<UniversalSpawnPointManager>().AsCached().Lazy();
+            Container.Bind<ISpawnPointManager>().WithId("PlayerManager").To<UniversalSpawnPointManager>().AsCached()
+                .Lazy();
+
+            Container.Bind<ISpawnPointManager[]>().FromMethod(ctx =>
+                new [] { ctx.Container.ResolveId<ISpawnPointManager>("PlayerManager"), ctx.Container.Resolve<ISpawnPointManager>()}
+            ).AsSingle();
+            ExecuteAllSpawnPoints();
+        }
+
+        protected virtual void ExecuteAllSpawnPoints()
+        {
+            Container.BindInterfacesAndSelfTo<ExecuteAllSpawnPointsSys>().AsSingle().NonLazy();
         }
 
         private void bind_compatability_sys()
@@ -263,7 +281,7 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<TAudioService>().AsSingle().NonLazy();
             Container.Bind<IAudioSystem>().To<TAudioService>().FromResolve();
 
-            Container.BindInterfacesAndSelfTo<MusicMan>().AsSingle()
+            Container.BindInterfacesAndSelfTo<MusicMan>().AsCached()
                 .WithArguments("Main").Lazy();
         }
 
@@ -334,7 +352,7 @@ namespace DAFP.TOOLS.Injection
 
         protected virtual void BindAssetPools()
         {
-            Container.Bind<IAssetPoolBase>().To<AssetPool<EntSpecialEffect,EntSpecialEffect>>().AsSingle()
+            Container.Bind<IAssetPoolBase>().To<AssetPool<EntSpecialEffect, EntSpecialEffect>>().AsSingle()
                 .WithArguments("Effects");
         }
 

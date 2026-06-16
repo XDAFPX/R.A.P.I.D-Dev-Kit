@@ -137,7 +137,23 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             });
         }
 
-        private Camera output => brain.OutputCamera ?? brain.GetComponent<Camera>();
+        private Camera output
+        {
+            get
+            {
+                if (brain.OutputCamera != null) return brain.OutputCamera;
+                if (brain.TryGetComponent(out Camera _cam)) return _cam;
+                if (brain.transform.parent != null)
+                {
+                    foreach (Transform _sibling in brain.transform.parent)
+                    {
+                        if (_sibling.TryGetComponent(out Camera _sibCam)) return _sibCam;
+                    }
+                }
+
+                return brain.GetComponentInChildren<Camera>();
+            }
+        }
 
         public void UpdateSubjects(IEnumerable<IEntity> subjects)
         {
@@ -146,14 +162,14 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public Rect Rect
         {
-            get => output.rect;
+            get => output?.rect ?? default;
             set => output.rect = value;
         } //Implement
 
 
         private ITargetOf<IEntity> _lockedTarget;
 
-         private static readonly CameraSubjectPolicy policy = CameraSubjectPolicy.FollowAll;
+        private static readonly CameraSubjectPolicy policy = CameraSubjectPolicy.FollowAll;
 
         private void set_camera_targets(IEnumerable<IEntity> subjects)
         {

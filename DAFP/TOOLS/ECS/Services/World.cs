@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using BandoWare.GameplayTags;
 using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.AssetManagement;
@@ -9,6 +10,7 @@ using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.BuiltIn;
@@ -20,6 +22,7 @@ using DAFP.TOOLS.ECS.ViewModel;
 using DAFP.TOOLS.Injection;
 using JetBrains.Annotations;
 using RapidLib.DAFP.TOOLS.Common;
+using RapidLib.DAFP.TOOLS.Common.Utill;
 using UGizmo;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -38,6 +41,8 @@ namespace DAFP.TOOLS.ECS.Services
         public static readonly Ticker EMPTY_TICKER = new(0, new HashSet<IGameState>());
         public readonly Ticker EmptyTicker = EMPTY_TICKER;
 
+        [Inject] private ISubscriber[] subscribers;
+
         [Inject(Id = IVideoGame.DEFAULT_UPDATE)]
         public ITicker DefaultUpdate;
 
@@ -50,42 +55,45 @@ namespace DAFP.TOOLS.ECS.Services
         [Inject(Id = IVideoGame.PHYSICS_UPDATE)]
         public ITicker PhysicsUpdate;
 
-        public readonly List<IEntity> Entities = new();
+        public List<IEntity> Entities = new();
         public IEnumerable<IPlayer> Players => players;
         private readonly HashSet<IPlayer> players = new();
         protected readonly List<ITickerBase> Tickers = new();
 
-        public string Name
-        {
-            get => GetType().Name;
-            set { }
-        }
+        public string Name { get; set; }
+
+        private SingleTask loadWorldTask = new();
 
         //--So let me break it down for ya
-        //-- First comes Awake, so all entities register;
-        //--Then FINALLY comes Start and calls init_world that initializes every entity. But those with more priority go first.
+        //-- First comes Awake, so all entities register; --OnWorldLoadIsCalled directly after
+        //--Then FINALLY comes Start and calls init_world that initializes every entity. But those with more priority go first. -- and then after OnWorldInit
+        private string lastLoadedScene;
 
         public void Initialize()
         {
+            subscribers.ForEach(subscriber => Bus.Subscribe(subscriber));
+            SceneManager.sceneLoaded -= OnSceneLoaded; //--For some insane reason it keeps piling up and stops only after the domain reload
             SceneManager.sceneLoaded += OnSceneLoaded;
-            OnSceneLoaded(default, LoadSceneMode.Single);
+
+            var _currentScene = SceneManager.GetActiveScene().name; //-- so I have to do this bullshit
+            if (lastLoadedScene != _currentScene)
+            {
+                lastLoadedScene = _currentScene;
+                loadWorldTask.Run(load_world);
+            }
         }
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            load_world().Forget();
+            lastLoadedScene = scene.name;
+            loadWorldTask.Run(load_world);
         }
 
-        // private UniTask load_world()
-        // {
-        //     
-        //     init_world();
-        //     return UniTask.CompletedTask;
-        // }
-
-        private async UniTask load_world()
+        private async UniTask load_world(CancellationToken ct)
         {
-            await UniTask.DelayFrame(3); //--wait for everybody to catch up
+            await UniTask.DelayFrame(1, cancellationToken: ct);
+            this.BroadcastEvent(new OnWorldLoadEvent(this));
+            await UniTask.DelayFrame(2, cancellationToken: ct); //--wait for everybody to catch up
             init_world();
         }
 
@@ -94,8 +102,8 @@ namespace DAFP.TOOLS.ECS.Services
             id = Guid.NewGuid().ToString();
             Enabled = true;
             Memory = new BlackBoard(this);
-
-
+            Entities = Entities.ClearOfNulls().ToList();
+            Name = GetType().Name;
             // Entities.Clear();
             // foreach (var _tickerBase in Tickers) _tickerBase.ResetToDefault();
             //
@@ -109,20 +117,23 @@ namespace DAFP.TOOLS.ECS.Services
             if (shutDowned)
                 return;
             prepare_world();
-            var _prioritized = Entities.OfType<IPrioritized>();
-            var _nonPrioritized = Entities.Except(_prioritized.Cast<IEntity>()).Cast<IPetOwnerTreeOf<IEntity>>();
+            var _prioritized = Entities.OfType<IPrioritized>().ToArray();
+            var _nonPrioritized = Entities.Except(_prioritized.Cast<IEntity>()).Cast<IPetOwnerTreeOf<IEntity>>()
+                .ToArray();
 
             _prioritized.PriorityForeach((prioritized1 => ((IEntity)prioritized1).Initialize()));
-
             foreach (var _entity in _nonPrioritized)
             {
+                if (_entity == null) continue;
                 if (_entity.GetCurrentOwner() != null) continue;
                 ((IEntity)_entity).Initialize();
             }
 
             HasInitialized = true;
 
-            Debug.Log($"[World] ({this.Name}) initialized and loaded. ");
+            BroadcastEvent(new OnWorldInitEvent(this));
+
+            Debug.Log($"[World] ({this.Name}) initialized and loaded. (SCENE: {lastLoadedScene}) ");
             // DebugSystem.Log(this, $"the World ({this.Name}) initialized and loaded. ");
         }
 
@@ -155,15 +166,28 @@ namespace DAFP.TOOLS.ECS.Services
             Entities.Add(ent);
             if (ent.GetWorldRepresentation().TryGetComponent(out IPlayer _player))
                 register_player(_player);
-            if (HasInitialized)
+            if (HasInitialized) //--TODO fix
                 ent.Initialize();
 
             Debug.Log(
                 $"[World]: Registered Entity... Name: {ent.GetType().Name} , WorldName: {(ent is Entity _entity ? _entity.name : "NoName")} ");
         }
 
+        private void un_register_player(IPlayer player)
+        {
+            if (!players.Contains(player))
+                return;
+            var _ev = new OnEntityStopBeingPlayer(player.Body, player.Data);
+            player.Body.BroadcastEvent(_ev);
+            players.Remove(player);
+        }
+
         private void register_player(IPlayer player)
         {
+            if (players.Contains(player))
+                return;
+            var _ev = new OnEntityBecomePlayerEvent(player.Body, player.Data);
+            player.Body.BroadcastEvent(_ev);
             players.Add(player);
         }
 
@@ -173,6 +197,7 @@ namespace DAFP.TOOLS.ECS.Services
         {
             try
             {
+                un_register_player(ent.TryGetPlayer());
                 Entities.Remove(ent);
                 ent.EntityTicker.Subscribed.Remove(ent);
                 foreach (var _entityComponent in ent.Components)
@@ -181,7 +206,7 @@ namespace DAFP.TOOLS.ECS.Services
             }
             catch (Exception _e)
             {
-                Debug.LogWarning($"Unregistered entity : {ent.Name} was removed :: {_e} ");
+                Debug.LogWarning($"[World] :: Unregistered entity : {ent.Name} was removed :: {_e} ");
             }
         }
 
@@ -247,6 +272,7 @@ namespace DAFP.TOOLS.ECS.Services
 
 
             var _oldData = player.Data;
+            un_register_player(player);
             GameObject.Destroy(player);
             var _newPlayer = newOwner.GetWorldRepresentation().AddComponent<Player>();
             _newPlayer.Data = _oldData.SetData(new BlackBoard(newOwner, _oldData.Memory.GetFullData()));
@@ -459,11 +485,16 @@ namespace DAFP.TOOLS.ECS.Services
             _internal.Transition(this);
         }
 
-        public GameplayTagContainer GameplayTag {get => GameplayTagContainer.Empty; set {}}
+        public GameplayTagContainer GameplayTag
+        {
+            get => GameplayTagContainer.Empty;
+            set { }
+        }
 
         public void ResetToDefault()
         {
             Debug.Log($"[World]: The world was reset");
+            loadWorldTask.Cancel();
             Tickers.ForEach((@base => @base.ResetToDefault()));
             Entities.Clear();
             players.Clear();
@@ -524,7 +555,7 @@ namespace DAFP.TOOLS.ECS.Services
     {
         [Inject] private World world;
         [Inject] private IAssetManager manager;
-        [SerializeField]private AssetReferenceT<T> reff;
+        [SerializeField] private AssetReferenceT<T> reff;
 
         public async UniTask<T> Create()
         {
@@ -534,9 +565,8 @@ namespace DAFP.TOOLS.ECS.Services
             {
                 return await manager.Spawn<T>(_poolable.Info());
             }
+
             return await manager.Spawn<T>(new GameAssetInfo(reff.RuntimeKey.ToString()));
-                
-            
         }
     }
 }

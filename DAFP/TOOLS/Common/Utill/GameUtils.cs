@@ -35,6 +35,7 @@ using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.ViewModel;
 using Newtonsoft.Json.Linq;
 using NRandom;
+using NRandom.Linq;
 using NRandom.Unity;
 using NUnit.Framework;
 using Optional;
@@ -332,7 +333,7 @@ namespace DAFP.TOOLS.Common.Utill
             pets.Add(new SerializableInterface<T>(pet));
         }
 
-        public static bool RemovePet<T>(T pet, List<T> pets) where T : class
+        public static bool RemovePet<T>(T pet, IList<T> pets) where T : class
         {
             if (pet == null) return false;
             if (!pets.Contains(pet)) return false;
@@ -340,11 +341,40 @@ namespace DAFP.TOOLS.Common.Utill
             return true;
         }
 
-        public static void AddPet<T>(T pet, List<T> pets) where T : class
+        public static void AddPet<T>(T pet, IList<T> pets) where T : class
         {
             if (pet == null) return;
             if (pets.Contains(pet)) return;
             pets.Add(pet);
+        }
+
+
+        public static T ShuffledElement<T>(this IList<T> num, ref int index, IRandom rng = default)
+        {
+            if (num.Count < 1)
+                return default;
+            rng ??= RandomEx.Shared;
+            if (index < 0)
+            {
+                var shuffled = num.OrderBy((arg => rng.NextUInt())).ToArray();
+                num.Clear();
+                foreach (var t in shuffled)
+                {
+                    num.Add(t);
+                }
+            }
+            
+            index = num.PingPong(index+1);
+
+            return num[index];
+        }
+
+        public static int PingPong(this IEnumerable source, int index)
+        {
+            int count = source.Cast<object>().Count();
+            if (count <= 1) return 0;
+            index = Math.Max(0, index);
+            return (int)Mathf.PingPong(index, count - 1);
         }
 
         public static Vector3 Randomize(this Vector3 vector3, float margin01)
@@ -733,6 +763,8 @@ namespace DAFP.TOOLS.Common.Utill
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 Point(this Bounds bounds, IRandom random)
         {
+            if (bounds.min == bounds.max)
+                return bounds.center;
             return random.NextVector3(bounds.min, bounds.max);
         }
 
@@ -1394,7 +1426,12 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static IEnumerable<T> ClearOfNulls<T>(this IEnumerable<T> l)
         {
-            return l.Where((arg => arg != null));
+            return l.Where(arg =>
+            {
+                if (arg is UnityEngine.Object _unityObj)
+                    return _unityObj != null;
+                return arg != null;
+            });
         }
 
         public static void PriorityForeach<T>(this IEnumerable<T> l, Action<T> action) where T : IPrioritized

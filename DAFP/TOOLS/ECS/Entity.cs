@@ -269,7 +269,6 @@ namespace DAFP.TOOLS.ECS
                     return _bb;
                 }
 
-
                 var _bb2 = CalculateBounds();
                 var _localbb = _bb2;
                 _localbb.center -= transform.position;

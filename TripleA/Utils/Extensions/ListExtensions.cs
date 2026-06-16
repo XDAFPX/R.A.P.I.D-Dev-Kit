@@ -27,24 +27,24 @@ namespace TripleA.Utils.Extensions
 			list.AddRange(items);
 		}
 
-		/// <summary>
-		///     Shuffles the list using Fisher-Yates algorithm.
-		///     Reference: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
-		/// </summary>
-		/// <returns>The shuffled list</returns>
-		public static IList<T> Shuffle<T>(this IList<T> list)
-		{
-			m_s_rand ??= new Random();
-			var n = list.Count;
-			while (n > 1)
-			{
-				n--;
-				var k = m_s_rand.Next(n + 1);
-				(list[k], list[n]) = (list[n], list[k]);
-			}
-
-			return list;
-		}
+		// /// <summary> --useless
+		// ///     Shuffles the list using Fisher-Yates algorithm.
+		// ///     Reference: http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
+		// /// </summary>
+		// /// <returns>The shuffled list</returns>
+		// public static IList<T> Shuffle<T>(this IList<T> list)
+		// {
+		// 	m_s_rand ??= new Random();
+		// 	var n = list.Count;
+		// 	while (n > 1)
+		// 	{
+		// 		n--;
+		// 		var k = m_s_rand.Next(n + 1);
+		// 		(list[k], list[n]) = (list[n], list[k]);
+		// 	}
+		//
+		// 	return list;
+		// }
 
 		/// <summary>
 		///     Swaps two elements in the list
