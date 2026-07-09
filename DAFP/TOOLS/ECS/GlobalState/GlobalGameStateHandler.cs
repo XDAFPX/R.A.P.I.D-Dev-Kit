@@ -6,8 +6,8 @@ using DAFP.TOOLS.ECS.GlobalState.Events;
 using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.Injection;
+using MessagePipe;
 using UnityEngine;
-using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.GlobalState
@@ -16,12 +16,11 @@ namespace DAFP.TOOLS.ECS.GlobalState
     public abstract class GameStateHandler
         : GlobalStateHandler<IGameState>, IGameStateHandler
     {
-        [Inject(Id = IVideoGame.GAME_BUS_NAME)]
-        private IEventBus bus;
+        [Inject] private IPublisher<OnGameStateChangedEvent> e;
 
         protected override void OnTransition(IGameState previous, IGameState @new)
         {
-            ((IEventBus)bus).Send(new OnGameStateChanged() { New = @new, Previous = previous });
+            e.Publish(new OnGameStateChangedEvent(this,@new,previous));
         }
 
         public void TransitionToCriticalFailureState()

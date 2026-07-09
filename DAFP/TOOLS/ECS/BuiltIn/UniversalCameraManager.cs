@@ -4,10 +4,12 @@ using System.Linq;
 using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Environment;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
+using MessagePipe;
 using UnityEngine;
 using Zenject;
 #if CINEMAMACHINE
@@ -16,43 +18,49 @@ using Unity.Cinemachine;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class UniversalCameraManager : ScriptableObject, ICameraManager, IInitializable
+    public class UniversalCameraManager : ScriptableObject, ICameraManager, IInitializable,
+        IMessageHandler<OnEntityBecomePlayerEvent>, IDisposable
     {
         [Inject] private World world;
+        [Inject] private ISubscriber<OnEntityBecomePlayerEvent> subjectEvent;
         [SerializeField] private StatContainer stats;
-
+        private IDisposable sub;
         public IStatContainer Stats => stats;
-        public IEnumerable<IEntity> Subjects => subjects;
-        private HashSet<IEntity> subjects = new();
 
+        void IMessageHandler<OnEntityBecomePlayerEvent>.Handle(OnEntityBecomePlayerEvent message)
+        {
+            Resolve().Forget();
+        }
 
-        public virtual void Initialize()
+        void IInitializable.Initialize()
+        {
+            sub = subjectEvent.Subscribe(this);
+            InternalInitialize();
+        }
+
+        public void Dispose() => sub?.Dispose();
+        protected virtual void InternalInitialize()
         {
         }
 
-        public void AddSubject(IEntity ent)
+        public virtual void Tick()
         {
-            if (subjects.Contains(ent)) return;
-            subjects.Add(ent);
-
-            ManageSubjects(subjects).Forget();
         }
 
-        public void RemoveSubject(IEntity ent)
+
+        public DelegateSubjectPolicy Policy = DelegateSubjectPolicy.All;
+
+        public async UniTask Resolve()
         {
-            if (!subjects.Contains(ent)) return;
-            subjects.Remove(ent);
-
-            ManageSubjects(subjects).Forget();
+            await ManageSubjects(world.Players.Select((player => player.Body)));
         }
-
-        public DelegateSubjectPolicy Policy = DelegateSubjectPolicy.AllForOne;
 
         public enum DelegateSubjectPolicy
         {
             AllForOne,
             SplitScreen,
-            Multiplayer
+            Multiplayer,
+            All
         }
 
         public async UniTask
@@ -71,10 +79,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     {
                         for (int i = 0; i < diff; i++)
                         {
-                            var _tamplate =
-                                Cams.OfType<IEntity>().FirstOrDefault(); // ?? world.Create<CinemaCa>() --TODO FISXX
-                            var _clone = await world.Clone(_tamplate) as IGameCamera;
-                            Cams.Add(_clone);
+                            // var _tamplate = TODO Figure out
+                            //     Cams.OfType<IEntity>().FirstOrDefault(); // ?? world.Create<CinemaCa>() --TODO FISXX
+                            // var _clone = await world.Clone(_tamplate) as IGameCamera;
+                            // Cams.Add(_clone);
                         }
                     }
 
@@ -96,6 +104,25 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     Cams.FirstOrDefault()?.UpdateSubjects(_ent.ToEnumerable());
 
                     break;
+                case DelegateSubjectPolicy.All: //--round-robin
+                {
+                    var _subjects = s as IEntity[] ?? s.ToArray();
+                    if (_subjects.Length == 0 || Cams.Count == 0) break;
+                    List<IEntity>[] _groups = new List<IEntity>[Cams.Count];
+                    for (int _i = 0; _i < _groups.Length; _i++)
+                        _groups[_i] = new List<IEntity>();
+                    for (int _i = 0; _i < _subjects.Length; _i++)
+                    {
+                        _groups[_i % Cams.Count].Add(_subjects[_i]);
+                    }
+
+                    for (int _i = 0; _i < Cams.Count; _i++)
+                    {
+                        Cams[_i].UpdateSubjects(_groups[_i]);
+                    }
+
+                    break;
+                }
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -144,7 +171,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             AddCameraInternal(pet);
             GameUtils.AddPet(pet, Cams);
-            ManageSubjects(subjects).Forget();
+            ManageSubjects(world.Players.Select((player => player.Body))).Forget();
         }
 
         public bool RemovePet(IGameCamera pet)
@@ -152,7 +179,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             RemoveCameraInternal(pet);
             reset_cams();
             var res = GameUtils.RemovePet(pet, Cams);
-            ManageSubjects(subjects).Forget();
             return res;
         }
 
@@ -171,9 +197,5 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         IEnumerable<IGameCamera> IOwnerOf<IGameCamera>.Pets => pets;
 
         public IEnumerable<object> AbsolutePets => (Cams);
-
-        public virtual void Tick()
-        {
-        }
     }
 }

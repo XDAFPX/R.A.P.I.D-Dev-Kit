@@ -1,35 +1,37 @@
 ﻿using Bdeshi.Helpers.Utility;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.ECS.Basic.Events;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
-using UnityEventBus;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class TemporaryEntityDefinition : EntityComponent, IListener<OnEntitySpawnedEvent>
+    public class TemporaryEntityDefinition : EntityComponent
     {
         public FiniteTimer Timer;
+
+        [Inject] private Adam adam;
+
         protected override void OnTick()
         {
             if (Timer.tryCompleteTimer(EntityComponentTicker.DeltaTime))
             {
                 Despawn();
+                
             }
         }
 
         public void Despawn()
         {
-            Host.Remove(new EntityRemovalReason.VisualEntityRemovalReason());
+            adam.Destroy(Host).Forget();
         }
 
         protected override void OnInitialize()
         {
-            Host.Bus.Subscribe(this);
-        }
-
-
-        public void React(in OnEntitySpawnedEvent e)
-        {
             Timer.reset();
         }
+
+
     }
 }

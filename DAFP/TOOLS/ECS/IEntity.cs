@@ -8,7 +8,6 @@ using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.DebugSystem;
-using DAFP.TOOLS.ECS.EventBus;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers;
@@ -16,45 +15,31 @@ using DAFP.TOOLS.ECS.ViewModel;
 using NUnit.Framework;
 using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
-using UnityEventBus;
 using Zenject;
 
 
 namespace DAFP.TOOLS.ECS
 {
-    public interface IEntity : ITickable, IGameObjectProvider, IAuthor, INameable, IPetOwnerTreeOf<IEntity>, ISavable,
-        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>,  IHaveStats,
+    public interface IEntity : ITickable, IGameObjectProvider,  INameable, IPetOwnerTreeOf<IEntity>, ISavable,
+        IDebugDrawable, ISwitchable, IHaveGameplayTag, IOwnerOf<IViewModel>, IHaveStats,
         IOwnerOf<IStatModifierBase>, IOwnerOf<PegModifier>, IOwnerOf<IEntityAccessory>, IDirectionProvider
     {
-        public IThinker Brains { get; }
+        public string ID { get; }
+        
+        
 
-        public void Initialize();
+        public bool HasInitialized { get;  }
 
-        public void DeInitializeBrains(IThinker thinker);
-
-        public void InitializeBrains(IThinker thinker);
-
+        public IThinker Brains { get;  }
         public ICollection<IViewModel> View { get; }
 
-        public BlackBoard Memory { get; }
-        public Dictionary<Type, IEntityComponent> Components { get; }
-
-        public void AddEntComponent(IEntityComponent component);
-
-        public bool HasInitialized { get; set; }
         public ITicker EntityTicker { get; }
-        public string ID { get; }
+        public BlackBoard Memory { get; }
 
-        public delegate void TickCallBack(IEntity ent);
 
-        public event TickCallBack OnTick;
         public World GetWorld();
-        public IEventBus Bus { get; }
         public Bounds Bounds { get; }
         public Bounds CachedBounds { get; }
-        public void Remove(EntityRemovalReason removalReason);
-
-        public void BroadcastEvent<T>(T @event) where T : struct;
     }
 
     public interface IDirectionProvider

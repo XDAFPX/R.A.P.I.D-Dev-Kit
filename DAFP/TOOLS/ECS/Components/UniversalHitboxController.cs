@@ -9,7 +9,6 @@ using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using RapidLib.DAFP.TOOLS.Common;
 using TNRD;
 using UnityEngine;
-using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.Components
 {

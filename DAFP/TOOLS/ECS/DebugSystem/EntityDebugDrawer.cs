@@ -1,13 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
+using MessagePipe;
 using UGizmo;
 using UGizmo.Internal;
 using UnityEngine;
-using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
@@ -59,14 +60,17 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             }
         }
 
-        public class HealthDrawer : EntityDebugDrawer, IListener<OnEntityTakeDamageEvent>
+        public class HealthDrawer : EntityDebugDrawer, IMessageHandler<OnEntityTakeDamageEvent>, IDisposable
         {
+            private ISubscriber<OnEntityTakeDamageEvent> e;
+            private IDisposable sub;
             private Color color;
             private readonly Color secoundColor;
             private readonly float height;
             private readonly float width;
 
-            public HealthDrawer(Color color = default, Color secoundColor = default, float height = 0.37f, float width = 2.5f)
+            public HealthDrawer(Color color = default, Color secoundColor = default, float height = 0.37f,
+                float width = 2.5f)
             {
                 if (secoundColor == default)
                     secoundColor = Color.softRed;
@@ -88,7 +92,7 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             protected override void OnInit()
             {
                 if (extract_and_update_health(Host)) return;
-                Host.Bus.Subscribe(this);
+                sub = e.Subscribe(this);
             }
 
 
@@ -105,7 +109,8 @@ namespace DAFP.TOOLS.ECS.DebugSystem
                 var offset = 0.4f;
                 Vector3 barPosition = is2D
                     ? new Vector3(Host.CachedBounds.min.x, Host.CachedBounds.max.y + offset, 0f)
-                    : new Vector3(Host.CachedBounds.min.x, Host.CachedBounds.max.y + offset, Host.CachedBounds.center.z);
+                    : new Vector3(Host.CachedBounds.min.x, Host.CachedBounds.max.y + offset,
+                        Host.CachedBounds.center.z);
 
                 Sys.Gizmos.DrawBox2D(barPosition, 0, new Vector2(width, height), secoundColor);
                 Sys.Gizmos.DrawBox2D(barPosition, 0, new Vector2(width * health01, height), color);
@@ -114,13 +119,13 @@ namespace DAFP.TOOLS.ECS.DebugSystem
 
             public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem => Sys;
 
-            public void React(in OnEntityTakeDamageEvent e)
+
+            public void Handle(OnEntityTakeDamageEvent message)
             {
-                if (e.Receiver != Host)
+                if (message.Entity != Host)
                     return;
                 extract_and_update_health(Host);
             }
-
 
             private bool extract_and_update_health(IEntity entity)
             {
@@ -133,6 +138,11 @@ namespace DAFP.TOOLS.ECS.DebugSystem
             public void OnHostTakeDamage(float updatedHealth)
             {
                 health01 = Mathf.Clamp01(updatedHealth);
+            }
+
+            public void Dispose()
+            {
+                sub?.Dispose();
             }
         }
 

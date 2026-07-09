@@ -5,7 +5,6 @@ using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEventBus;
 using UnityGetComponentCache;
 
 namespace DAFP.TOOLS.ECS.UIToolKit
@@ -97,10 +96,10 @@ namespace DAFP.TOOLS.ECS.UIToolKit
 
         private void ElementOnVisibilityChanged(bool obj, IUIElement element)
         {
-            ((IEventBus)Bus).Send(new VisibilityOnUIElementChanged(element, obj));
+            // ((IEventBus)Bus).Send(new VisibilityOnUIElementChanged(element, obj));
+            //TODO change this shit
         }
 
-        public UISystemEventBus Bus { get; } = new();
 
         HashSet<TElement> IUISystem<TElement>.GetElements()
         {

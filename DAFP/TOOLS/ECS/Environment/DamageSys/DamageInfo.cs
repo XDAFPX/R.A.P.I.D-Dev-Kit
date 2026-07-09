@@ -1,5 +1,6 @@
 ﻿using BandoWare.GameplayTags;
 using DAFP.TOOLS.ECS.BigData;
+using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.Environment.DamageSys
 {
@@ -24,6 +25,7 @@ namespace DAFP.TOOLS.ECS.Environment.DamageSys
             Tag = tag;
         }
 
+        public Change Change => Change.Negative;
         public IStat<uint> Amount { get; }
         public IHealthChangeSource Source { get; }
         public IHaveGameplayTag Tag { get; }

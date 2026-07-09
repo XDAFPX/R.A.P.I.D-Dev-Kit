@@ -14,23 +14,26 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-
     public class InfoEntityStart : EntFactory
     {
         [field: SerializeField]
         protected override SerializableInterface<IAsyncFactory<IEnumerable<IEntity>>> Factory { get; set; }
 
-        [Inject]protected override ISpawnPointManager Manager { get; set; }
+        [Inject] protected override ISpawnPointManager Manager { get; set; }
     }
 
-    public abstract class EntFactory : EmptyEntity, ISpawnPoint,IPetOf<ISpawnPointManager,ISpawnPoint>
+    public abstract class EntFactory : EmptyEntity, ISpawnPoint, IPetOf<ISpawnPointManager, ISpawnPoint>
     {
         protected abstract SerializableInterface<IAsyncFactory<IEnumerable<IEntity>>> Factory { get; set; }
 
         protected abstract ISpawnPointManager Manager { get; set; }
+
         protected override void InitializeInternal()
         {
             base.InitializeInternal();
+            Injector.Inject(Factory.Value);
+            if (Factory?.Value is IInitializable _initializable)
+                _initializable.Initialize();
             ((IOwnedBy<ISpawnPointManager>)this).ChangeOwner(Manager);
         }
 
@@ -57,6 +60,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return res.FirstOrDefault();
         }
 
-        List<ISpawnPointManager> IPetOf<ISpawnPointManager, ISpawnPoint>.Owners => new ();
+        List<ISpawnPointManager> IPetOf<ISpawnPointManager, ISpawnPoint>.Owners => new();
     }
 }

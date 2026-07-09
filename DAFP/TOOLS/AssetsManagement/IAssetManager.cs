@@ -8,11 +8,13 @@ namespace DAFP.TOOLS.AssetManagement
 {
     public interface IAssetManager : IInitializable
     {
-        IAssetFactory Factory { get; }
+    }
+
+    internal interface IAssetManagerLogic
+    {
         bool Release(IGamePoolableBase provider);
         void Despawn(GameObject obj);
 
         UniTask<T> Spawn<T>(GameAssetInfo info) where T : Component;
     }
-    
 }

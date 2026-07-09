@@ -21,27 +21,42 @@ using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.ViewModel;
 using DAFP.TOOLS.Injection;
 using JetBrains.Annotations;
+using MessagePipe;
+using NUnit.Framework;
+using R3;
 using RapidLib.DAFP.TOOLS.Common;
 using RapidLib.DAFP.TOOLS.Common.Utill;
 using UGizmo;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.SceneManagement;
-using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.Services
 {
     //A thing to manage entities without any consideration of any scene nor state
     public abstract class World : IEntity, IService, IOwnerOf<Ticker>, IInitializable, ITickable, IFixedTickable,
-        IResetable,
-        IFactory<IEntity>, IFactory<IVector, IEntity>, IFactory<string, IVector, IEntity>
-
+        IResetable, IMessageHandler<OnEntityRegisterEvent>, IMessageHandler<OnEntityDeregisterEvent>
     {
         public static readonly Ticker EMPTY_TICKER = new(0, new HashSet<IGameState>());
         public readonly Ticker EmptyTicker = EMPTY_TICKER;
 
-        [Inject] private ISubscriber[] subscribers;
+        // [Inject] private ISubscriber[] subscribers;
+
+        [Inject] private Adam adam;
+
+
+        [Inject] public IGameStateHandler GameState { get; set; }
+        [Inject] public ICursorStateHandler CursorState { get; set; }
+        [Inject] public IAssetFactory AssetFactory { get; set; }
+        [Inject] public MessagePipe.ISubscriber<OnEntityDeregisterEvent> deregisterEvent;
+        [Inject] public MessagePipe.ISubscriber<OnEntityRegisterEvent> registeredEvent;
+        [Inject] public MessagePipe.IPublisher<OnEntityInitializedEvent> initializedEvent;
+        [Inject] public MessagePipe.IPublisher<OnEntityBecomePlayerEvent> becomePlayerEvent;
+        [Inject] public MessagePipe.IPublisher<OnEntityStopBeingPlayerEvent> stopPlayerEvent;
+        [Inject] public MessagePipe.IPublisher<OnWorldInitializeEvent> worldInitEvent;
+
+        [Inject] public ThinkerManager ThinkerManager;
 
         [Inject(Id = IVideoGame.DEFAULT_UPDATE)]
         public ITicker DefaultUpdate;
@@ -51,6 +66,9 @@ namespace DAFP.TOOLS.ECS.Services
 
         [Inject(Id = IVideoGame.VIEW_MODEL_UPDATE)]
         public ITicker ViewUpdate;
+
+        [Inject(Id = IVideoGame.THINKERS_UPDATE)]
+        public ITicker ThinkerUpdate;
 
         [Inject(Id = IVideoGame.PHYSICS_UPDATE)]
         public ITicker PhysicsUpdate;
@@ -62,40 +80,27 @@ namespace DAFP.TOOLS.ECS.Services
 
         public string Name { get; set; }
 
-        private SingleTask loadWorldTask = new();
+
+        private IDisposable sub;
 
         //--So let me break it down for ya
         //-- First comes Awake, so all entities register; --OnWorldLoadIsCalled directly after
-        //--Then FINALLY comes Start and calls init_world that initializes every entity. But those with more priority go first. -- and then after OnWorldInit
-        private string lastLoadedScene;
-
+        //--Then FINALLY comes Start and calls init_world that initializes every entity. But those with more priority go first. -- and then after OnWorldInit 
+        /// --  DO NOT LISTEN TO THE GUY ABOVE HE IS ON DRUGS AND frankly I don't trust him
+        ///-- SO
+        ///-- it hoes like this
+        /// -- NUMERO UNO :: Here goes Zenject's Initialize()
+        /// -- every system intializes and subscribes to some events
+        /// -- NUMERO DOS :: goes the bootstrap service
+        /// -- Initialize() Int.Max oder looking for unconfigured entities that were preplaced into the scene and does the thing
+        /// -- NUMERO TRES :: The bootstrap unnaunces every entity's creation and they all promptly get registered and initialized
+        /// -- the important part that I forgor is that every entity's intialization order should be acording to their scene appearnce so that parents get intitalized first and so on
+        /// -- NUMERO QUADRO :: Update loop
         public void Initialize()
         {
-            subscribers.ForEach(subscriber => Bus.Subscribe(subscriber));
-            SceneManager.sceneLoaded -= OnSceneLoaded; //--For some insane reason it keeps piling up and stops only after the domain reload
-            SceneManager.sceneLoaded += OnSceneLoaded;
-
-            var _currentScene = SceneManager.GetActiveScene().name; //-- so I have to do this bullshit
-            if (lastLoadedScene != _currentScene)
-            {
-                lastLoadedScene = _currentScene;
-                loadWorldTask.Run(load_world);
-            }
-        }
-
-        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-        {
-            lastLoadedScene = scene.name;
-            loadWorldTask.Run(load_world);
-        }
-
-        private async UniTask load_world(CancellationToken ct)
-        {
-            await UniTask.DelayFrame(1, cancellationToken: ct);
-            this.BroadcastEvent(new OnWorldLoadEvent(this));
-            await UniTask.DelayFrame(2, cancellationToken: ct); //--wait for everybody to catch up
             init_world();
         }
+
 
         private void prepare_world()
         {
@@ -104,6 +109,10 @@ namespace DAFP.TOOLS.ECS.Services
             Memory = new BlackBoard(this);
             Entities = Entities.ClearOfNulls().ToList();
             Name = GetType().Name;
+            var d1 = registeredEvent.Subscribe(this);
+            var d2 = deregisterEvent.Subscribe(this);
+            sub = new CompositeDisposable(d1, d2);
+
             // Entities.Clear();
             // foreach (var _tickerBase in Tickers) _tickerBase.ResetToDefault();
             //
@@ -114,46 +123,59 @@ namespace DAFP.TOOLS.ECS.Services
 
         private void init_world()
         {
-            if (shutDowned)
+            if (shutDowned || HasInitialized)
                 return;
             prepare_world();
-            var _prioritized = Entities.OfType<IPrioritized>().ToArray();
-            var _nonPrioritized = Entities.Except(_prioritized.Cast<IEntity>()).Cast<IPetOwnerTreeOf<IEntity>>()
-                .ToArray();
-
-            _prioritized.PriorityForeach((prioritized1 => ((IEntity)prioritized1).Initialize()));
-            foreach (var _entity in _nonPrioritized)
-            {
-                if (_entity == null) continue;
-                if (_entity.GetCurrentOwner() != null) continue;
-                ((IEntity)_entity).Initialize();
-            }
-
             HasInitialized = true;
 
-            BroadcastEvent(new OnWorldInitEvent(this));
+            worldInitEvent.Publish(new(this));
 
-            Debug.Log($"[World] ({this.Name}) initialized and loaded. (SCENE: {lastLoadedScene}) ");
+            // Debug.Log($"[World] ({this.Name}) initialized and loaded. (SCENE: ) ");
             // DebugSystem.Log(this, $"the World ({this.Name}) initialized and loaded. ");
+        }
+
+        internal void HandleEntityInitialization(IEntity ent)
+        {
+            if (ent.HasInitialized)
+                return;
+            if (ent is IEntityLogic _logic)
+            {
+                _logic.Initialize();
+                initializedEvent.Publish(new OnEntityInitializedEvent(ent));
+            }
+        }
+
+        void IMessageHandler<OnEntityRegisterEvent>.Handle(OnEntityRegisterEvent message)
+        {
+            register_entity(message.Entity, message.Entity.EntityTicker);
+        }
+
+        void IMessageHandler<OnEntityDeregisterEvent>.Handle(OnEntityDeregisterEvent message)
+        {
+            un_register_entity(message.Entity);
         }
 
         private bool shutDowned;
 
         public void Shutdown()
         {
+            if (shutDowned)
+                return;
             foreach (var _entity in Entities)
             {
-                _entity.Remove(EntityRemovalReason.DEFAULT);
+                adam.Destroy(_entity).Forget();
             }
 
             ResetToDefault();
+
             shutDowned = true;
             Debug.Log($"[World] ({this.Name}) has shutdown ");
         }
 
         //-- Other stuff -----------------------------------------------------------------
 
-        public void RegisterEntity(IEntity ent, ITicker ticker)
+
+        private void register_entity(IEntity ent, ITicker ticker)
         {
             if (ReferenceEquals(ent, this))
                 return;
@@ -166,20 +188,20 @@ namespace DAFP.TOOLS.ECS.Services
             Entities.Add(ent);
             if (ent.GetWorldRepresentation().TryGetComponent(out IPlayer _player))
                 register_player(_player);
-            if (HasInitialized) //--TODO fix
-                ent.Initialize();
+            // if (HasInitialized) //--TODO fix
+            //     ent.Initialize();
 
-            Debug.Log(
-                $"[World]: Registered Entity... Name: {ent.GetType().Name} , WorldName: {(ent is Entity _entity ? _entity.name : "NoName")} ");
+            // Debug.Log(
+            //     $"[World]: Registered Entity... Name: {ent.GetType().Name} , WorldName: {(ent is Entity _entity ? _entity.name : "NoName")} ");
         }
 
         private void un_register_player(IPlayer player)
         {
             if (!players.Contains(player))
                 return;
-            var _ev = new OnEntityStopBeingPlayer(player.Body, player.Data);
-            player.Body.BroadcastEvent(_ev);
+            var _ev = new OnEntityStopBeingPlayerEvent(player.Body, player.Data);
             players.Remove(player);
+            stopPlayerEvent.Publish(_ev);
         }
 
         private void register_player(IPlayer player)
@@ -187,22 +209,22 @@ namespace DAFP.TOOLS.ECS.Services
             if (players.Contains(player))
                 return;
             var _ev = new OnEntityBecomePlayerEvent(player.Body, player.Data);
-            player.Body.BroadcastEvent(_ev);
             players.Add(player);
+            becomePlayerEvent.Publish(_ev);
         }
 
         public bool IsRegistered(IEntity ent) => Entities.Contains(ent);
 
-        public void RemoveEntity([NotNull] IEntity ent)
+        private void un_register_entity([NotNull] IEntity ent)
         {
             try
             {
                 un_register_player(ent.TryGetPlayer());
                 Entities.Remove(ent);
-                ent.EntityTicker.Subscribed.Remove(ent);
-                foreach (var _entityComponent in ent.Components)
-                    if (_entityComponent.Value.EntityComponentTicker != ent.EntityTicker)
-                        _entityComponent.Value.EntityComponentTicker.Remove(_entityComponent.Value);
+                Tickers.Find((@base => ent.EntityTicker == @base))?.Remove(ent);
+                foreach (var _entityComponent in ent.GetWorldRepresentation().GetComponents<IEntityComponent>())
+                    if (_entityComponent.EntityComponentTicker != ent.EntityTicker)
+                        _entityComponent.EntityComponentTicker.Remove(_entityComponent);
             }
             catch (Exception _e)
             {
@@ -220,22 +242,23 @@ namespace DAFP.TOOLS.ECS.Services
                 $"Registered CustomComponentTicker... ComponentName: {ent.GetType().Name}  ,WorldEntityName: {(ent.GetWorldRepresentation() ? ent.GetWorldRepresentation().name : "NoName")} ");
         }
 
-        public void FixedTick()
-        {
-            foreach (var _ticker in Tickers.OfType<FixedUpdateTicker>()) SafeTick(_ticker);
-        }
 
-        public void SafeTick(ITickerBase ticker)
+        private void safe_tick(ITickerBase ticker)
         {
             if (ticker.IsAllowedToTick(GameState.Current))
                 ticker.Tick();
         }
 
+        public void FixedTick()
+        {
+            foreach (var _ticker in Tickers.OfType<FixedUpdateTicker>()) safe_tick(_ticker);
+        }
+
         public void Tick()
         {
-            foreach (var _ticker in Tickers.OfType<UpdateTicker>()) SafeTick(_ticker);
+            foreach (var _ticker in Tickers.OfType<UpdateTicker>()) safe_tick(_ticker);
 
-            foreach (var _ticker in Tickers.OfType<UpdateTicker>()) SafeTick(_ticker);
+            foreach (var _ticker in Tickers.OfType<UpdateTicker>()) safe_tick(_ticker);
 
             foreach (var _tickerBase in Tickers.OfType<Ticker>())
             {
@@ -245,7 +268,7 @@ namespace DAFP.TOOLS.ECS.Services
                 if (_tickerBase.Elapsed >= _tickerBase.DeltaTime)
                 {
                     _tickerBase.Elapsed = 0;
-                    SafeTick(_tickerBase);
+                    safe_tick(_tickerBase);
                 }
             }
         }
@@ -290,57 +313,40 @@ namespace DAFP.TOOLS.ECS.Services
             Tickers.Sort((a, b) => b.Priority.CompareTo(a.Priority));
         }
 
-        public void SubscribeToOnTickEntities<T>(IEntity.TickCallBack callBack) where T : IEntity
-        {
-            foreach (var _entity in Entities)
-                if (_entity is T _breed)
-                    _breed.OnTick += callBack;
-        }
+        // public void SubscribeToOnTickEntities<T>(IEntity.TickCallBack callBack) where T : IEntity
+        // {
+        //     foreach (var _entity in Entities)
+        //         if (_entity is T _breed)
+        //             _breed.OnTick += callBack;
+        // }
 
         //--Ent Stuff -----------------------------------------------------------------------------------------------------------------------------------
-        public IThinker Brains => null;
         public IStatContainer Stats => new DummyStatContainer();
 
-        public void DeInitializeBrains(IThinker thinker)
-        {
-        }
-
-        public void InitializeBrains(IThinker thinker)
-        {
-        }
 
         public ICollection<IViewModel> View { get; } = new EmptyView().ToEnumerable().Cast<IViewModel>().ToList();
         public BlackBoard Memory { get; private set; }
-        public Dictionary<Type, IEntityComponent> Components { get; } = new();
-
-        public void AddEntComponent(IEntityComponent component)
-        {
-        }
 
         public bool HasInitialized { get; set; }
+
+        public IThinker Brains
+        {
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
+
         public ITicker EntityTicker => EmptyTicker;
         public string ID => id;
-        public event IEntity.TickCallBack OnTick;
 
         public World GetWorld()
         {
             return this;
         }
 
-        public IEventBus Bus => GameBus;
         public Bounds Bounds => new Bounds(Vector3.zero, new Vector3(23123132131321, 31232323231, 3132331321111));
         public Bounds CachedBounds => Bounds;
         public IVector EyeVector => new V3();
 
-        public void Remove(EntityRemovalReason removalReason)
-        {
-            Shutdown();
-        }
-
-        public void BroadcastEvent<T>(T @event) where T : struct
-        {
-            ((IEventBus)Bus).Send(@event);
-        }
 
         private string id;
         private IEnumerable<IDebugDrawable> pets = new List<IDebugDrawable>();
@@ -350,13 +356,6 @@ namespace DAFP.TOOLS.ECS.Services
         private IEnumerable<PegModifier> pets4 = new List<PegModifier>();
         private IEnumerable<IEntityAccessory> pets5 = new List<IEntityAccessory>();
 
-        [Inject(Id = IVideoGame.GAME_BUS_NAME)]
-        public IEventBus GameBus;
-
-        [Inject] public IGameStateHandler GameState { get; set; }
-        [Inject] public ICursorStateHandler CursorState { get; set; }
-        [Inject] public IAssetFactory AssetFactory { get; set; }
-        public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
 
         public GameObject GetWorldRepresentation()
         {
@@ -476,6 +475,7 @@ namespace DAFP.TOOLS.ECS.Services
             Shutdown();
         }
 
+
         public void Transition(IWorldTransition transition)
         {
             if (shutDowned)
@@ -493,80 +493,61 @@ namespace DAFP.TOOLS.ECS.Services
 
         public void ResetToDefault()
         {
-            Debug.Log($"[World]: The world was reset");
-            loadWorldTask.Cancel();
             Tickers.ForEach((@base => @base.ResetToDefault()));
+            sub.Dispose();
             Entities.Clear();
             players.Clear();
             HasInitialized = false;
             shutDowned = false;
+            Debug.Log($"[World]: The World was reset");
         }
 
-        public T Create<T>() where T : Component, IEntity
-        {
-            return Create<T>(Vector3.zero.ToGeneric());
-        }
+        // public T Create<T>() where T : Component, IEntity --moved to adam
+        // {
+        //     return Create<T>(Vector3.zero.ToGeneric());
+        // }
+        //
+        // public T Create<T>(IVector pos) where T : Component, IEntity
+        // {
+        //     return Create<T>(typeof(T).Name, pos);
+        // }
+        //
+        // public T Create<T>(string name, IVector pos) where T : Component, IEntity
+        // {
+        //     return Create<T>(name, (entity => entity.Pos(pos)));
+        // }
+        //
+        // public T Create<T>(string name, Action<T> process) where T : Component, IEntity
+        // {
+        //     var _obj = new GameObject(name);
+        //     var _ent = _obj.AddComponent<T>();
+        //     process.Invoke(_ent);
+        //     AssetFactory.Create(_obj);
+        //     return _ent;
+        // }
 
-        public T Create<T>(IVector pos) where T : Component, IEntity
-        {
-            return Create<T>(typeof(T).Name, pos);
-        }
-
-        public T Create<T>(string name, IVector pos) where T : Component, IEntity
-        {
-            return Create<T>(name, (entity => entity.Pos(pos)));
-        }
-
-        public T Create<T>(string name, Action<T> process) where T : Component, IEntity
-        {
-            var _obj = new GameObject(name);
-            var _ent = _obj.AddComponent<T>();
-            process.Invoke(_ent);
-            AssetFactory.Create(_obj);
-            return _ent;
-        }
-
-        public async UniTask<T> Clone<T>(T ent) where T : IEntity //--TODO make this better
-        {
-            var clone = await GameObject.InstantiateAsync(ent.GetWorldRepresentation());
-            AssetFactory.Create(clone.FirstOrDefault());
-            return clone.FirstOrDefault()!.GetComponent<T>();
-        }
+        // public async UniTask<T> Clone<T>(T ent) where T : IEntity //--TODO make this better
+        // {
+        //     var clone = await GameObject.InstantiateAsync(ent.GetWorldRepresentation());
+        //     AssetFactory.Create(clone.FirstOrDefault());
+        //     return clone.FirstOrDefault()!.GetComponent<T>();
+        // }
 
 
-        public IEntity Create()
-        {
-            return Create<EmptyEntity>();
-        }
-
-        public IEntity Create(IVector param)
-        {
-            return Create<EmptyEntity>(param);
-        }
-
-        public IEntity Create(string param1, IVector param2)
-        {
-            return Create<EmptyEntity>(param1, param2);
-        }
-    }
-
-    [Serializable]
-    public class WorldEntityFactory<T> : IAsyncFactory<T> where T : Component, IEntity
-    {
-        [Inject] private World world;
-        [Inject] private IAssetManager manager;
-        [SerializeField] private AssetReferenceT<T> reff;
-
-        public async UniTask<T> Create()
-        {
-            if (reff == null)
-                return world.Create<T>();
-            if (reff.editorAsset is IGamePoolableBase _poolable)
-            {
-                return await manager.Spawn<T>(_poolable.Info());
-            }
-
-            return await manager.Spawn<T>(new GameAssetInfo(reff.RuntimeKey.ToString()));
-        }
+        // public IEntity Create()
+        // {
+        //     return Create<EmptyEntity>();
+        // }
+        //
+        // public IEntity Create(IVector param)
+        // {
+        //     return Create<EmptyEntity>(param);
+        // }
+        //
+        // public IEntity Create(string param1, IVector param2)
+        // {
+        //     return Create<EmptyEntity>(param1, param2);
+        // }
+        public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; } = null;
     }
 }

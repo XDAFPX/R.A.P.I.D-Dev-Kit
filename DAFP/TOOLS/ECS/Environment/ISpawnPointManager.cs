@@ -5,6 +5,6 @@ namespace DAFP.TOOLS.ECS.Environment
 {
     public interface ISpawnPointManager : IOwnerOf<ISpawnPoint>
     {
-        public void ManageAll();
+        public void Resolve();
     }
 }

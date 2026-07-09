@@ -33,6 +33,9 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private Vector3 _combinedPositionOffset;
         private Vector3 _combinedRotationOffset;
 
+        // Cached fallback vcam, used only until the brain resolves one itself
+        private CinemachineCamera _vcam;
+
         public override IEnumerable<IViewModel> SetupView()
         {
             return new EmptyView().ToEnumerable();
@@ -51,21 +54,35 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             };
         }
 
+        private CinemachineCamera get_vcam()
+        {
+            // Prefer whatever the brain currently has active, if it's resolved one already
+            if (brain.ActiveVirtualCamera is CinemachineCamera _active)
+                return _active;
+
+            // Fall back to finding it ourselves — covers the case where the brain
+            // hasn't picked an active vcam yet (e.g. during InitializeInternal)
+            _vcam ??= GetComponentInChildren<CinemachineCamera>();
+            _vcam ??= output.GetComponent<CinemachineCamera>();
+
+            return _vcam;
+        }
+
         private void set_zoom(float val)
         {
-            if (brain.ActiveVirtualCamera is CinemachineCamera cam)
-            {
-                if (cam.TryGetComponent(out CinemachinePositionComposer composer))
-                {
-                    composer.CameraDistance = val;
-                    return;
-                }
+            var _cam = get_vcam();
+            if (_cam == null) return;
 
-                if (cam.Lens.Orthographic)
-                    cam.Lens.OrthographicSize = val;
-                else
-                    cam.Lens.FieldOfView = val;
+            if (_cam.TryGetComponent(out CinemachinePositionComposer composer))
+            {
+                composer.CameraDistance = val;
+                return;
             }
+
+            if (_cam.Lens.Orthographic)
+                _cam.Lens.OrthographicSize = val;
+            else
+                _cam.Lens.FieldOfView = val;
         }
 
         protected override void TickInternal()
@@ -176,7 +193,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             var _subjects = subjects.ToList();
             if (_subjects.IsEmpty()) return;
 
-            if (brain.ActiveVirtualCamera is not CinemachineCamera _cam) return;
+            var _cam = get_vcam();
+            if (_cam == null) return;
 
             switch (policy)
             {
@@ -280,11 +298,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             FollowAverageCentroid // follows the average position without target group
         }
 
-        protected override void OnDispose()
-        {
-            cameraManager.RemovePet(this);
-            base.OnDispose();
-        }
+        // protected override void Dis()
+        // {
+        //     cameraManager.RemovePet(this);
+        //     base.OnDispose();
+        // }
 
         protected class ShakeInstance
         {

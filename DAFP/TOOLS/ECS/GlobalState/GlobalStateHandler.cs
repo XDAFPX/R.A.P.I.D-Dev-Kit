@@ -6,7 +6,6 @@ using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Serialization;
 using UnityEngine;
 using UnityEngine.LowLevelPhysics2D;
-using UnityEventBus;
 using Zenject;
 using Object = System.Object;
 

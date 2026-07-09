@@ -1,17 +1,24 @@
-﻿using Optional;
+﻿using DAFP.TOOLS.Common.Utill;
+using Optional;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
+using DAFP.TOOLS.ECS.Services;
+
 namespace DAFP.TOOLS.ECS.Basic.Events
 {
-    public struct OnEntityDieEvent
+    public struct OnEntityDieEvent : IEntityEvent
     {
         public OnEntityDieEvent(IEntity receiver, IDamage lethal)
         {
-            Receiver = receiver;
+            Entity = receiver;
             Lethal = lethal;
         }
 
-        public IEntity Receiver { get; }
-        public Option<IEntity> Source => Lethal.Info.Source.Author;
+        public IEntity Entity { get; }
         public IDamage Lethal { get; }
+
+        public override string ToString()
+        {
+            return GameUtils.FormatLog(nameof(World), $"Entity ({Entity}) has killed by ({Lethal.Info.Source}) . R.I.P");
+        }
     }
 }

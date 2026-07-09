@@ -7,11 +7,11 @@ using DAFP.TOOLS.ECS;
 
 namespace DAFP.TOOLS.ECS.Thinkers
 {
-    public abstract class StateDrivenThinker : BaseThinker
+    public abstract class StateDrivenThinker : Brain
     {
         protected StateMachine<IState> StateMachine;
 
-        protected sealed override void InternalInitialize(IEntity host)
+        protected sealed override void InternalStart(IEntity host)
         {
             StateMachine = new StateMachine<IState>(GetInitialState(host), "RootBrain");
             RegisterInitialStates(ref StateMachine, host);
@@ -22,7 +22,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
             StateMachine.Tick();
         }
 
-        protected sealed override void InternalDispose(IEntity host)
+        protected sealed override void InternalEnd(IEntity host)
         {
             StateMachine = null;
         }
@@ -56,7 +56,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
             return BehaviourTreeUtil.GetOrCreateStateMachine(root, state_name, smCache);
         }
 
-        protected ThinkerWrapperState GetOrCreateState(string stateName, BaseThinker thinker, IEntity host,
+        protected ThinkerWrapperState GetOrCreateState(string stateName, Brain thinker, IEntity host,
             HashSet<IState._stateTags> tags = null)
         {
             return BehaviourTreeUtil.GetOrCreateState(stateName, thinker, host, btStateCache, tags);

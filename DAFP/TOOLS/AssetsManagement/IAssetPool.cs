@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityEngine.Pool;
 using Zenject;
@@ -30,7 +31,7 @@ namespace DAFP.TOOLS.AssetManagement
     //--And then you go like UName = Explosion01
     //--And then you go like Prefix = Effects which is the pool
     //--And then you go like FullAddress = GAME.Assets.Effects.Explosion01 which is the actual address for spawning
-    public struct GameAssetInfo
+    public struct GameAssetInfo : Adam.IObjectAssetCreationInfo
     {
         public const string ASSETS_PREFIX = "GAME.Assets.";
 

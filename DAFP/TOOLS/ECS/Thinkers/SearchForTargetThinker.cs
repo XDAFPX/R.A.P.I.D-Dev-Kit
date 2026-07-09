@@ -11,11 +11,11 @@ namespace DAFP.TOOLS.ECS.Thinkers
 {
     [CreateAssetMenu(menuName = "R.A.P.I.D/BuiltIn/Thinker/" + nameof(SearchForTargetThinker),
         fileName = nameof(SearchForTargetThinker))]
-    public class SearchForTargetThinker : BaseThinker
+    public class SearchForTargetThinker : Brain
     {
         [SerializeField] private EntityFilter EntityFilter;
 
-        protected override void InternalInitialize(IEntity host)
+        protected override void InternalStart(IEntity host)
         {
         }
 
@@ -27,7 +27,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
         }
 
-        protected override void InternalDispose(IEntity host)
+        protected override void InternalEnd(IEntity host)
         {
         }
 

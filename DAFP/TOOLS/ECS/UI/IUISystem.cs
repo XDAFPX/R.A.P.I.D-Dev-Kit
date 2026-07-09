@@ -4,7 +4,7 @@ using DAFP.TOOLS.Common.Utill;
 
 namespace DAFP.TOOLS.ECS.UI
 {
-    public interface IUISystem<TElement> : IUIElement where TElement : IUIElement
+    public interface IUISystem<TElement> : IUIElement where TElement : IUIElement // TODO GOD this suc,ks remake this
     {
         public HashSet<TElement> GetElements();
 
@@ -24,6 +24,5 @@ namespace DAFP.TOOLS.ECS.UI
         }
 
         public void Register(TElement element);
-        public UISystemEventBus Bus { get; }
     }
 }

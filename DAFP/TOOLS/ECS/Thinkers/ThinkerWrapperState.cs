@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using BDeshi.BTSM;
 using DAFP.TOOLS.ECS;
+using DAFP.TOOLS.ECS.Services;
 
 namespace DAFP.TOOLS.ECS.Thinkers
 {
@@ -10,11 +11,11 @@ namespace DAFP.TOOLS.ECS.Thinkers
     /// </summary>
     public sealed class ThinkerWrapperState : StateBase
     {
-        private readonly BaseThinker thinker;
+        private readonly Brain thinker;
         private readonly IEntity host;
         private readonly string stateName;
 
-        public ThinkerWrapperState(string stateName, BaseThinker thinker, IEntity host,
+        public ThinkerWrapperState(string stateName, Brain thinker, IEntity host,
             HashSet<IState._stateTags> tags = null)
         {
             this.stateName = stateName;
@@ -32,18 +33,21 @@ namespace DAFP.TOOLS.ECS.Thinkers
         public override void EnterState()
         {
             // Re-initialize on every entry to ensure fresh state
-            thinker?.Initialize(host);
+            if (thinker is IThinkerLogic _logic)
+                _logic.Start(host);
         }
 
         public override void Tick()
         {
             // Use the host's entity ticker by default
-            thinker?.Tick(host, host.EntityTicker);
+            if (thinker is IThinkerLogic _logic)
+                _logic.Tick(host,host.GetWorld().ThinkerUpdate);
         }
 
         public override void ExitState()
         {
-            thinker?.Dispose(host);
+            if (thinker is IThinkerLogic _logic)
+                _logic.End(host);
         }
     }
 }

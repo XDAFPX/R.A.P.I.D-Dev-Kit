@@ -102,15 +102,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
 
-        protected override void OnDispose()
-        {
-            // base.OnDispose();
-            AssetManager.Release(this);
-        }
 
-        public override void Remove(EntityRemovalReason removalReason)
-        {
-            OnDispose();
-        }
     }
 }

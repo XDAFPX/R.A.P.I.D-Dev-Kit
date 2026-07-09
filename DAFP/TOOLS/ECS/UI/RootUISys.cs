@@ -89,6 +89,5 @@ namespace DAFP.TOOLS.ECS.UI
             Systems.Add(element);
         }
 
-        public UISystemEventBus Bus { get; }
     }
 }

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Audio;
@@ -17,6 +18,7 @@ using NRandom;
 using PixelRouge.Inspector.Extensions;
 using R3;
 using RapidLib.DAFP.TOOLS.Common;
+using RapidLib.DAFP.TOOLS.Common.Utill;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Zenject;
@@ -219,7 +221,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 public override string Name { get; set; } = "mat_showdebug";
 
                 public override IMessage Description { get; set; } =
-                    new CompText(new Span("Sets the debug draw layer's value").I_RT());
+                    new CompText(new TextSpan("Sets the debug draw layer's value").I_RT());
 
                 public override UniTask Execute(TextProcessContext context, CancellationToken ct)
                 {
@@ -259,40 +261,32 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public class LoadLevelCommand : ConsoleCommand
         {
-            private readonly ISaveSystem saveSystem;
-            private readonly IRandom random;
-            private readonly World world;
+            [Inject]private readonly ISaveSystem saveSystem;
+            [Inject]private readonly IRandom random;
+            [Inject]private readonly Adam adam;
+            [Inject]private readonly World world;
 
-            [Inject]
-            public LoadLevelCommand(ISaveSystem saveSystem, IRandom random, World world)
-            {
-                this.saveSystem = saveSystem;
-                this.random = random;
-                this.world = world;
-            }
 
             public override string Name { get; set; } = "map";
             public override IMessage Description { get; set; } = IMessage.Literal("Changes the map");
 
-            public override UniTask Execute(TextProcessContext context, CancellationToken ct)
+            public override async UniTask Execute(TextProcessContext context, CancellationToken ct)
             {
                 var _result = CommandParserUtils.GetSingleCommandArgument(SourceInput, Name);
                 if (_result == null)
                 {
                     context.Log.OnNext(CommandParserUtils.InvalidArgumentsException(this));
-                    return UniTask.CompletedTask;
+                    return;
                 }
 
                 var _pos = world.Players(GameUtils.PlayerSelectionPolicy.SingleOut).FirstOrDefault()?.Body?.Pos() ??
-                          Vector3.zero;
-                var _transition = world.Create<LevelTransition<SaveWorldTransition>>(_pos.ToGeneric());
-                
+                           Vector3.zero;
+                var _transition = await adam.Create<LevelTransition<SaveWorldTransition>>(_pos);
                 if (int.TryParse(_result, out var _index))
                     _transition.Transition(_index);
                 else
                     _transition.Transition(_result);
                 context.Log.OnNext(IMessage.Literal($"Loading... {_result}"));
-                return UniTask.CompletedTask;
             }
         }
 
@@ -366,7 +360,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         {
             public override string Name { get; set; } = "exit";
         }
-        public class QuitCommand : ConsoleCommand,IHiddenCommand
+
+        public class QuitCommand : ConsoleCommand, IHiddenCommand
         {
             public override string Name { get; set; } = "q";
             public override IMessage Description { get; set; } = IMessage.Literal("Exits from the game");
@@ -537,7 +532,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             {
                 var _formated =
                     string.Join("\n \n", cmds.Select(cmd => $"{cmd.Name} : ({cmd.Description.Print()}) " +
-                                                             $"{(cmd is IHiddenCommand ? "[HIDDEN]" : "")} ")) + "\n ";
+                                                            $"{(cmd is IHiddenCommand ? "[HIDDEN]" : "")} ")) + "\n ";
                 return _formated;
             }
 

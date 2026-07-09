@@ -1,6 +1,5 @@
 ﻿using BandoWare.GameplayTags;
 using DAFP.TOOLS.Common.Maths;
-using DAFP.TOOLS.ECS.EventBus;
 using Optional;
 
 namespace DAFP.TOOLS.ECS.Environment.DamageSys

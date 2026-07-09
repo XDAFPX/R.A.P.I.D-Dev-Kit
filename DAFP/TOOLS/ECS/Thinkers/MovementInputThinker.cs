@@ -16,12 +16,12 @@ namespace DAFP.TOOLS.ECS.Thinkers
 {
     [CreateAssetMenu(menuName = "R.A.P.I.D/BuiltIn/Thinker/" + nameof(MovementInputThinker),
         fileName = nameof(MovementInputThinker))]
-    public class MovementInputThinker : BaseThinker
+    public class MovementInputThinker : Brain
     {
         IInputController controller;
         [Inject] private ControllerManager controller_manager;
 
-        protected override void InternalInitialize(IEntity host)
+        protected override void InternalStart(IEntity host)
         {
             controller = this.TryGetRootController((() => controller_manager.Create<GameplayInputController>("Movement",InputSystem.actions)));
             controller.Bind("Move", (context) => OnMovementPerformed(host, context));
@@ -41,7 +41,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
         }
 
-        protected override void InternalDispose(IEntity host)
+        protected override void InternalEnd(IEntity host)
         {
             controller?.Dispose();
         }

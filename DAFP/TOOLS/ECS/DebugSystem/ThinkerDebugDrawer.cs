@@ -2,7 +2,7 @@
 
 namespace DAFP.TOOLS.ECS.DebugSystem
 {
-    public abstract class ThinkerDebugDrawer : GenericDebugDrawer<BaseThinker>
+    public abstract class ThinkerDebugDrawer : GenericDebugDrawer<Brain>
     {
         protected override string GetLayerName()
         {

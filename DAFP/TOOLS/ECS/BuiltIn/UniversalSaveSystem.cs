@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.Injection;
+using MessagePipe;
 using PixelRouge.CsharpExtensionMethods;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEventBus;
 using Zenject;
 using Random = UnityEngine.Random;
 
@@ -18,18 +19,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public class UniversalSaveSystem : ISaveSystem
     {
-        private readonly World world;
-        private readonly IEnumerable<IGlobalStateHandlerBase> states;
-        private readonly IEnumerable<GlobalBlackBoard> boards;
+        [Inject] private World world;
+        [Inject] private IGlobalStateHandlerBase[] states;
+        [Inject] private GlobalBlackBoard[] boards;
+        [Inject] private IPublisher<OnSaveMadeEvent> saveMadeEvent;
+        [Inject] private IPublisher<OnSaveLoadedEvent> saveLoadedEvent;
 
-        [Inject]
-        public UniversalSaveSystem(World world, IEnumerable<IGlobalStateHandlerBase> states,
-            IEnumerable<GlobalBlackBoard> boards)
-        {
-            this.world = world;
-            this.states = states;
-            this.boards = boards;
-        }
 
         public void SaveAll(ISerializationService saveService, ISerializer<IEntity> serializer,
             IMetaSerializer metaSerializer,
@@ -114,10 +109,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             _allData["GameData"] = _globalBoardsData;
             _allData["Meta"] = _metaData;
             saveService.Save(_allData, GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3);
-            ((IEventBus)Bus).Send(new OnSaveMadeOrLoaded(
-                saveService.GetFullSavePath(GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3), serializer,
-                saveService,
-                true));
+
+            saveMadeEvent.Publish(new(this, serializer, saveService));
+            // ((IEventBus)Bus).Send(new OnSaveMadeOrLoaded(
+            //     saveService.GetFullSavePath(GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3), serializer,
+            //     saveService,
+            //     true));
         }
 
         public void DeleteSave(ISerializationService service, int slot)
@@ -172,7 +169,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     if (_fullName != null)
                         if (_statedata.TryGetValue(_fullName, out var _value))
                         {
-                            _globalStateHandlerBase.Load(new GenericSaveData(_value as Dictionary<string,object>));
+                            _globalStateHandlerBase.Load(new GenericSaveData(_value as Dictionary<string, object>));
                             _statedata.Remove(_fullName);
                         }
                 }
@@ -194,7 +191,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     if (_fullName != null)
                         if (_boardData.TryGetValue(_fullName, out var _value))
                         {
-                            _board.Load(new GenericSaveData(_value as Dictionary<string,object>));
+                            _board.Load(new GenericSaveData(_value as Dictionary<string, object>));
                             _boardData.Remove(_fullName);
                         }
                 }
@@ -267,13 +264,12 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 }
             }
 
-            ((IEventBus)Bus).Send(new OnSaveMadeOrLoaded(
-                saveService.GetFullSavePath(GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3), serializer,
-                saveService,
-                false));
-            OnEnd?.Invoke();
+            saveLoadedEvent.Publish(new(this, serializer, saveService));
+            // ((IEventBus)Bus).Send(new OnSaveMadeOrLoaded(
+            //     saveService.GetFullSavePath(GetPath(slot).Item1, GetPath(slot).Item2, GetPath(slot).Item3), serializer,
+            //     saveService,
+            //     false));
+            OnEnd?.Invoke(); //TODO change
         }
-
-        [Inject(Id = IVideoGame.GAME_BUS_NAME)]public IEventBus Bus { get; } 
     }
 }

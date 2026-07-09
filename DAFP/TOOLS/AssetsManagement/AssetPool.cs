@@ -127,11 +127,10 @@ namespace DAFP.TOOLS.AssetManagement
             if (obj is Component cp && cp.gameObject == null)
                 return;
 
-            obj?.Dispose();
 
             if (obj is Component c)
             {
-                GameObject.Destroy(c.gameObject);
+                GameObject.Destroy(c.gameObject); //cant inject adam since you know
             }
         }
 

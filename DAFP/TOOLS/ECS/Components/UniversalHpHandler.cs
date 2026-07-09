@@ -7,13 +7,16 @@ using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.ViewModel;
+using MessagePipe;
 using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine.Events;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.Components
 {
     public class UniversalHpHandler : EntityComponent, IHealthHandler
     {
+        [Inject] private IPublisher<OnEntityHealthChangedEvent> e;
         public UnityEvent<OnEntityTakeDamageEvent> OnTakeDmg;
         public UnityEvent<OnEntityTakeHealingEvent> OnTakeHeal;
 
@@ -28,9 +31,10 @@ namespace DAFP.TOOLS.ECS.Components
                 return;
             }
 
-            BroadcastTakeDamage(damage);
             GetHealth().TakeDamage(damage);
-
+            broadcast_take_damage(damage);
+            
+            
             if (Host is IDieable { Dead: true } _postDamageCheck)
             {
                 _postDamageCheck.Die(damage);
@@ -46,9 +50,9 @@ namespace DAFP.TOOLS.ECS.Components
                 return;
             }
 
-            BroadcastTakeHealing(healing);
             GetHealth().TakeHealing(healing);
 
+            broadcast_take_healing(healing);
             Host.View.Do(new IAnimAction.HealAction(healing.Info));
         }
 
@@ -58,19 +62,23 @@ namespace DAFP.TOOLS.ECS.Components
             return GameUtils.GetHpStats(Host).FirstOrDefault() ?? new QuikStat<uint>(1);
         }
 
-        protected virtual void BroadcastTakeDamage(IDamage dmg)
+        private void broadcast_take_damage(IDamage dmg)
         {
-            var e = new OnEntityTakeDamageEvent(Host, dmg);
-            OnTakeDmg?.Invoke(e);
-            Host.BroadcastEvent(e);
+            broadcast_change(dmg);
+            OnTakeDmg?.Invoke(new OnEntityTakeDamageEvent(Host, dmg));
         }
 
-        protected virtual void BroadcastTakeHealing(IHealing heal)
+        private void broadcast_take_healing(IHealing healing)
         {
-            var _e = new OnEntityTakeHealingEvent(Host, heal);
-            OnTakeHeal?.Invoke(_e);
-            Host.BroadcastEvent(_e);
+            broadcast_change(healing);
+            OnTakeHeal?.Invoke(new OnEntityTakeHealingEvent(Host, healing));
         }
+
+        private void broadcast_change(IHealthChange dmg)
+        {
+            e.Publish(new OnEntityHealthChangedEvent(Host, dmg));
+        }
+
 
         public override ITicker EntityComponentTicker => World.EMPTY_TICKER;
 

@@ -60,6 +60,10 @@ namespace DAFP.TOOLS.ECS.BigData
             return this;
         }
 
+        void IResetable.ResetToDefault()
+        {
+            get_nodes().ForEach((@base => @base.ResetToDefault()));
+        }
         // public bool TryGet<T>(string name, ) not needed
         // {
         //     try
@@ -178,6 +182,7 @@ namespace DAFP.TOOLS.ECS.BigData
         {
             return Has(new StatInjector.PathBuilder(statName));
         }
+
 
         public IStatContainer Add(IStatBase stat)
         {

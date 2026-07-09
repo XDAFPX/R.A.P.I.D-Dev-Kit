@@ -23,7 +23,7 @@ namespace DAFP.TOOLS.ECS.Serialization
             data.Add($"{ent.GetType().FullName}.{ISerializer<IEntity>.ENT_ADDITIONS_DATA_NAME}",
                 ISerializer<IEntity>.DefaultSave(ent));
             var _compdata = new Dictionary<string, object>();
-            foreach (var _componentsValue in ent.Components.Values)
+            foreach (var _componentsValue in ent.Components())
             {
                 if (_componentsValue is IStatBase stat)
                 {
@@ -58,18 +58,18 @@ namespace DAFP.TOOLS.ECS.Serialization
             if (save.TryGetValue(ISerializer<IEntity>.ENT_COMPONENTS_DATA_NAME, out var obj))
             {
                 var comp_data = obj as Dictionary<string, object>;
-                foreach (var _entityComponent in ent.Components)
+                foreach (var _entityComponent in ent.Components())
                 {
-                    if (_entityComponent.Value is IStatBase stat &&
-                        comp_data.TryGetValue(_entityComponent.Key.FullName + ".Stats", out var _value))
+                    if (_entityComponent is IStatBase stat &&
+                        comp_data.TryGetValue(_entityComponent.GetType().FullName + ".Stats", out var _value))
                     {
                         var stat_data = _value as Dictionary<string, object>;
 
                         LoadStat(stat_data, stat);
                     }
 
-                    if (comp_data.TryGetValue(_entityComponent.Key.FullName, out var _o))
-                        if (_entityComponent.Value is ISavable saveable)
+                    if (comp_data.TryGetValue(_entityComponent.GetType().FullName, out var _o))
+                        if (_entityComponent is ISavable saveable)
                             saveable.Load(new GenericSaveData(_o as Dictionary<string, object>));
                 }
             }

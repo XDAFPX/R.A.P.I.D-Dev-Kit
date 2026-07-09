@@ -16,13 +16,13 @@ using Zenject;
 namespace DAFP.TOOLS.ECS.Thinkers
 {
     [CreateAssetMenu(menuName = "R.A.P.I.D/BuiltIn/Thinker/" + nameof(WonderingThinker),fileName = nameof(WonderingThinker))]
-    public class WonderingThinker : BaseThinker //--TODO Fix
+    public class WonderingThinker : Brain //--TODO Fix
     {
         [Inject] private IRandom random;
         [SerializeField] private float RadiusOfSearch = 10;
         [SerializeField] private float ReachedTargetRadius = 1;
 
-        protected override void InternalInitialize(IEntity host)
+        protected override void InternalStart(IEntity host)
         {
             if (host is ITargetContainable _targetContainable)
             {
@@ -125,7 +125,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
         }
 
-        protected override void InternalDispose(IEntity host)
+        protected override void InternalEnd(IEntity host)
         {
         }
 

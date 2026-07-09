@@ -1,14 +1,31 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.ECS;
+using DAFP.TOOLS.ECS.Services;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using Zenject;
+using Object = UnityEngine.Object;
 
 namespace DAFP.TOOLS.AssetManagement
 {
+    public interface IAsyncDestroyer
+    {
+    }
+
+    public interface IAsyncDestroyer<in TValue> : IAsyncFactory
+    {
+        UniTask Destroy(TValue value);
+    }
+
+    public interface IAsyncDestroyer<TParam, in TValue> : IAsyncFactory
+    {
+        UniTask<TParam> Destroy(TValue value);
+    }
+
     public interface IAsyncFactory
     {
     }
@@ -28,9 +45,12 @@ namespace DAFP.TOOLS.AssetManagement
         UniTask<TValue> Create(TParam1 param1, TParam2 param2);
     }
 
-    public interface IAssetFactory : IFactory<GameObject, GameObject>, IAsyncFactory<string,GameObject>, ITickable //--thing that manages tha injection and starting gameobs and also the initial creation of them
+    public interface
+        IAssetFactory : IAsyncFactory<string, GameObject>,
+        ITickable //--initial creation of go by strign
     {
     }
+
 
     public class AssetFactory : IAssetFactory
     {
@@ -70,19 +90,7 @@ namespace DAFP.TOOLS.AssetManagement
 
             lastUsed[address] = Time.time;
             var _prefab = await _handle.ToUniTask();
-            return Create(Object.Instantiate(_prefab));
-        }
-
-        public GameObject Create(GameObject gameObject)
-        {
-            diContainer.InjectGameObject(gameObject);
-            if (gameObject.TryGetComponent<IEntity>(out var _entity))
-            {
-                if (_entity is Entity _ent)
-                    _ent.FlagAsInstantiated();
-            }
-
-            return gameObject;
+            return Object.Instantiate(_prefab);
         }
     }
 }

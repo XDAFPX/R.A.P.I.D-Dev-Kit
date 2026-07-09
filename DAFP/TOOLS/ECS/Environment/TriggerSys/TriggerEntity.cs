@@ -2,17 +2,21 @@
 using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.ViewModel;
+using MessagePipe;
 using PixelRouge.Colors;
 using TNRD;
 using UnityEngine;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 {
     public class TriggerEntity : CollidableFilterActionEntity<TriggerContext>
     {
+        [Inject] private IPublisher<OnTriggerActivatedEvent> e;
         private void OnTriggerEnter(Collider other) => handle(TriggerEvent.Enter, new UniversalCollider(other));
         private void OnTriggerEnter2D(Collider2D other) => handle(TriggerEvent.Enter, new UniversalCollider(other));
         private void OnTriggerExit(Collider other) => handle(TriggerEvent.Exit, new UniversalCollider(other));
@@ -22,7 +26,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
         {
             var ctx = new TriggerContext(triggerEvent, collider);
             Eval(ctx);
-            BroadcastEvent(new TriggerActivatedEvent() { TriggerEntity = this, Ctx = ctx });
+            e.Publish(new OnTriggerActivatedEvent() { TriggerEntity = this, Ctx = ctx });
         }
 
 
@@ -34,11 +38,6 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
             Exit = 2 << 1
         }
 
-        public struct TriggerActivatedEvent
-        {
-            public TriggerEntity TriggerEntity;
-            public TriggerContext Ctx;
-        }
     }
 
 
@@ -50,9 +49,4 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
         Exit = 2 << 1
     }
 
-    public struct TriggerActivatedEvent
-    {
-        public TriggerEntity TriggerEntity;
-        public TriggerContext Ctx;
-    }
 }

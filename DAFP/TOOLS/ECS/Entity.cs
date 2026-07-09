@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using Archon.SwissArmyLib.Utils.Editor;
 using BandoWare.GameplayTags;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.BTs;
 using DAFP.TOOLS.Common;
@@ -15,6 +16,7 @@ using DAFP.TOOLS.ECS.Audio;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
 using DAFP.TOOLS.ECS.BuiltIn;
+using DAFP.TOOLS.ECS.Components;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
@@ -25,11 +27,11 @@ using DAFP.TOOLS.ECS.Services;
 using DAFP.TOOLS.ECS.Thinkers;
 using DAFP.TOOLS.ECS.ViewModel;
 using DAFP.TOOLS.Injection;
+using FluentResults;
 using ModestTree;
 using PixelRouge.Inspector;
 using UGizmo;
 using UnityEngine;
-using UnityEventBus;
 using UnityGetComponentCache;
 using Zenject;
 using NRandom;
@@ -42,27 +44,35 @@ namespace DAFP.TOOLS.ECS
 {
     [SelectionBase]
     [DisallowMultipleComponent]
-    public abstract class Entity : MonoBehaviour, IEntity, IDisposable, IRandomizeable, ISavable,
-        IListener<OnGameStateChanged>, IListener<OnSaveMadeOrLoaded>, IOwnedBy<IDebugDrawable>
+    public abstract class Entity : MonoBehaviour, IEntity, IRandomizeable, ISavable,
+        IOwnedBy<IDebugDrawable>, IEntityLogic, IResetable
     {
         // Serialized Fields
         [ReadOnly] [SerializeField] private string id;
 
 
         [SerializeField] private SerializableInterface<IHaveGameplayTag> Tag;
-        [SerializeField] private SerializableInterface<IThinker> _brains;
+        [SerializeField] internal SerializableInterface<IThinker> _brains;
         [SerializeField] private StatContainer _stats;
 
 
         //-- Implementations
 
+        public GameplayTagContainer GameplayTag
+        {
+            get => Tag?.Value == null ? GameplayTagContainer.Empty : Tag.Value.GameplayTag;
+            set => Tag = new SerializableInterface<IHaveGameplayTag>(value);
+        }
+
+
+        private IStatContainer dummyStats = new DummyStatContainer();
 
         public IStatContainer Stats
         {
             get
             {
                 if (_stats == null)
-                    return new DummyStatContainer();
+                    return dummyStats;
                 return _stats;
             }
             set
@@ -82,14 +92,34 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
+        private readonly IThinker dummyBrain = new DummyThinker();
+
         public IThinker Brains
         {
-            get => _brains?.Value;
-            set
-            {
-                if (_brains != null) _brains.Value = value;
-            }
+            get => _brains?.Value ?? dummyBrain;
+            // set handled elsewhere
+            // {
+            //     if (_brains.Value == value)
+            //         return;
+            //     end_brains(_brains.Value);
+            //     Adam.Destroy(_brains.Value).Forget();
+            //     _brains.Value = value;
+            //     start_brains(_brains.Value);
+            // }
         }
+
+        void IEntityLogic.SetThinker(IThinker thinker)
+        {
+            _brains.Value = thinker;
+        }
+
+        ITickable IEntityLogic.ThinkerTicker
+        {
+            get => brainTicker;
+            set => brainTicker = value;
+        }
+
+        private ITickable brainTicker;
 
 
         [SerializeField] private List<SerializableInterface<IViewModel>> view = new();
@@ -119,18 +149,15 @@ namespace DAFP.TOOLS.ECS
         // Dependencies
         [Inject] protected DiContainer Injector;
         [Inject] protected World World;
+        [Inject] protected Adam Adam;
         [Inject] protected ISaveSystem SaveSystem;
         [Inject] protected IRandom Rng;
-        [Inject] protected IAssetManager AssetManager;
         [Inject] protected IAudioSystem AudioSystem;
 
         [Inject] public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; }
 
-        [Inject(Id = IVideoGame.GAME_BUS_NAME)]
-        protected IEventBus GameEventsBus;
 
         // Components & Memory
-        public Dictionary<Type, IEntityComponent> Components { get; } = new();
         public BlackBoard Memory { get; private set; }
 
         // Pets & Ownership
@@ -141,6 +168,7 @@ namespace DAFP.TOOLS.ECS
         protected List<IStatModifierBase> OwnedModifiers = new();
         private List<PegModifier> ownedPegs = new();
         protected List<IEntityAccessory> Accessories = new();
+        protected IReadOnlyList<IEntityComponent> EntComponents = new List<IEntityComponent>();
 
         public List<IEntity> Children { get; } = new();
 
@@ -157,6 +185,11 @@ namespace DAFP.TOOLS.ECS
         IEnumerable<PegModifier> IOwnerOf<PegModifier>.Pets => ownedPegs;
 
         public IEnumerable<IEntityAccessory> Pets => Accessories;
+
+        private void refresh_component_cache()
+        {
+            EntComponents = this.Components().OfType<IEntityComponent>().ToList();
+        }
 
         public void AddPet(IEntityAccessory pet)
         {
@@ -280,8 +313,9 @@ namespace DAFP.TOOLS.ECS
 
 
         public virtual IVector EyeVector => (V3)transform.forward;
-        public bool HasInitialized { get; set; }
-        public event IEntity.TickCallBack OnTick;
+        public bool HasInitialized { get; private set; }
+
+        internal bool Instantiated => TryGetComponent<CreationInfoContainer>(out var _component);
 
         // Abstract Members
 
@@ -290,52 +324,17 @@ namespace DAFP.TOOLS.ECS
         protected abstract void InitializeInternal();
         protected abstract void TickInternal();
 
-        // Unity Messages
-
-        private bool isInstantiated;
-
-        public void FlagAsInstantiated()
-        {
-            GenNewID();
-            isInstantiated = true;
-        }
-
-        private void kick_start()
-        {
-            if (World == null)
-                return;
-            if (World.IsRegistered(this))
-                return;
-            boot_strap(World);
-        }
-
-        private void Awake() //-- I'm sorry my bad. This sucks
-        {
-            if (!isInstantiated)
-            {
-                kick_start();
-            }
-        }
-
-        private void Update() //-- I'm sorry my bad. This sucks
-        {
-            if (isInstantiated && !HasInitialized)
-            {
-                kick_start();
-            }
-        }
-
 
         // Configuration Methods
 
         [Button("Generate new ID", EButtonMode.EditorOnly)]
-        public void GenNewID()
+        internal void GenNewID()
         {
             id = Guid.NewGuid().ToString();
         }
 
         [Button("Regenerate All Stats", EButtonMode.EditorOnly)]
-        public void SetupStats()
+        internal void FixStats()
         {
             if (Stats == null)
                 return;
@@ -345,12 +344,22 @@ namespace DAFP.TOOLS.ECS
             StatInjector.FixStats(this, _ads);
         }
 
+        private void inject_stats()
+        {
+            if (Stats == null)
+                return;
+            // Stats = ScriptableObject.Instantiate<StatContainer>(Stats);
+            assemble_list_additional_of_code_sources(out var _ads);
+
+            StatInjector.InjectStats(this, _ads);
+        }
 
         // Initialization & Lifecycle
-        public void Reset()
+        internal void Reset()
         {
             GenNewID();
-            SetupStats();
+            FixStats();
+            HasInitialized = false;
             var _backup = SetupView();
             var _viewModels = _backup as IViewModel[] ?? _backup.ToArray();
             if (_viewModels.IsNullOrEmpty())
@@ -371,7 +380,9 @@ namespace DAFP.TOOLS.ECS
             catch (Exception e)
             {
                 Debug.LogWarning($"[{nameof(StatInjector)}] Bad stats detected at object '{name}' regenerating... ");
-                SetupStats();
+                FixStats();
+                
+                
             }
 
             // Editor-time: check that every component on this GameObject has its GetComponentCache dependencies satisfied
@@ -402,65 +413,50 @@ namespace DAFP.TOOLS.ECS
             view = _inter.ToList();
         }
 
-        private void boot_strap(World world)
+        private void wake_up(World world)
         {
+            // if (world == null || world.IsRegistered(this) || HasInitialized)
+            //     return;
+
             Memory = new BlackBoard(this);
+            refresh_component_cache();
 
 
-            if (string.IsNullOrEmpty(id))
+            foreach (var _comp in EntComponents)
+                _comp.Register(this);
+
+            if (string.IsNullOrEmpty(id) || Instantiated)
                 GenNewID();
 
-            foreach (var _ownedBy in detect_child_entities().Cast<IOwnedBy<IEntity>>())
-            {
-                if (_ownedBy.GetCurrentOwner() != null) continue;
-                _ownedBy.ChangeOwner(this);
-            }
-
-
+            // foreach (var _ownedBy in detect_child_entities().Cast<IOwnedBy<IEntity>>())
+            // {
+            //     if (_ownedBy.GetCurrentOwner() != null) continue;
+            //     _ownedBy.ChangeOwner(this);
+            // } -- moved to bootstrap 
+            inject_stats();
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this, gameObject, this.ToEnumerable().ToArray<Component>());
-
-            gather_components();
-
-
-            world.RegisterEntity(this, EntityTicker);
         }
 
 
-        public void Initialize()
+        void IEntityLogic.Initialize()
         {
+            if (HasInitialized)
+                return;
+            wake_up(World);
             initialize_tag();
-
             setup_entity_stats();
 
-            // SaveSystem.Bus.Subscribe(this);
-            GameEventsBus.Subscribe(this);
-
-            foreach (var _comp in Components.Values)
+            foreach (var _comp in EntComponents)
                 _comp.Initialize();
-
 
             initialize_view();
             InitializeInternal();
-            InitializeBrains(Brains);
-            initialize_debug();
+            // initialize_debug(); -- fuck this I should move this to somewhere else TODO
             HasInitialized = true;
-
-            DebugSystem.Log(World, $"{Name} entity is initialized");
-
-
-            initialize_children();
+            // DebugSystem.Log(World, $"{Name} entity is initialized");
         }
 
-        private void initialize_children()
-        {
-            foreach (var _entity in Children)
-            {
-                if (_entity.HasInitialized)
-                    continue;
-                _entity.Initialize();
-            }
-        }
 
         private void initialize_view()
         {
@@ -525,13 +521,7 @@ namespace DAFP.TOOLS.ECS
                 return;
             tick_stats();
             tick_components();
-
             TickInternal();
-
-            tick_brains(Brains);
-
-
-            OnTick?.Invoke(this);
         }
 
 
@@ -540,15 +530,10 @@ namespace DAFP.TOOLS.ECS
             Stats?.Tick();
         }
 
-        private void tick_brains(IThinker brains)
-        {
-            brains?.Tick(this, EntityTicker);
-        }
-
 
         private void tick_components()
         {
-            foreach (var _comp in Components.Values)
+            foreach (var _comp in EntComponents)
             {
                 if (_comp is IViewModel)
                     continue;
@@ -563,61 +548,26 @@ namespace DAFP.TOOLS.ECS
             return GameUtils.CalculateCombinedBounds(this);
         }
 
-        // Component Management
-        private void gather_components()
-        {
-            if (Components == null)
-                return;
-            Components.Clear();
-            foreach (var _comp in gameObject.GetComponents<IEntityComponent>())
-                AddEntComponent(_comp);
-        }
 
-        public void AddEntComponent(IEntityComponent component)
-        {
-            if (component is IStatBase _stat && _stat.SyncToBlackBoard && Memory != null)
-            {
-                Memory.Set(_stat.Name, _stat.GetAbsoluteValue());
-                _stat.OnValueUpdateGeneric += value_update_stat;
-            }
-
-            Components[component.GetType()] = component;
-            component.Register(this);
-        }
-
-        private void value_update_stat(IStatBase stat, object old)
-        {
-            if (stat.SyncToBlackBoard)
-                Memory.Set(stat.Name, stat.GetAbsoluteValue());
-        }
-
-        public void DeInitializeBrains(IThinker thinker)
-        {
-            if (thinker == null)
-                return;
-            thinker.TryDeInitialize(this);
-            Brains = null;
-        }
-
-        public void InitializeBrains(IThinker thinker)
-        {
-            if (thinker == null)
-                return;
-            clone_or_assign_brain(thinker);
-            if (thinker.DIInjected)
-            {
-                Injector.Inject(Brains);
-                foreach (var _ownable in Brains.AllPets())
-                {
-                    if (_ownable is IThinker _brain)
-                    {
-                        Injector.Inject(_brain);
-                    }
-                }
-            }
-
-            Brains.TryInitialize(this);
-        }
+        // private void initialize_brains(IThinker thinker) // move the DI logic to the creation process
+        // { move to some brain manager idk
+        //     if (thinker == null)
+        //         return;
+        //     clone_or_assign_brain(thinker);
+        //     if (!thinker.DIInjected)
+        //     {
+        //         Injector.Inject(Brains);
+        //         foreach (var _ownable in Brains.AllPets())
+        //         {
+        //             if (_ownable is IThinker _brain)
+        //             {
+        //                 Injector.Inject(_brain);
+        //             }
+        //         }
+        //     }
+        //
+        //     Brains.TryInitialize(this);
+        // }
 
         private void initialize_tag()
         {
@@ -627,38 +577,20 @@ namespace DAFP.TOOLS.ECS
             }
         }
 
-        private void clone_or_assign_brain(IThinker thinker)
-        {
-            Brains = thinker;
-            if (Brains is not BaseThinker || thinker is not BaseThinker _t)
-                return;
-#if UNITY_EDITOR
-
-            if (Brains is BaseThinker { EditMode: false })
-                Brains = _t.DeepClone();
-            else
-            {
-                Brains = thinker;
-            }
-#else
-                Brains = _t.DeepClone();
-#endif
-        }
+        [Inject(Optional = true)] private EntityDebugDrawer.BoundingBoxDrawer bounding_box_drawer;
+        [Inject(Optional = true)] private EntityDebugDrawer.PositionDrawer positionDrawer;
+        [Inject(Optional = true)] private EntityDebugDrawer.HealthDrawer healthDrawer;
 
         protected virtual IEnumerable<IDebugDrawer> SetupDebugDrawers()
         {
-            return new IDebugDrawer[]
-            {
-                new EntityDebugDrawer.PositionDrawer(),
-                new EntityDebugDrawer.HealthDrawer(), new EntityDebugDrawer.BoundingBoxDrawer()
-            };
+            return new EntityDebugDrawer[] { bounding_box_drawer, positionDrawer, healthDrawer }.ClearOfNulls();
         }
 
         private void initialize_debug()
         {
             var _drawers = SetupDebugDrawers().ToList();
-            foreach (var _entityComponent in Components)
-                _drawers = _drawers.Union(_entityComponent.Value.SetupDebugDrawers()).ToList();
+            foreach (var _entityComponent in EntComponents)
+                _drawers = _drawers.Union(_entityComponent.SetupDebugDrawers()).ToList();
 
 
             foreach (var _drawer in _drawers)
@@ -687,7 +619,6 @@ namespace DAFP.TOOLS.ECS
             return World;
         }
 
-        public IEventBus Bus { get; } = new EntityBus();
 
         // Saving & Loading
         public virtual ISaveData Save()
@@ -702,59 +633,32 @@ namespace DAFP.TOOLS.ECS
         // Randomization
         public void Randomize(IRandom rng, float margin01)
         {
-            foreach (var _comp in Components.Values)
+            foreach (var _comp in EntComponents)
                 if (_comp is IRandomizeable _rnd)
                     _rnd.Randomize(rng, margin01);
         }
 
-
-        // Event Reactions
-        public virtual void React(in OnGameStateChanged e)
-        {
-        }
-
-        public virtual void React(in OnSaveMadeOrLoaded e)
-        {
-        }
 
         public static implicit operator GameObject(Entity ent)
         {
             return ent.GetWorldRepresentation();
         }
 
-        public virtual void Remove(EntityRemovalReason removalReason)
-        {
-            Dispose();
-        }
-        public void Dispose()
-        {
-            Destroy(gameObject);
-        }
 
-        private void OnDestroy()
-        {
-            OnDispose();
-        }
+        // public void Dispose() --migrate everything to the destructor
+        // {
+        //     // DisposeAdditional();
+        //     DeInitializeBrains(Brains);
+        //     cleanup_brains();
+        //     DebugSystem.RemovePet(this);
+        //     GameEventsBus.UnSubscribe(this);
+        //     World.RemoveEntity(this);
+        // }
 
-        private void cleanup_brains()
-        {
-            if (Brains is not BaseThinker)
-                return;
-#if UNITY_EDITOR
-            if (Brains != null && Brains is BaseThinker { EditMode: false } _thinker) _thinker.DeepDestroy();
-#else
-#endif
-            Brains = null;
-        }
+        // protected virtual void DisposeAdditional()
+        // {
+        // }
 
-        protected virtual void OnDispose()
-        {
-            DeInitializeBrains(Brains);
-            cleanup_brains();
-            DebugSystem.RemovePet(this);
-            GameEventsBus.UnSubscribe(this);
-            World.RemoveEntity(this);
-        }
 
         private void OnDrawGizmos()
         {
@@ -775,73 +679,18 @@ namespace DAFP.TOOLS.ECS
             gameObject.SetActive(false);
         }
 
+        void IResetable.ResetToDefault()
+        {
+            HasInitialized = false;
+            Stats.ResetToDefault();
+            EntComponents.OfType<IResetable>().ForEach((component => component.ResetToDefault()));
+        }
+
         //--Helpers
         private readonly ConcurrentDictionary<(Type, string), FieldInfo> fieldCache = new();
-
-        public void BroadcastEvent<T>(T @event) where T : struct
-        {
-            Bus.Send(@event);
-            GameEventsBus.Send(@event);
-        }
-
-
-        public class EntityBus : EventBusImpl, IEventBus
-        {
-        }
-
-
-        public GameplayTagContainer GameplayTag
-        {
-            get => Tag?.Value == null ? GameplayTagContainer.Empty : Tag.Value.GameplayTag;
-            set => Tag = new SerializableInterface<IHaveGameplayTag>(value);
-        }
 
 
         public IEnumerable<object> AbsolutePets => Children.Union<object>(debugDrawablePets).Union(Accessories)
             .Union(OwnedModifiers).Union(ownedPegs).Union(viewModels);
-
-
-        private IEnumerable<IEntity> detect_child_entities()
-        {
-            foreach (Transform child in transform)
-            {
-                if (child.TryGetComponent<IEntity>(out var entity))
-                {
-                    yield return entity;
-                }
-                else
-                {
-                    foreach (var nested in detect_child_entities_recursive(child))
-                        yield return nested;
-                }
-            }
-        }
-
-        private IEnumerable<IEntity> detect_child_entities_recursive(Transform root)
-        {
-            foreach (Transform child in root)
-            {
-                if (child.TryGetComponent<IEntity>(out var entity))
-                    yield return entity;
-                else
-                    foreach (var nested in detect_child_entities_recursive(child))
-                        yield return nested;
-            }
-        }
-
-        public static IEntity find_nearest_ent_up_parent_tree(Transform start)
-        {
-            Transform current = start.parent;
-
-            while (current != null)
-            {
-                if (current.TryGetComponent<IEntity>(out var entity))
-                    return entity;
-
-                current = current.parent;
-            }
-
-            return null;
-        }
     }
 }

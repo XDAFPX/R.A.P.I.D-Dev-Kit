@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using DAFP.TOOLS.ECS.GlobalState;
 using UnityEngine;
-using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn

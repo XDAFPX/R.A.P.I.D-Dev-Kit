@@ -1,20 +1,28 @@
-﻿using JetBrains.Annotations;
+﻿using DAFP.TOOLS.Common.Utill;
+using JetBrains.Annotations;
 using Optional;
 using RapidLib.DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
+using DAFP.TOOLS.ECS.Services;
 
 namespace DAFP.TOOLS.ECS.Basic.Events
 {
-    public struct OnEntityTakeHealingEvent
+    public struct OnEntityTakeHealingEvent : IEntityEvent, IHealthChangeEvent
     {
-        public OnEntityTakeHealingEvent([NotNull] IEntity receiver, [NotNull] IHealing healing)
+        public IHealing Healing;
+
+        public OnEntityTakeHealingEvent(IEntity entity, IHealing healing)
         {
-            Receiver = receiver;
+            Entity = entity;
             Healing = healing;
         }
 
-        public IEntity Receiver { get; }
-        public Option<IEntity> Source => Healing.Info.Source.Author;
-        public IHealing Healing;
+        public IEntity Entity { get; }
+        public IHealthChange Change => Healing;
+
+        public override string ToString()
+        {
+            return GameUtils.FormatLog(nameof(World), $"Entity ({Entity}) has received healing ({Healing.Info.Amount.Value}) by ({Healing.Info.Source}) . ");
+        }
     }
 }

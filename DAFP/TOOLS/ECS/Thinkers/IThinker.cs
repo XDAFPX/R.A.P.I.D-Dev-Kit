@@ -1,17 +1,19 @@
 ﻿using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.DebugSystem;
 using RapidLib.DAFP.TOOLS.Common;
-using UnityEventBus;
 
 namespace DAFP.TOOLS.ECS.Thinkers
 {
-    public interface IThinker :  IPetOf<IDebugDrawable,IDebugDrawable>, IDebugDrawable,
-        IPetOwnerTreeOf<IThinker>, ISubscriber
+    public interface IThinker : IPetOf<IDebugDrawable, IDebugDrawable>, IDebugDrawable,
+        IPetOwnerTreeOf<IThinker>, INameable
     {
-        bool DIInjected { get; }
-        bool HasInitialized { get; }
-        void Initialize(IEntity host);
+    }
+
+    internal interface IThinkerLogic : IThinker
+    {
+        void Start(IEntity host);
+        void End(IEntity host);
         void Tick(IEntity host, ITickerBase ticker);
-        void Dispose(IEntity host);
+        bool HasWoken { get; set; }
     }
 }

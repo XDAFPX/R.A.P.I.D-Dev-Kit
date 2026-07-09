@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using DAFP.TOOLS.Common;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
-    public interface IStatContainer : ITickable
+    public interface IStatContainer : ITickable,IResetable
     {
         IStatContainer MarkAsDirty();
         IStatContainer InvalidateCache();

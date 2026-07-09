@@ -91,7 +91,7 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static ThinkerWrapperState GetOrCreateState(
             string stateName,
-            BaseThinker thinker,
+            Brain thinker,
             IEntity host,
             List<IState> btStateCache,
             HashSet<IState._stateTags> tags = null)

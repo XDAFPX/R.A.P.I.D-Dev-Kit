@@ -6,6 +6,7 @@ namespace DAFP.TOOLS.ECS.Environment.DamageSys
 {
     public interface IDamage : IHealthChange<DamageInfo>
     {
+        IHealthChangeInfo IHealthChange.ChangeInfo => Info;
     }
 
     public class Damage : IDamage

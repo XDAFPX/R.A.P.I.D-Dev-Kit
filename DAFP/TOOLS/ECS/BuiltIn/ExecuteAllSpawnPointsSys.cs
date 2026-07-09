@@ -1,21 +1,26 @@
-﻿using DAFP.TOOLS.Common.Utill;
+﻿using System;
+using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.Environment;
 using DAFP.TOOLS.ECS.Services;
+using MessagePipe;
 using UnityEngine;
-using UnityEventBus;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class ExecuteAllSpawnPointsSys :  IListener<OnWorldInitEvent>
+    public class ExecuteAllSpawnPointsSys : IInitializable, IDisposable
     {
-        [Inject] private World world;
         [Inject] private ISpawnPointManager[] managers;
+        [Inject] private ISubscriber<OnWorldDecisionEvent> init;
+        private IDisposable sub;
 
-        public void React(in OnWorldInitEvent e)
-        {
-            managers.ForEach((manager => manager.ManageAll()));
-        }
+        void IInitializable.Initialize() =>
+            sub = init.Subscribe(x =>
+            {
+                managers.ForEach((manager => manager.Resolve()));
+            });
+
+        void IDisposable.Dispose() => sub.Dispose();
     }
 }

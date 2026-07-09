@@ -1,20 +1,28 @@
-﻿using JetBrains.Annotations;
+﻿using DAFP.TOOLS.Common.Utill;
+using JetBrains.Annotations;
 using Optional;
 using RapidLib.DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
+using DAFP.TOOLS.ECS.Services;
 
 namespace DAFP.TOOLS.ECS.Basic.Events
 {
-    public struct OnEntityTakeDamageEvent
+    public struct OnEntityTakeDamageEvent : IHealthChangeEvent
     {
-        public OnEntityTakeDamageEvent([NotNull] IEntity receiver, [NotNull] IDamage damage)
+        public OnEntityTakeDamageEvent(IEntity entity, IDamage damage)
         {
-            Receiver = receiver;
+            Entity = entity;
             Damage = damage;
         }
 
-        public IEntity Receiver { get; }
-        public Option<IEntity> Source => Damage.Info.Source.Author;
         public IDamage Damage { get; }
+        public IEntity Entity { get; }
+
+        IHealthChange IHealthChangeEvent.Change => Damage;
+
+        public override string ToString()
+        {
+            return GameUtils.FormatLog(nameof(World), $"Entity ({Entity}) has received damage ({Damage.Info.Amount.Value}) by ({Damage.Info.Source}) . ");
+        }
     }
 }

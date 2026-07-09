@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.Environment.Filters;
+using MessagePipe;
 using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
-using UnityEventBus;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 {
@@ -19,41 +21,46 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
     public abstract class HitBox<T> : CollidableFilterActionEntity<T>, INameable, IAct
     {
         protected override Color DebugColor => Color.softRed;
+        [Inject] private IPublisher<OnHitBoxActivatedEvent> e;
+        [Inject] private IPublisher<OnHitBoxActivatedEvent<T>> genericEvent;
 
         public void Act()
         {
             var _hits = collect_all_hits();
             var boxes = get_boxes(_hits);
-            
+
             var _hurtBoxes = boxes as HurtBox<T>[] ?? boxes.ToArray();
-            
+
             //-- Flag as boxes being touched/hit 
             _hurtBoxes.ForEach((box => box.FlagAsHit()));
-            
-            
+
+
             var ctx = BuildContext(_hurtBoxes);
             var _enumerable = ctx as T[] ?? ctx.ToArray();
 
             Eval(_enumerable);
-            
-            
+
+
             //----- EVENTS
-            
-            
-            BroadcastEvent( new OnHitBoxActivatedEvent()
+
+
+            var inst1 = new OnHitBoxActivatedEvent()
             {
                 StuffCaught = _enumerable.Cast<object>().ToArray(), Hitbox = this,
                 Owner = ((IOwnedBy<IEntity>)this).GetCurrentOwner()
-            });
-            
-            BroadcastEvent(new HitBoxActivatedEvent<T>()
+            };
+            e.Publish(inst1);
+
+
+            var inst2 = new OnHitBoxActivatedEvent<T>()
             {
                 ActionsDone = Actions.ToValues().ToArray(),
                 FiltersActivated = Filters.ToValues().ToArray(),
                 HurtBoxesFound = _hurtBoxes,
                 StuffCaught = _enumerable, Hitbox = this,
                 Owner = ((IOwnedBy<IEntity>)this).GetCurrentOwner()
-            });
+            };
+            genericEvent.Publish(inst2);
         }
 
         protected override void InitializeInternal()
@@ -123,22 +130,5 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
         }
 
         private static readonly Collider[] buffer3d = new Collider[64];
-    }
-
-    public struct HitBoxActivatedEvent<T>
-    {
-        public HitBox<T> Hitbox;
-        public IEntity Owner;
-        public IFilter<T>[] FiltersActivated;
-        public IActionUpon<T>[] ActionsDone;
-        public T[] StuffCaught;
-        public HurtBox<T>[] HurtBoxesFound;
-    }
-
-    public struct OnHitBoxActivatedEvent
-    {
-        public IEntity Hitbox;
-        public IEntity Owner;
-        public object[] StuffCaught;
     }
 }

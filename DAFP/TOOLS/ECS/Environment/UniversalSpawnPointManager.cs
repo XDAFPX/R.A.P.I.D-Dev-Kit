@@ -27,7 +27,7 @@ namespace DAFP.TOOLS.ECS.Environment
         public IEnumerable<ISpawnPoint> Pets => pets;
         private int shuffled_idx = -1;
 
-        public void ManageAll()
+        public void Resolve()
         {
             if(pets.IsEmpty())
                 return;
@@ -45,13 +45,14 @@ namespace DAFP.TOOLS.ECS.Environment
                 case SpawnPointPolicy.Shuffle:
                     pets.ShuffledElement(ref shuffled_idx,rng)?.Create().Forget();
                     break;
-                case SpawnPointPolicy.Multiplier:
+                case SpawnPointPolicy.Multiplayer:
                     //TODO figure out
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
+
 
         public void AddPet(ISpawnPoint pet)
         {
@@ -69,7 +70,7 @@ namespace DAFP.TOOLS.ECS.Environment
             First,
             Random,
             Shuffle,
-            Multiplier
+            Multiplayer
         }
     }
 }

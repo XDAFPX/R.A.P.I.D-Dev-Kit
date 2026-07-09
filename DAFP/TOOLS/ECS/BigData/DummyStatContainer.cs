@@ -43,5 +43,10 @@ namespace DAFP.TOOLS.ECS.BigData
         public void Tick()
         {
         }
+
+        public void ResetToDefault()
+        {
+            
+        }
     }
 }

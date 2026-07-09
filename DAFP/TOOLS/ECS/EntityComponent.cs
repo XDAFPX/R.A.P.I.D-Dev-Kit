@@ -5,20 +5,20 @@ using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Services;
 using NRandom;
 using UnityEngine;
-using UnityEventBus;
 using UnityGetComponentCache;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS
 {
-    // [RequireComponent(typeof(Entity))]
-    public abstract class EntityComponent : MonoBehaviour, IEntityComponent, ISubscriber
+    [RequireComponent(typeof(Entity))]
+    public abstract class EntityComponent : MonoBehaviour, IEntityComponent
     {
         [Inject] protected World World;
+        [Inject] protected Adam Adam;
 
         [Inject] protected IRandom RandomSys;
 
-        public IEntity Host;
+        public IEntity Host { get; private set; }
         protected abstract void OnTick();
         protected abstract void OnInitialize();
 
@@ -26,8 +26,6 @@ namespace DAFP.TOOLS.ECS
         {
             AnimationNameCacheInitializer.InitializeCaches(this);
             GetComponentCacheInitializer.InitializeCaches(this);
-            Host.Bus.Subscribe(this);
-            // World.Bus.Subscribe(this);
             OnInitialize();
         }
 
@@ -45,7 +43,7 @@ namespace DAFP.TOOLS.ECS
 
         public virtual ITicker EntityComponentTicker => Host.EntityTicker;
 
-        public void Register(IEntity entity)
+        void IEntityComponent.Register(IEntity entity)
         {
             Host = entity;
             if (EntityComponentTicker != Host.EntityTicker)

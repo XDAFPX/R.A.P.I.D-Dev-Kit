@@ -7,23 +7,29 @@ using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.Audio;
+using DAFP.TOOLS.ECS.Basic;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.GlobalState.CursorSates;
+using DAFP.TOOLS.ECS.GlobalState.Events;
 using DAFP.TOOLS.ECS.GlobalState.GameStates;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
+using DAFP.TOOLS.ECS.Services.Creators;
+using DAFP.TOOLS.ECS.Services.Destroyers;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.UI;
+using MessagePipe;
 using NRandom;
 using TNRD;
 using TripleA.Utils.Extensions;
 using UGizmo;
 using UnityEngine;
-using UnityEventBus;
 using Zenject;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 using ITickable = Zenject.ITickable;
 using Random = UnityEngine.Random;
 
@@ -129,6 +135,9 @@ namespace DAFP.TOOLS.Injection
 
             Container.Bind<ITicker>().WithId(IVideoGame.EFFECTS_UPDATE)
                 .FromMethod(_ => new FixedUpdateTicker(new HashSet<IGameState>())).AsTransient().Lazy();
+
+            Container.Bind<ITicker>().WithId(IVideoGame.THINKERS_UPDATE)
+                .FromMethod(_ => new FixedUpdateTicker(new HashSet<IGameState>())).AsTransient().Lazy();
         }
 
         protected abstract void InstallAdditional();
@@ -136,6 +145,9 @@ namespace DAFP.TOOLS.Injection
         public sealed override void InstallBindings()
         {
             bind_constants();
+            BindLogger();
+            bind_events();
+            BindInitialObjCreators();
             bind_info_system();
             bind_audio();
             bind_asset_manager();
@@ -146,7 +158,9 @@ namespace DAFP.TOOLS.Injection
             bind_game_state_systems();
             bind_global_boards();
             InstallTickers();
+            bind_adam();
             bind_world();
+            bind_scene_bootstrap_service();
             bind_save_systems();
             bind_ui_systems();
             bind_console();
@@ -154,9 +168,106 @@ namespace DAFP.TOOLS.Injection
             BindCameraManager();
             bind_mod_manager();
             bind_compatability_sys();
-
             InstallAdditional();
+            bind_execution_order();
         }
+
+        protected virtual void BindLogger()
+        {
+            Container.Bind<ILogger>().To<StandardDebugLogger>().AsSingle();
+        }
+
+
+        private void bind_events()
+        {
+            MessagePipeOptions _options = Container.BindMessagePipe(opts =>
+            {
+                opts.DefaultAsyncPublishStrategy = AsyncPublishStrategy.Sequential;
+                opts.EnableCaptureStackTrace = true;
+                opts.HandlingSubscribeDisposedPolicy = HandlingSubscribeDisposedPolicy.Throw;
+            });
+
+            BindRetranslators();
+
+            BindEvents(_options);
+
+            GlobalMessagePipe.SetProvider(Container.AsServiceProvider());
+        }
+
+        protected virtual void BindEvents(MessagePipeOptions _options)
+        {
+            Container.BindLoggedMessageBrocker<OnGameStateChangedEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnSaveMadeEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnSaveLoadedEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnWorldInitializeEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnWorldDecisionEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnObjectRegisterEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnObjectCreatedAsyncEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnObjectDestroyedAsyncEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnObjectDeregister>(_options);
+
+            Container.BindLoggedMessageBrocker<OnEntityRegisterEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityCreatedAsyncEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityDestroyedAsyncEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityDeregisterEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityReadyToInitializeEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityInitializedEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnEntityBecomePlayerEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityStopBeingPlayerEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnEntityThinkerChangedEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnEntityHealthChangedEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityTakeDamageEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnEntityTakeHealingEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnEntityDieEvent>(_options);
+
+
+            Container.BindLoggedMessageBrocker<OnHurtBoxActivatedEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnHurtBoxActivatedEvent<IEntity>>(_options);
+            Container.BindLoggedMessageBrocker<OnHurtBoxFlaggedEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnHitBoxActivatedEvent>(_options);
+            Container.BindLoggedMessageBrocker<OnHitBoxActivatedEvent<IEntity>>(_options);
+
+            Container.BindLoggedMessageBrocker<OnTriggerActivatedEvent>(_options);
+        }
+
+        protected virtual void BindRetranslators()
+        {
+            Container
+                .BindInterfacesAndSelfTo<
+                    MessageRetranslator<OnObjectDestroyedAsyncEvent, OnEntityDestroyedAsyncEvent>>()
+                .AsSingle().WithArguments(true, true);
+
+            Container
+                .BindInterfacesAndSelfTo<MessageRetranslator<OnObjectCreatedAsyncEvent, OnEntityCreatedAsyncEvent>>()
+                .AsSingle().WithArguments(true, true);
+
+            Container.BindInterfacesAndSelfTo<MessageRetranslator<OnObjectRegisterEvent, OnEntityRegisterEvent>>()
+                .AsSingle();
+
+            Container.BindInterfacesAndSelfTo<MessageRetranslator<OnObjectDeregister, OnEntityDeregisterEvent>>()
+                .AsSingle();
+
+            Container
+                .BindInterfacesAndSelfTo<MessageRetranslator<OnEntityHealthChangedEvent, OnEntityTakeHealingEvent>>()
+                .AsSingle();
+            Container
+                .BindInterfacesAndSelfTo<MessageRetranslator<OnEntityHealthChangedEvent, OnEntityTakeDamageEvent>>()
+                .AsSingle();
+
+            Container
+                .BindInterfacesAndSelfTo<
+                    MessageRetranslator<OnHurtBoxActivatedEvent, OnHurtBoxActivatedEvent<IEntity>>>()
+                .AsSingle();
+        }
+
 
         protected virtual void BindSpawnPointMangers()
         {
@@ -165,7 +276,11 @@ namespace DAFP.TOOLS.Injection
                 .Lazy();
 
             Container.Bind<ISpawnPointManager[]>().FromMethod(ctx =>
-                new [] { ctx.Container.ResolveId<ISpawnPointManager>("PlayerManager"), ctx.Container.Resolve<ISpawnPointManager>()}
+                new[]
+                {
+                    ctx.Container.ResolveId<ISpawnPointManager>("PlayerManager"),
+                    ctx.Container.Resolve<ISpawnPointManager>()
+                }
             ).AsSingle();
             ExecuteAllSpawnPoints();
         }
@@ -202,9 +317,6 @@ namespace DAFP.TOOLS.Injection
             // Container.Bind<string>().WithId("DefaultCursorState").FromMethod(GetDefaultCursorState).AsCached();
             Container.Bind<bool>().WithId("ConsoleUnlocked").FromMethod(GetDefaultConsoleUnlockState).AsCached();
             Container.Bind<string>().WithId("SystemCompatible").FromMethod((context => IsSystemCompatible)).AsCached();
-
-            Container.Bind<IEventBus>().WithId(IVideoGame.GAME_BUS_NAME)
-                .FromMethod(_ => new GlobalStateBus()).AsCached().NonLazy();
         }
 
 
@@ -293,8 +405,21 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<ITickable>().To<UtillGlobalBoard>().FromResolve();
         }
 
+
+        protected void BindInitialObjCreators()
+        {
+            Container.BindInterfacesAndSelfTo<InitialObjectCreatePreparer>().AsSingle();
+            Container.BindInterfacesAndSelfTo<InitialObjectDestroyPreparer>().AsSingle();
+        }
+
+        private void bind_scene_bootstrap_service()
+        {
+            Container.BindInterfacesAndSelfTo<SceneBootStrap>().AsSingle();
+        }
+
         private void bind_world()
         {
+            Container.BindInterfacesAndSelfTo<ThinkerManager>().AsSingle().NonLazy();
             Container.Bind<World>()
                 .To<TWorld>()
                 .AsSingle()
@@ -302,8 +427,45 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<IInitializable>().To<World>().FromResolve();
             Container.Bind<ITickable>().To<World>().FromResolve();
             Container.Bind<IFixedTickable>().To<World>().FromResolve();
+            Container.BindInterfacesAndSelfTo<WorldDecisionMaker>().AsSingle().NonLazy();
+            Container.BindInterfacesAndSelfTo<WorldEntityInitializer>().AsSingle().NonLazy();
+        }
 
-            // Container.Bind<IInitializable>().To<TWorld>().FromResolve();
+        private void bind_adam()
+        {
+            bind_creators();
+            bind_destroyers();
+            Container.Bind<Adam>().AsSingle().NonLazy();
+        }
+
+
+        private void bind_creators()
+        {
+            BindObjectCreators();
+            Container.BindInterfacesAndSelfTo<CatchAllCreator>().AsSingle();
+        }
+
+        protected virtual void BindObjectCreators()
+        {
+            Container.BindInterfacesAndSelfTo<SpawnAsNewObjectCreator>().AsSingle();
+            Container.BindInterfacesAndSelfTo<SpawnAsAnAssetCreator>().AsSingle();
+            Container.BindInterfacesAndSelfTo<ThinkerCreator>().AsSingle();
+        }
+
+
+        private void bind_destroyers()
+        {
+            BindObjectDestroyers();
+            Container.BindInterfacesAndSelfTo<CatchAllDestroyer>().AsSingle();
+        }
+
+        protected virtual void BindObjectDestroyers()
+        {
+            Container.BindInterfacesAndSelfTo<PoolableDestroyer>().AsSingle();
+            Container.BindInterfacesAndSelfTo<ThinkerDestroyer>().AsSingle();
+            Container.BindInterfacesAndSelfTo<EntityDestroyer>().AsSingle();
+            Container.BindInterfacesAndSelfTo<DisposableDestroyer>().AsSingle();
+            Container.BindInterfacesAndSelfTo<UnityObjectDestroyer>().AsSingle();
         }
 
         private void bind_save_systems()
@@ -341,6 +503,11 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<TDebugService>().AsSingle().NonLazy();
             Container.Bind<ITickable>().To<TDebugService>().FromResolve();
             Container.Bind<IDebugSys<IGlobalGizmos, IConsoleMessenger>>().To<TDebugService>().FromResolve();
+
+
+            Container.Bind<EntityDebugDrawer.HealthDrawer>().AsTransient();
+            Container.Bind<EntityDebugDrawer.PositionDrawer>().AsTransient();
+            Container.Bind<EntityDebugDrawer.BoundingBoxDrawer>().AsTransient();
         }
 
         private void bind_asset_manager()
@@ -362,6 +529,12 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<IMod[]>().FromMethod((context => Mods.ToValues().ToArray())).AsCached();
             Container.Bind<IModManager>().To<TModManager>().FromResolve();
         }
+
+        private void bind_execution_order()
+        {
+            Container.BindExecutionOrder<SceneBootStrap>(Int32.MaxValue - 1);
+            Container.BindExecutionOrder<WorldDecisionMaker>(Int32.MaxValue);
+        }
     }
 
     internal class CompatabilityChecker : IInitializable
@@ -380,9 +553,10 @@ namespace DAFP.TOOLS.Injection
     public interface IVideoGame
     {
         public const string GAME_BUS_NAME = "GameBus";
-        public const string PHYSICS_UPDATE = "PhysicsUpdate";
         public const string DEFAULT_UPDATE = "DefaultUpdate";
+        public const string PHYSICS_UPDATE = "PhysicsUpdate";
         public const string VIEW_MODEL_UPDATE = "ViewModelUpdate";
         public const string EFFECTS_UPDATE = "EffectsUpdate";
+        public const string THINKERS_UPDATE = "ThinkerUpdate";
     }
 }

@@ -18,18 +18,4 @@ namespace DAFP.TOOLS.ECS.Serialization
             int scene, int slot);
     }
 
-    public struct OnSaveMadeOrLoaded
-    {
-        private ISerializationService service;
-        private ISerializer<IEntity> serializer;
-        private string fullPath;
-
-        public OnSaveMadeOrLoaded(string fullPath, ISerializer<IEntity> serializer, ISerializationService service,
-            bool IsSaved)
-        {
-            this.fullPath = fullPath;
-            this.serializer = serializer;
-            this.service = service;
-        }
-    }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using BandoWare.GameplayTags;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Serialization;
@@ -11,10 +12,7 @@ namespace DAFP.TOOLS.ECS.Environment
 {
     public interface ICameraManager : ISavable, IOwnerOf<IGameCamera>,IInitializable,ITickable //--thing that delegates subjects
     {
-        public IEnumerable<IEntity> Subjects { get; }
-
-        public void AddSubject(IEntity ent);
-        public void RemoveSubject(IEntity ent);
+        public UniTask Resolve();
     }
 
     public interface IGameCamera : IPetOf<ICameraManager, IGameCamera>,IHaveGameplayTag //--thing that has to keep up with multiple subjects 

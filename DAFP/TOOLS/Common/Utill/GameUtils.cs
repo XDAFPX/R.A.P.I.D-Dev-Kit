@@ -15,18 +15,20 @@ using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.Audio;
+using DAFP.TOOLS.ECS.Basic;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.BigData.Damage;
 using DAFP.TOOLS.ECS.BigData.Modifiers;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Float;
 using DAFP.TOOLS.ECS.BuiltIn;
+using DAFP.TOOLS.ECS.Components;
 using DAFP.TOOLS.ECS.Components.Movement;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.Filters;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
-using DAFP.TOOLS.ECS.EventBus;
 using DAFP.TOOLS.ECS.GlobalState;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
@@ -54,14 +56,144 @@ using Random = UnityEngine.Random;
 namespace DAFP.TOOLS.Common.Utill
 {
     public static class GameUtils
-
     {
-        public static void Log(INameable author, params object[] stuff)
+        public static Option<T> ResolveAs<T>(object obj)
+        {
+            if (obj is null)
+                return Option.None<T>();
+
+            if (resolve_events(out var _resolveAs)) return _resolveAs;
+
+
+            // 1. Already the exact type (or subtype) — fastest path
+            if (obj is T direct)
+                return direct.Some();
+
+            // 2. Unwrap nested Optional<T> transparently
+            if (obj is Option<T> nested)
+                return nested;
+
+            // 3. IGameObjectProvider — extract and recurse
+            if (obj is IGameObjectProvider provider)
+            {
+                var world = provider.GetWorldRepresentation();
+                if (world != null)
+                    return ResolveAs<T>(world);
+            }
+
+            // 4. GameObject — try GetComponent<T>, then recurse into each component
+            if (obj is GameObject go)
+            {
+                if (go is T goAsT)
+                    return goAsT.Some();
+
+                var comp = go.GetComponent<T>();
+                if (comp != null)
+                    return comp.Some();
+            }
+
+            // 5. Component — try sibling component, then recurse up to the GameObject
+            if (obj is Component sourceComp)
+            {
+                var siblingComp = sourceComp.GetComponent<T>();
+                if (siblingComp != null)
+                    return siblingComp.Some();
+
+                // Recurse into the owner GameObject — catches GameObject itself as T,
+                // other components, and any IGameObjectProvider the GO might satisfy
+                return ResolveAs<T>(sourceComp.gameObject);
+            }
+
+            return Option.None<T>();
+
+            bool resolve_events(out Option<T> resolveAs)
+            {
+                resolveAs = default;
+                switch (obj)
+                {
+                    case IObjectEvent _event when typeof(IEntityEvent).IsAssignableFrom(typeof(T)):
+                    {
+                        var ent = ResolveAs<IEntity>(_event.Object);
+                        if (ent.HasValue)
+                        {
+                            resolveAs = ((T)Activator.CreateInstance(typeof(T), ent.ValueOrDefault())).Some();
+                        }
+
+                        return resolveAs.HasValue;
+                    }
+                    case IHealthChangeEvent _changeEvent when typeof(IHealthChangeEvent).IsAssignableFrom(typeof(T)):
+                        resolveAs = typeof(T) switch
+                        {
+                            Type _t when _t == typeof(OnEntityTakeDamageEvent) => resolve_to_take_damage(_changeEvent),
+                            Type _t2 when _t2 == typeof(OnEntityTakeHealingEvent) => resolve_to_take_healing(
+                                _changeEvent),
+                            _ => Option.None<T>()
+                        };
+
+                        return resolveAs.HasValue;
+
+                    case OnHurtBoxActivatedEvent _hitBoxActivatedEvent
+                        when typeof(OnHurtBoxActivatedEvent<>).IsAssignableFrom(typeof(T)):
+                        try
+                        {
+                            var _genType = typeof(T).GenericTypeArguments[0];
+                            resolveAs = ((T)_hitBoxActivatedEvent.ToGeneric(_genType)).Some();
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogWarning("asssss");
+                            resolveAs = Option.None<T>();
+                        }
+
+                        return resolveAs.HasValue;
+                    default:
+                        return resolveAs.HasValue;
+                }
+            }
+
+            Option<T> resolve_to_take_damage(IHealthChangeEvent e)
+            {
+                if (e.Change.ChangeInfo.Change == Change.Positive)
+                    return Option.None<T>();
+
+                return ((T)(object)new OnEntityTakeDamageEvent(e.Entity, (IDamage)e.Change)).Some();
+            }
+
+            Option<T> resolve_to_take_healing(IHealthChangeEvent e)
+            {
+                if (e.Change.ChangeInfo.Change == Change.Negative)
+                    return Option.None<T>();
+
+                return ((T)(object)new OnEntityTakeHealingEvent(e.Entity, (IHealing)e.Change)).Some();
+            }
+        }
+
+
+        public static Adam.CreationInfo CreationInfo(this IEntity ent)
+        {
+            return ent.GetWorldRepresentation().TryGetComponent(out CreationInfoContainer ctx) ? ctx.Info : Adam.CreationInfo.Scene();
+        }
+
+
+        public static string FormatLog(string author, params object[] stuff)
         {
             var _source = string.Join(" || ", stuff);
 
-            Debug.Log($"[{author.Name}] :: {_source}");
+            return ($"[{author}] :: {_source}");
         }
+
+        public static string FormatLog(INameable author, params object[] stuff)
+        {
+            var _source = string.Join(" || ", stuff);
+
+            return ($"[{author.Name}] :: {_source}");
+        }
+        // public static void Log(INameable author, params object[] stuff)
+        // {
+        //     var _source = string.Join(" || ", stuff);
+        //
+        //     Debug.Log($"[{author.Name}] :: {_source}");
+        // }
 
 
         public static async UniTask FadeTo(this IAudioInstance instance, float targetVolume, float duration,
@@ -363,8 +495,8 @@ namespace DAFP.TOOLS.Common.Utill
                     num.Add(t);
                 }
             }
-            
-            index = num.PingPong(index+1);
+
+            index = num.PingPong(index + 1);
 
             return num[index];
         }
@@ -552,10 +684,10 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static string GetCurrentAnimation(this Animator animator)
         {
-            return _GetCurrentAnimation(animator);
+            return get_current_animation(animator);
         }
 
-        public static string _GetCurrentAnimation(Animator an)
+        private static string get_current_animation(Animator an)
         {
             if (an == null)
                 return "";
@@ -565,26 +697,26 @@ namespace DAFP.TOOLS.Common.Utill
             return "";
         }
 
-        public static bool TryDeInitialize(this IThinker thinker, IEntity host)
-        {
-            if (thinker.HasInitialized)
-                thinker.Dispose(host);
-            return thinker.HasInitialized;
-        }
+        // public static bool TryDeInitialize(this IThinker thinker, IEntity host)
+        // {
+        //     if (thinker.HasInitialized)
+        //         thinker.Dispose(host);
+        //     return thinker.HasInitialized;
+        // }
 
 
-        public static bool TryInitialize(this IThinker thinker, IEntity host)
-        {
-            if (!thinker.HasInitialized)
-                thinker.Initialize(host);
-            return !thinker.HasInitialized;
-        }
+        // public static bool TryInitialize(this IThinker thinker, IEntity host)
+        // {
+        //     if (!thinker.HasInitialized)
+        //         thinker.Initialize(host);
+        //     return !thinker.HasInitialized;
+        // }
 
-        public static void SwapBrains(this IEntity host, IThinker @new)
-        {
-            host.DeInitializeBrains(host.Brains);
-            host.InitializeBrains(@new);
-        }
+        // public static void SwapBrains(this IEntity host, IThinker @new)
+        // {
+        //     host.DeInitializeBrains(host.Brains);
+        //     host.InitializeBrains(@new);
+        // }
 
         public static void ApplyConcreteDeserialization(this IDictionary<string, object> dict)
         {
@@ -919,6 +1051,7 @@ namespace DAFP.TOOLS.Common.Utill
 
         //-- Cleaned up and it almost works 
 
+
         public static T DeepClone<T>(this T original) where T : ScriptableObject
         {
             return (T)deep_clone(original);
@@ -1151,7 +1284,7 @@ namespace DAFP.TOOLS.Common.Utill
         //     }
         // }
 
-        public static IInputController TryGetRootController(this BaseThinker thinker, Func<IInputController> fallback)
+        public static IInputController TryGetRootController(this Brain thinker, Func<IInputController> fallback)
         {
             IInputController _controller = null;
             var _root = ((IOwnedBy<IThinker>)thinker).GetRootOwner();
@@ -1166,6 +1299,7 @@ namespace DAFP.TOOLS.Common.Utill
 
             return _controller;
         }
+
 
         public static void DeepDestroy(this ScriptableObject instance)
         {
@@ -1289,6 +1423,14 @@ namespace DAFP.TOOLS.Common.Utill
             }
 
             return _list;
+        }
+
+        public static IEnumerable<Component> Components(this IEntity ent)
+        {
+            if (ent is Component _cp)
+                return ent.GetWorldRepresentation().GetComponents<Component>()
+                    .SkipWhile((component => component == _cp));
+            return ent.GetWorldRepresentation().GetComponents<Component>();
         }
 
         public static Vector3 LookVector(this IEntity arr)
@@ -1815,81 +1957,5 @@ namespace DAFP.TOOLS.Common.Utill
         {
             return new GameAssetInfo(poolable);
         }
-
-        public static UniTask<T> Spawn<T>(this IAssetManager manager, string address)
-            where T : Component
-            => manager.Spawn<T>(new GameAssetInfo(address));
-
-        // Spawn and place at position
-        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Vector3 position)
-            where T : Component
-        {
-            var _result = await manager.Spawn<T>(info);
-            _result.transform.position = position;
-            return _result;
-        }
-
-        // Spawn and place at position + rotation
-        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Vector3 position,
-            Quaternion rotation)
-            where T : Component
-        {
-            var _result = await manager.Spawn<T>(info);
-            _result.transform.SetPositionAndRotation(position, rotation);
-            return _result;
-        }
-
-        // Spawn and parent
-        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Transform parent)
-            where T : Component
-        {
-            var _result = await manager.Spawn<T>(info);
-            _result.transform.SetParent(parent);
-            return _result;
-        }
-
-        // Spawn, parent and place
-        public static async UniTask<T> Spawn<T>(this IAssetManager manager, GameAssetInfo info, Transform parent,
-            Vector3 localPosition)
-            where T : Component
-        {
-            var _result = await manager.Spawn<T>(info);
-            _result.transform.SetParent(parent);
-            _result.transform.localPosition = localPosition;
-            return _result;
-        }
-
-        // Spawn as GameObject
-        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info)
-        {
-            var _result = await manager.Spawn<Transform>(info);
-            return _result.gameObject;
-        }
-
-        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info,
-            Vector3 position)
-        {
-            var _result = await manager.Spawn(info);
-            _result.transform.position = position;
-            return _result;
-        }
-
-        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info,
-            Vector3 position, Quaternion rotation)
-        {
-            var _result = await manager.Spawn(info);
-            _result.transform.SetPositionAndRotation(position, rotation);
-            return _result;
-        }
-
-        public static async UniTask<GameObject> Spawn(this IAssetManager manager, GameAssetInfo info,
-            Transform parent)
-        {
-            var _result = await manager.Spawn(info);
-            _result.transform.SetParent(parent);
-            return _result;
-        }
-
-        // Spawn by string overloads
     }
 }

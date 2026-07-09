@@ -1,5 +1,6 @@
 ﻿using System;
 using DAFP.TOOLS.Common;
+using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.BigData
 {
@@ -25,37 +26,62 @@ namespace DAFP.TOOLS.ECS.BigData
 
         void IStatBase.SetAbsoluteMax(object value)
         {
+            value ??= default(T);
             try
             {
                 MaxValue = (T)value;
             }
             catch
             {
-                MaxValue = (T)Convert.ChangeType(value, typeof(T));
+                try
+                {
+                    MaxValue = (T)Convert.ChangeType(value, typeof(T));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("[IStat] :: Tried and failed to convert the desired value from SetAbsolute");
+                }
             }
         }
 
         void IStatBase.SetAbsoluteMin(object value)
         {
+            value ??= default(T);
             try
             {
                 MinValue = (T)value;
             }
             catch
             {
-                MinValue = (T)Convert.ChangeType(value, typeof(T));
+                try
+                {
+                    MinValue = (T)Convert.ChangeType(value, typeof(T));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("[IStat] :: Tried and failed to convert the desired value from SetAbsolute");
+                }
             }
         }
 
         void IStatBase.SetAbsoluteDefault(object value)
         {
+            value ??= default(T);
             try
             {
                 DefaultValue = (T)value;
             }
             catch
             {
-                DefaultValue = (T)Convert.ChangeType(value, typeof(T));
+                try
+                {
+                    DefaultValue = (T)Convert.ChangeType(value, typeof(T));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(
+                        $"[IStat] :: Tried and failed to convert the desired value from SetAbsoluteDefault. from : {value.GetType()}, to : {typeof(T)}");
+                }
             }
         }
 

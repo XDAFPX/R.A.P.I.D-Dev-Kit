@@ -2,16 +2,22 @@
 using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Services;
+using MessagePipe;
+using Unity.GraphToolkit.Editor;
 using UnityEngine;
 using UnityEngine.Events;
+using Zenject;
 
 namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 {
     public abstract class HurtBox<T> : EmptyEntity, IPetOf<HurtGroup<T>, HurtBox<T>>
     {
         public abstract HurtBoxData<T> GetCtx();
+        [Inject] private IPublisher<OnHurtBoxFlaggedEvent> flaggedEvent;
+        [Inject] private IPublisher<OnHurtBoxActivatedEvent> activatedEvent;
         [SerializeField] private UnityEvent OnHurt;
         [SerializeField] private UnityEvent<T> OnHurtT;
 
@@ -24,7 +30,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 
         public void FlagAsHit()
         {
-            BroadcastEvent(new OnHurtBoxFlaggedEvent() { HurtBox = this });
+            flaggedEvent.Publish(new OnHurtBoxFlaggedEvent(this));
         }
 
         public void Hurt(HitBox<T> box, T objThatHurtYou)
@@ -32,38 +38,15 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
             OnHurt?.Invoke();
             OnHurtT?.Invoke(objThatHurtYou);
 
-
-            BroadcastEvent(new OnHurtBoxActivatedEvent() { HitBox = box, HurtBox = this, Obj = objThatHurtYou });
-            BroadcastEvent(new HurtBoxActivatedEvent<T>()
-            {
-                Group = ((IPetOf<HurtGroup<T>, HurtBox<T>>)this).GetCurrentOwner(), HitBox = box, HurtBox = this,
-                Obj = objThatHurtYou
-            });
+            activatedEvent.
+                Publish(new OnHurtBoxActivatedEvent(this,HurtGroup,box,objThatHurtYou));
         }
 
 
         //------------------------------------ STUFFF
 
+        public HurtGroup<T> HurtGroup => ((IPetOf<HurtGroup<T>, HurtBox<T>>)this).GetCurrentOwner();
+        
         public List<HurtGroup<T>> Owners { get; } = new List<HurtGroup<T>>();
-    }
-
-    public struct OnHurtBoxFlaggedEvent
-    {
-        public IEntity HurtBox;
-    }
-
-    public struct HurtBoxActivatedEvent<T>
-    {
-        public HitBox<T> HitBox;
-        public HurtBox<T> HurtBox;
-        public HurtGroup<T> Group;
-        public T Obj;
-    }
-
-    public struct OnHurtBoxActivatedEvent
-    {
-        public IEntity HitBox;
-        public IEntity HurtBox;
-        public object Obj;
     }
 }

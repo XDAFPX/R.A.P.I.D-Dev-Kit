@@ -16,7 +16,7 @@ using Component = UnityEngine.Component;
 
 namespace DAFP.TOOLS.AssetManagement
 {
-    public abstract class AssetManager : IInitializable, IAssetManager, INameable
+    public abstract class AssetManager : IInitializable, IAssetManager, INameable,IAssetManagerLogic
     {
         protected readonly IAssetFactory AssetFactory;
 
@@ -83,17 +83,11 @@ namespace DAFP.TOOLS.AssetManagement
                 switch (_result)
                 {
                     case null:
-                        GameUtils.Log(this, $"Critical error! Pool({_pool.Prefix}) failed.");
+                        Debug.Log( $"Critical error! Pool({_pool.Prefix}) failed.");
                         continue;
                     case T _comp:
                     {
-                        AssetFactory.Create(_comp.gameObject);
                         _result.OnSpawn();
-                        if (_result is IEntity _ent)
-                        {
-                            var _e = new OnEntitySpawnedEvent(_ent);
-                            _ent.BroadcastEvent(_e);
-                        }
 
                         return _comp;
                     }

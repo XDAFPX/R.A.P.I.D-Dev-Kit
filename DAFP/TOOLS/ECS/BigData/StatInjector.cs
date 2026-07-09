@@ -297,12 +297,20 @@ namespace DAFP.TOOLS.ECS.BigData
         {
             var _path = new PathBuilder(field.statName);
             if (entity.Stats.Has(_path, out var _statBase))
-                field.member.SetValue(source, _statBase);
-            else
             {
-                var _naming = $"[{field.statName}] :: ({field.member.Name})";
-                throw new Exception($"StatInjector: failed to inject: {_naming} ::");
+                field.member.SetValue(source, _statBase);
+                return;
             }
+
+            var _declare = field.member.GetCustomAttribute<DeclareStatAttribute>();
+            if (_declare != null)
+            {
+                field.member.SetValue(source, try_generate_stat((field.member, _declare)));
+                return;
+            }
+
+            var _naming = $"[{field.statName}] :: ({field.member.Name})";
+            throw new Exception($"StatInjector: failed to inject: {_naming} ::");
         }
 
         // ── Stat Generation ───────────────────────────────────────────────────────
@@ -417,7 +425,6 @@ namespace DAFP.TOOLS.ECS.BigData
                 ? fallback
                 : try_convert(fallback, targetType);
 
-            inst.SetAbsoluteDefault(converted);
 
             // Compare against the type's zero to decide min vs max
             object zero = targetType.IsValueType ? Activator.CreateInstance(targetType) : null;
@@ -427,6 +434,9 @@ namespace DAFP.TOOLS.ECS.BigData
                 inst.SetAbsoluteMin(converted);
             else if (cmp > 0)
                 inst.SetAbsoluteMax(converted);
+
+            inst.SetAbsoluteDefault(converted);
+            inst.SetAbsoluteValue(converted);
         }
 
         // ── Utilities ─────────────────────────────────────────────────────────────

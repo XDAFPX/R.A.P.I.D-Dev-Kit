@@ -6,28 +6,28 @@ namespace DAFP.TOOLS.Common.TextSys
 {
     public record CompText : IMessage
     {
-        private readonly List<Span> _stack = new();
+        private readonly List<TextSpan> _stack = new();
 
 
-        public CompText(Span root)
+        public CompText(TextSpan root)
         {
             _stack.Add(root);
         }
 
         public CompText(string text, params CompStyle[] styles)
         {
-            _stack.Add(new Span(text, styles.Cast<IOwnedBy<Span>>().ToHashSet()));
+            _stack.Add(new TextSpan(text, styles.Cast<IOwnedBy<TextSpan>>().ToHashSet()));
         }
 
-        public CompText Add(Span span)
+        public CompText Add(TextSpan textSpan)
         {
-            _stack.Add(span);
+            _stack.Add(textSpan);
             return this;
         }
 
-        public CompText Remove(Span span)
+        public CompText Remove(TextSpan textSpan)
         {
-            _stack.Remove(span);
+            _stack.Remove(textSpan);
             return this;
         }
 
