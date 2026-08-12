@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using DAFP.TOOLS.Common.Utill;
+using FluentResults;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace DAFP.TOOLS.ECS.Serialization
 {
-    public interface ISerializer<in T> where T : ISavable
+    public interface ISerializer // TODO Make async
     {
-        public Dictionary<string, object> Save(T obj);
-        public void Load(Dictionary<string, object> save, T ent);
+        public Result<ISaveData> Serialize(ISavable savable);
+        public Result DeSerialize(ISaveData save, ISavable savable);
 
-        public string GetDomainName();
 
         public const string ENT_BASIC_DATA_NAME = "EntBasic";
         public const string ENT_ADDITIONS_DATA_NAME = "EntData";
@@ -89,20 +89,33 @@ namespace DAFP.TOOLS.ECS.Serialization
             return obj;
         }
 
-        public static void DefaultLoad(object data, object sv)
-        {
-            if (data == null)
-                return;
 
-            if (sv is ISavable saveable) saveable.Load(new GenericSaveData(data as Dictionary<string,object>) );
+        public static ISaveData DefaultSave(object sv)
+        {
+            if (sv is ISavable _saveable) return _saveable.Save();
+
+            return new GenericSaveData(new());
+        }
+    }
+
+    public interface ISerializer<in T> : ISerializer where T : ISavable
+    {
+        Result<ISaveData> ISerializer.Serialize(ISavable savable)
+        {
+            return GameUtils.ResolveAs<T>(savable).TryGetValue(out var _val)
+                ? Serialize(_val)
+                : Result.Fail(new Error($"[{GetType().Name}] ::Cannot serialize that type"));
         }
 
-        public static Dictionary<string, object> DefaultSave(object sv)
+        Result ISerializer.DeSerialize(ISaveData save, ISavable savable)
         {
-            var data = new Dictionary<string, object>();
-            if (sv is ISavable saveable) data.AddSave(saveable.Save().Data);
-
-            return data;
+            return GameUtils.ResolveAs<T>(savable).TryGetValue(out var _val)
+                ? DeSerialize(save, _val)
+                : Result.Fail(new Error($"[{GetType().Name}] ::Cannot deserialize that type"));
         }
+
+        public Result<ISaveData> Serialize(T obj);
+        public Result DeSerialize(ISaveData save, T ent);
+
     }
 }

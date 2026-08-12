@@ -15,5 +15,6 @@ namespace RapidLib.DAFP.TOOLS.Common
     public interface IHealthHandler : IHealingHandler,IDamageHandler
     {
         
+        
     }
 }

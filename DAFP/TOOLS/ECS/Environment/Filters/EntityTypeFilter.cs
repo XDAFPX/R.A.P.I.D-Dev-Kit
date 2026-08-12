@@ -50,19 +50,19 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
 
         public TriggerEntity.TriggerEvent Event { get; set; }
 
-        public bool Evaluate(GameObject go)
+        public bool Evaluate(GameObject go, IFilterContext ctx)
         {
             return go.TryGetComponent<IEntity>(out var _entity) && Matches(_entity);
         }
 
-        public bool Evaluate(IEntity go)
+        public bool Evaluate(IEntity go, IFilterContext ctx)
         {
             return Matches(go);
         }
 
         public bool EvalTrigger(TriggerEntity.TriggerEvent @event, UniversalCollider target)
         {
-            var val = Evaluate(target.gameObject);
+            var val = Evaluate(target.gameObject, EmptyFilterContext.Instance);
             LastStatus = val;
             return val;
         }

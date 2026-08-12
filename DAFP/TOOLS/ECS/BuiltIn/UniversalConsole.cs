@@ -7,8 +7,11 @@ using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
+using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.DebugSystem;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
+using MessagePipe;
 using R3;
 using RapidLib.DAFP.TOOLS.Common;
 using TMPro;
@@ -23,7 +26,8 @@ using Object = UnityEngine.Object;
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
     public class UniversalConsole : IConsoleMessenger, ISwitchable, IDebugSubSys,
-        IPetOf<IDebugSys<IGlobalGizmos, IConsoleMessenger>, IDebugSubSys>
+        IPetOf<IDebugSys<IGlobalGizmos, IConsoleMessenger>, IDebugSubSys>, IMessageHandler<OnSceneLoadEvent>,
+        IInitializable,IDisposable
     {
         [Inject]
         public UniversalConsole([Inject(Id = "ConsoleUnlocked")] bool unlocked,
@@ -42,6 +46,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             TMPConsoleFont = TMP_FontAsset.CreateFontAsset(ConsoleFont);
         }
 
+        [Inject] private ISubscriber<OnSceneLoadEvent> sceneE;
+         private IDisposable sub;
         protected ICommandInterpreter Interpreter;
         private readonly ControllerManager controllerManager;
         protected readonly Color ConsoleColor;
@@ -220,16 +226,19 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public void Tick()
         {
-            if (!initialized)
-            {
-                Init();
-            }
-
             UpdateTerminal();
+        }
+
+        public void Initialize()
+        {
+            Init();
         }
 
         protected virtual void Init()
         {
+            if (initialized)
+                return;
+            sub = sceneE.Subscribe(this);
             var _data = Setup();
             Root = _data.Item2;
             CommandLineContainer = _data.Item1;
@@ -250,6 +259,8 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         protected virtual void UpdateTerminal()
         {
+            if(!initialized)
+                return;
             var _ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
             var _shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             if (_ctrl && _shift && Input.GetKeyDown(KeyCode.D))
@@ -274,7 +285,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             {
                 if (_ctrl && Input.GetKeyDown(KeyCode.C))
                 {
-                    cts.Cancel();
+                    cancelCurrentProcess.Cancel();
                     dispose_of_current_process();
                     Debug.Log("[Console] Process canceled");
                 }
@@ -287,7 +298,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         }
 
         protected ITextProcess CurrentProcess;
-        private CancellationTokenSource cts;
+        private CancellationTokenSource cancelCurrentProcess;
         public Subject<IMessage> OutputStream;
 
 
@@ -312,7 +323,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         protected virtual async UniTask HandleInput()
         {
-            cts = new CancellationTokenSource();
+            cancelCurrentProcess = new CancellationTokenSource();
             var _input = CurrentInput.text;
             var _result = Process(_input);
             CurrentProcess = _result;
@@ -329,7 +340,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
             try
             {
-                await CurrentProcess.Execute(_ctx, cts.Token);
+                await CurrentProcess.Execute(_ctx, cancelCurrentProcess.Token);
                 if (CurrentProcess is not BuiltInCommands.ClearCommand && !_input.IsNullOrEmpty())
                     Print(IMessage.Literal("  "));
             }
@@ -352,7 +363,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         private void dispose_of_current_process()
         {
             CurrentProcess = null;
-            cts.Dispose();
+            cancelCurrentProcess.Dispose();
         }
 
         private void save_input_for_later(string input)
@@ -389,17 +400,17 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         protected virtual void ensure_visibility(bool again = false)
         {
-            if (Root.renderMode == RenderMode.ScreenSpaceCamera && Root.worldCamera == null)
+            SelectCamera(Root);
+            if (Root.renderMode != RenderMode.ScreenSpaceCamera || Root.worldCamera != null) return;
+            
+            if (again)
             {
-                if (again)
-                {
-                    Root.renderMode = RenderMode.ScreenSpaceOverlay;
-                    return;
-                }
-
-                Root.worldCamera = Camera.main;
-                ensure_visibility(true);
+                Root.renderMode = RenderMode.ScreenSpaceOverlay;
+                return;
             }
+
+            Root.worldCamera = Camera.main;
+            ensure_visibility(true);
         }
 
 
@@ -509,7 +520,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             var _canvas = root_init(out var _root, out var _cmdcontainer, out var _vertical);
 
             EnsureEventSystemExists(_canvas);
-            
+
             configure_layout(_vertical, true);
             _vertical.GetComponent<RectTransform>().AnchorTopLeft();
             _vertical.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
@@ -745,7 +756,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             var _canvas = root.AddComponent<Canvas>();
             _canvas.gameObject.AddComponent<GraphicRaycaster>();
             _canvas.renderMode = RenderMode.ScreenSpaceCamera;
-            _canvas.worldCamera = Camera.main;
+            SelectCamera(_canvas);
 
 
             _scrollRoot.transform.SetParent(root.transform, false);
@@ -775,6 +786,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
 
             return _canvas;
+        }
+
+        protected virtual void SelectCamera(Canvas _canvas)
+        {
+            _canvas.worldCamera = Camera.main;
         }
 
         protected virtual void configure_layout(HorizontalOrVerticalLayoutGroup layout, bool stretch = false)
@@ -928,5 +944,16 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         List<IDebugSys<IGlobalGizmos, IConsoleMessenger>>
             IPetOf<IDebugSys<IGlobalGizmos, IConsoleMessenger>, IDebugSubSys>.Owners { get; } = new();
+
+        public void Handle(OnSceneLoadEvent message)
+        {
+            SelectCamera(Root);
+        }
+
+        public void Dispose()
+        {
+            cancelCurrentProcess?.Dispose();
+            sub.Dispose();
+        }
     }
 }

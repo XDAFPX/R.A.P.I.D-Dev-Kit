@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.Environment;
 using DAFP.TOOLS.ECS.Services;
 using PixelRouge.CsharpExtensionMethods;
@@ -14,15 +15,8 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
 {
-    public class InfoEntityStart : EntFactory
-    {
-        [field: SerializeField]
-        protected override SerializableInterface<IAsyncFactory<IEnumerable<IEntity>>> Factory { get; set; }
 
-        [Inject] protected override ISpawnPointManager Manager { get; set; }
-    }
-
-    public abstract class EntFactory : EmptyEntity, ISpawnPoint, IPetOf<ISpawnPointManager, ISpawnPoint>
+    public abstract class EntFactory : EmptyEntity, ISpawnPoint, IPetOf<ISpawnPointManager, ISpawnPoint>,ITechnicalEntity
     {
         protected abstract SerializableInterface<IAsyncFactory<IEnumerable<IEntity>>> Factory { get; set; }
 

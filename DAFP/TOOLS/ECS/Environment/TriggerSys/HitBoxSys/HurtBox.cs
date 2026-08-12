@@ -2,18 +2,18 @@
 using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Services;
 using MessagePipe;
-using Unity.GraphToolkit.Editor;
 using UnityEngine;
 using UnityEngine.Events;
 using Zenject;
 
 namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
 {
-    public abstract class HurtBox<T> : EmptyEntity, IPetOf<HurtGroup<T>, HurtBox<T>>
+    public abstract class HurtBox<T> : EmptyEntity, IPetOf<HurtGroup<T>, HurtBox<T>>,ITechnicalEntity
     {
         public abstract HurtBoxData<T> GetCtx();
         [Inject] private IPublisher<OnHurtBoxFlaggedEvent> flaggedEvent;

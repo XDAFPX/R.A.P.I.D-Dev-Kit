@@ -10,6 +10,7 @@ using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Modifiers.Pegs;
@@ -22,6 +23,7 @@ using DAFP.TOOLS.ECS.ViewModel;
 using DAFP.TOOLS.Injection;
 using JetBrains.Annotations;
 using MessagePipe;
+using NRandom;
 using NUnit.Framework;
 using R3;
 using RapidLib.DAFP.TOOLS.Common;
@@ -36,7 +38,7 @@ namespace DAFP.TOOLS.ECS.Services
 {
     //A thing to manage entities without any consideration of any scene nor state
     public abstract class World : IEntity, IService, IOwnerOf<Ticker>, IInitializable, ITickable, IFixedTickable,
-        IResetable, IMessageHandler<OnEntityRegisterEvent>, IMessageHandler<OnEntityDeregisterEvent>
+        IResetable, IMessageHandler<OnEntityRegisterEvent>, IMessageHandler<OnEntityDeregisterEvent>,IDisposable
     {
         public static readonly Ticker EMPTY_TICKER = new(0, new HashSet<IGameState>());
         public readonly Ticker EmptyTicker = EMPTY_TICKER;
@@ -47,16 +49,19 @@ namespace DAFP.TOOLS.ECS.Services
 
 
         [Inject] public IGameStateHandler GameState { get; set; }
+        [Inject] public IRandom Rng { get; set; }
         [Inject] public ICursorStateHandler CursorState { get; set; }
         [Inject] public IAssetFactory AssetFactory { get; set; }
-        [Inject] public MessagePipe.ISubscriber<OnEntityDeregisterEvent> deregisterEvent;
-        [Inject] public MessagePipe.ISubscriber<OnEntityRegisterEvent> registeredEvent;
-        [Inject] public MessagePipe.IPublisher<OnEntityInitializedEvent> initializedEvent;
-        [Inject] public MessagePipe.IPublisher<OnEntityBecomePlayerEvent> becomePlayerEvent;
-        [Inject] public MessagePipe.IPublisher<OnEntityStopBeingPlayerEvent> stopPlayerEvent;
-        [Inject] public MessagePipe.IPublisher<OnWorldInitializeEvent> worldInitEvent;
+        [Inject] private MessagePipe.ISubscriber<OnEntityDeregisterEvent> deregisterEvent;
+        [Inject] private MessagePipe.ISubscriber<OnEntityRegisterEvent> registeredEvent;
+        [Inject] private MessagePipe.IPublisher<OnEntityInitializedEvent> initializedEvent;
+        [Inject] private MessagePipe.IPublisher<OnEntityBecomePlayerEvent> becomePlayerEvent;
+        [Inject] private MessagePipe.IPublisher<OnEntityStopBeingPlayerEvent> stopPlayerEvent;
+        [Inject] private MessagePipe.IPublisher<OnWorldInitializeEvent> worldInitEvent;
 
         [Inject] public ThinkerManager ThinkerManager;
+
+        [Inject] public ISpacePartitioningSystem SpacePartitioningSystem { get; set; }
 
         [Inject(Id = IVideoGame.DEFAULT_UPDATE)]
         public ITicker DefaultUpdate;
@@ -73,7 +78,10 @@ namespace DAFP.TOOLS.ECS.Services
         [Inject(Id = IVideoGame.PHYSICS_UPDATE)]
         public ITicker PhysicsUpdate;
 
-        public List<IEntity> Entities = new();
+        public IEnumerable<IEntity> Entities => registeredEntities;
+        private List<IEntity> registeredEntities = new();
+        internal List<IEntity> StandardEntities = new();
+
         public IEnumerable<IPlayer> Players => players;
         private readonly HashSet<IPlayer> players = new();
         protected readonly List<ITickerBase> Tickers = new();
@@ -107,7 +115,7 @@ namespace DAFP.TOOLS.ECS.Services
             id = Guid.NewGuid().ToString();
             Enabled = true;
             Memory = new BlackBoard(this);
-            Entities = Entities.ClearOfNulls().ToList();
+            clean_up_entities();
             Name = GetType().Name;
             var d1 = registeredEvent.Subscribe(this);
             var d2 = deregisterEvent.Subscribe(this);
@@ -120,6 +128,7 @@ namespace DAFP.TOOLS.ECS.Services
             //
             // DebugSystem.Log(this, $"the World ({this.Name}) is loading... ------- ");
         }
+
 
         private void init_world()
         {
@@ -185,7 +194,7 @@ namespace DAFP.TOOLS.ECS.Services
                 return;
             RegisterTicker(ticker);
             ticker.Subscribed.Add(ent);
-            Entities.Add(ent);
+            add_ent(ent);
             if (ent.GetWorldRepresentation().TryGetComponent(out IPlayer _player))
                 register_player(_player);
             // if (HasInitialized) //--TODO fix
@@ -194,6 +203,7 @@ namespace DAFP.TOOLS.ECS.Services
             // Debug.Log(
             //     $"[World]: Registered Entity... Name: {ent.GetType().Name} , WorldName: {(ent is Entity _entity ? _entity.name : "NoName")} ");
         }
+
 
         private void un_register_player(IPlayer player)
         {
@@ -213,14 +223,14 @@ namespace DAFP.TOOLS.ECS.Services
             becomePlayerEvent.Publish(_ev);
         }
 
-        public bool IsRegistered(IEntity ent) => Entities.Contains(ent);
+        public bool IsRegistered(IEntity ent) => registeredEntities.Contains(ent);
 
         private void un_register_entity([NotNull] IEntity ent)
         {
             try
             {
                 un_register_player(ent.TryGetPlayer());
-                Entities.Remove(ent);
+                remove_ent(ent);
                 Tickers.Find((@base => ent.EntityTicker == @base))?.Remove(ent);
                 foreach (var _entityComponent in ent.GetWorldRepresentation().GetComponents<IEntityComponent>())
                     if (_entityComponent.EntityComponentTicker != ent.EntityTicker)
@@ -231,6 +241,7 @@ namespace DAFP.TOOLS.ECS.Services
                 Debug.LogWarning($"[World] :: Unregistered entity : {ent.Name} was removed :: {_e} ");
             }
         }
+
 
         public void RegisterCustomComponentTicker([NotNull] IEntityComponent ent,
             [NotNull] ITicker ticker)
@@ -280,7 +291,8 @@ namespace DAFP.TOOLS.ECS.Services
                 return null;
             if (_ent.GetWorldRepresentation().GetComponent<IPlayer>() != null)
                 return null;
-            var _player = _ent.GetWorldRepresentation().AddComponent<Player>();
+            var _player = _ent.AddAndRegisterComponent<Player>();
+            
             _player.Data = data;
             register_player(_player);
             return _player;
@@ -297,7 +309,7 @@ namespace DAFP.TOOLS.ECS.Services
             var _oldData = player.Data;
             un_register_player(player);
             GameObject.Destroy(player);
-            var _newPlayer = newOwner.GetWorldRepresentation().AddComponent<Player>();
+            var _newPlayer = newOwner.AddAndRegisterComponent<Player>();
             _newPlayer.Data = _oldData.SetData(new BlackBoard(newOwner, _oldData.Memory.GetFullData()));
             register_player(_newPlayer);
         }
@@ -315,7 +327,7 @@ namespace DAFP.TOOLS.ECS.Services
 
         // public void SubscribeToOnTickEntities<T>(IEntity.TickCallBack callBack) where T : IEntity
         // {
-        //     foreach (var _entity in Entities)
+        //     foreach (var _entity in RegisteredEntities)
         //         if (_entity is T _breed)
         //             _breed.OnTick += callBack;
         // }
@@ -441,11 +453,11 @@ namespace DAFP.TOOLS.ECS.Services
         IEnumerable<IEntityAccessory> IOwnerOf<IEntityAccessory>.Pets => pets5;
         IEnumerable<Ticker> IOwnerOf<Ticker>.Pets => Tickers.OfType<Ticker>();
         public IEnumerable<object> AbsolutePets => Tickers.Cast<object>().Union(Entities);
-        public List<IEntity> Children => Entities;
+        public List<IEntity> Children => registeredEntities;
 
         public ISaveData Save()
         {
-            return new GenericSaveData();
+            return new GenericSaveData(new()); // TODO think if IEntity should be ISavable
         }
 
         public void Load(ISaveData saveData)
@@ -482,7 +494,7 @@ namespace DAFP.TOOLS.ECS.Services
                 return;
             if (transition is not IWorldTransitionInternal _internal)
                 return;
-            _internal.Transition(this);
+            _internal.Transition(this).Forget();
         }
 
         public GameplayTagContainer GameplayTag
@@ -494,12 +506,49 @@ namespace DAFP.TOOLS.ECS.Services
         public void ResetToDefault()
         {
             Tickers.ForEach((@base => @base.ResetToDefault()));
-            sub.Dispose();
-            Entities.Clear();
+            clear_entities();
             players.Clear();
             HasInitialized = false;
             shutDowned = false;
             Debug.Log($"[World]: The World was reset");
+        }
+
+        private void add_ent(IEntity ent)
+        {
+            registeredEntities.Add(ent);
+            try { SpacePartitioningSystem?.Add(ent); } catch { }
+            invalidate_entity_caches();
+        }
+
+        private void remove_ent(IEntity ent)
+        {
+            registeredEntities.Remove(ent);
+            try { SpacePartitioningSystem?.Remove(ent); } catch { }
+            invalidate_entity_caches();
+        }
+
+        private void clean_up_entities()
+        {
+            registeredEntities = Entities.ClearOfNulls().ToList();
+            try { SpacePartitioningSystem?.Clear(); foreach (var e in registeredEntities) SpacePartitioningSystem?.Add(e); } catch { }
+            invalidate_entity_caches();
+        }
+
+        private void clear_entities()
+        {
+            registeredEntities.Clear();
+            try { SpacePartitioningSystem?.Clear(); } catch { }
+            invalidate_entity_caches();
+        }
+
+        private void invalidate_entity_caches()
+        {
+            StandardEntities = Entities.Where((entity => entity is not ITechnicalEntity)).ToList();
+            InvalidateEntityCaches();
+        }
+
+        protected virtual void InvalidateEntityCaches()
+        {
         }
 
         // public T Create<T>() where T : Component, IEntity --moved to adam
@@ -549,5 +598,9 @@ namespace DAFP.TOOLS.ECS.Services
         //     return Create<EmptyEntity>(param1, param2);
         // }
         public IDebugSys<IGlobalGizmos, IConsoleMessenger> DebugSystem { get; } = null;
+        public void Dispose()
+        {
+            sub.Dispose();
+        }
     }
 }

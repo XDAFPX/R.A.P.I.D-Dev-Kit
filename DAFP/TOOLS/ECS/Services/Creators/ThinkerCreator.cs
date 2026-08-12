@@ -1,6 +1,8 @@
 ﻿using System.Linq;
 using Cysharp.Threading.Tasks;
+using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Environment.Filters;
 using DAFP.TOOLS.ECS.Thinkers;
 using FluentResults;
 using UnityEngine;
@@ -35,8 +37,10 @@ namespace DAFP.TOOLS.ECS.Services.Creators
 
         private IThinker deep_clone(IThinker original)
         {
+            #if UNITY_EDITOR
             if (original is Brain { EditMode: true })
                 return original;
+            #endif
             if (original is not ScriptableObject _so)
                 return original;
             return (IThinker)_so.DeepClone();
@@ -47,7 +51,7 @@ namespace DAFP.TOOLS.ECS.Services.Creators
         private void deep_inject(IThinker original)
         {
             injector.Inject(original);
-            original.AbsolutePets.OfType<IThinker>().ForEach(injector.Inject);
+            original.AllPets().ForEach(injector.Inject);
         }
     }
 }

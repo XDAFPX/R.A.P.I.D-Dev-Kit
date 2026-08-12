@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BDeshi.BTSM;
@@ -31,6 +32,30 @@ namespace DAFP.TOOLS.ECS.Thinkers
 #if UNITY_EDITOR
         [field: SerializeField] public bool EditMode { get; set; }
 #endif
+
+        [SerializeField] private ChildrenResolveStrategy Strategy;
+
+        // NOTE: Unity serializes enums by their underlying int value, not by name.
+        // The first two entries keep their original order/values (0, 1) so existing
+        // serialized data on prefabs/assets is preserved. New entries are appended.
+        private enum ChildrenResolveStrategy
+        {
+            /// <summary>Children run first, then this brain. Applied identically on Start, Tick, and End.</summary>
+            FirstTickChildren = 0,
+
+            /// <summary>This brain runs first, then children. Applied identically on Start, Tick, and End.</summary>
+            FirstTickMe = 1,
+
+            /// <summary>Only children run; this brain's own Start/Tick/End logic is skipped entirely.</summary>
+            ChildrenOnly = 2,
+
+            /// <summary>Only this brain runs; children are not started/ticked/ended by this brain.</summary>
+            MeOnly = 3,
+
+            /// <summary>Only brain runs, until throw children are not ticked by this brain.</summary>
+            RunChildrenOnlyWhenIThrow = 4
+        }
+
         [SerializeField] private List<SerializableInterface<IThinker>> ChildThinkers;
 
         private List<IDebugDrawable> debugDrawOwners = new();
@@ -45,22 +70,69 @@ namespace DAFP.TOOLS.ECS.Thinkers
         void IThinkerLogic.Start(IEntity host)
         {
             AnimationNameCacheInitializer.InitializeCaches(this);
+
             InternalStart(host);
-            init_debug_drawers(SetupDebugDrawers(host));
             initialize_children(host);
+
+            init_debug_drawers(SetupDebugDrawers(host));
         }
 
         void IThinkerLogic.Tick(IEntity host, ITickerBase ticker)
         {
-            tick_children(host, ticker);
-            InternalTick(host, ticker);
+            run_tick(host, ticker, Strategy);
         }
 
         void IThinkerLogic.End(IEntity host)
         {
             InternalEnd(host);
+            end_children(host);
         }
 
+        /// <summary>
+        /// Single source of truth for ordering. Used by Start, Tick, and End so that
+        /// whatever ordering rule the designer picked applies identically at every
+        /// lifecycle stage (no drift between how a brain wakes up and how it tears down).
+        /// </summary>
+        private void run_tick(IEntity host, ITickerBase ticker, ChildrenResolveStrategy strat)
+        {
+            switch (strat)
+            {
+                case ChildrenResolveStrategy.FirstTickChildren:
+                    tick_children(host, ticker);
+                    InternalTick(host, ticker);
+                    break;
+
+                case ChildrenResolveStrategy.FirstTickMe:
+                    InternalTick(host, ticker);
+                    tick_children(host, ticker);
+                    break;
+
+                case ChildrenResolveStrategy.ChildrenOnly:
+                    tick_children(host, ticker);
+                    break;
+
+                case ChildrenResolveStrategy.MeOnly:
+                    InternalTick(host, ticker);
+                    break;
+
+                case ChildrenResolveStrategy.RunChildrenOnlyWhenIThrow:
+
+                    try
+                    {
+                        InternalTick(host, ticker);
+                    }
+                    catch (Exception e)
+                    {
+                        tick_children(host, ticker);
+                    }
+
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(Strategy), Strategy, "Unhandled ChildrenResolveStrategy");
+            }
+        }
 
 
         protected abstract void InternalStart(IEntity host);
@@ -68,7 +140,7 @@ namespace DAFP.TOOLS.ECS.Thinkers
         protected abstract void InternalEnd(IEntity host);
         protected abstract IEnumerable<IDebugDrawer> SetupDebugDrawers(IEntity host);
 
-        private void de_init_debug_drawers() //--move
+        private void de_init_debug_drawers() //--move //TODO
         {
             if (debugDrawPets == null || debugDrawPets.IsEmpty())
                 return;
@@ -94,25 +166,33 @@ namespace DAFP.TOOLS.ECS.Thinkers
             }
 
             DebugSystem.AddPet(this);
-
         }
 
         private void tick_children(IEntity host, ITickerBase ticker)
         {
             foreach (var _child in ChildThinkers)
             {
-                if(_child.Value is  IThinkerLogic _l)
+                if (_child.Value is IThinkerLogic _l)
                     _l.Tick(host, ticker);
             }
         }
 
+
+        private void end_children(IEntity host) //bad vibe
+        {
+            foreach (var _child in ChildThinkers)
+            {
+                if (_child.Value is IThinkerLogic _l)
+                    _l.End(host);
+            }
+        }
 
         private void initialize_children(IEntity host)
         {
             foreach (var _child in ChildThinkers)
             {
                 (_child.Value).ChangeOwner((IThinker)this);
-                if(_child.Value is  IThinkerLogic _l)
+                if (_child.Value is IThinkerLogic _l)
                     _l.Start(host);
             }
         }
@@ -144,7 +224,13 @@ namespace DAFP.TOOLS.ECS.Thinkers
 
         List<IThinker> IPetOwnerTreeOf<IThinker>.Owners => ParentThinkers;
 
-        IEnumerable<object> IOwnerBase.AbsolutePets => debugDrawPets.Union(ChildThinkers.ToValues());
+        IEnumerable<object> IOwnerBase.AbsolutePets => AbsolutePets();
+
+
+        protected virtual IEnumerable<object> AbsolutePets()
+        {
+            return debugDrawPets.Union(ChildThinkers.ToValues());
+        }
 
         public void AddPet(IDebugDrawable pet)
         {
@@ -161,6 +247,10 @@ namespace DAFP.TOOLS.ECS.Thinkers
             return true;
         }
 
-        public string Name { get; set; }
+        public string Name
+        {
+            get => name;
+            set => name = value;
+        }
     }
 }

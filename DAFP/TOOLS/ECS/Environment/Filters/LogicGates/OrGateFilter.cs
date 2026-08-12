@@ -10,13 +10,13 @@ namespace DAFP.TOOLS.ECS.Environment.Filters.LogicGates
         [SerializeField] private SerializableInterface<IFilter<T>> Child;
         [SerializeField] private SerializableInterface<IFilter<T>> Child2;
 
-        public bool Evaluate(T go)
+        public bool Evaluate(T go, IFilterContext ctx)
         {
             if (Child2.Value == null)
                 return false;
             if (Child.Value == null)
                 return false;
-            return Child.Value.Evaluate(go) || Child2.Value.Evaluate(go);
+            return Child.Value.Evaluate(go, ctx) || Child2.Value.Evaluate(go, ctx);
         }
     }
     [Serializable] public class OrGameObjectFilter : OrGateFilter<GameObject>{}

@@ -6,56 +6,51 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
     [Serializable]
     public class ExcludeSelfFilter : IFilter<IEntity>, IFilter<GameObject>
     {
-        private GameObject myself;
-        private IEntity myself2;
-
-        void IFilter<GameObject>.Initialize(object self)
+        private static (GameObject go, IEntity ent) ResolveSelf(IFilterContext ctx)
         {
-            initialize_self_references(self);
-        }
-
-
-        void IFilter<IEntity>.Initialize(object self)
-        {
-            initialize_self_references(self);
-        }
-
-        private void initialize_self_references(object self)
-        {
-            switch (self)
+            switch (ctx)
             {
-                case GameObject s:
-                    myself = s;
-                    break;
-                case IEntity s2:
-                    myself2 = s2;
-                    break;
+                case EntityFilterContext ectx:
+                    return (ectx.SelfGO, ectx.Self);
+                case GameObjectFilterContext gctx:
+                    return (gctx.Self, null);
+                default:
+                    return (null, null);
             }
         }
 
-        public bool Evaluate(IEntity go)
+        
+        public bool Evaluate(IEntity go, IFilterContext ctx)
         {
-            if (myself == null && myself2 == null)
-                Debug.LogWarning(
-                    $"Warning an ExcludeSelf filter doesnt reference self (myself==null &&myself2==null) go={go}");
+            
+            
+            var (selfGO, selfEnt) = ResolveSelf(ctx);
+            if (selfGO == null && selfEnt == null)
+            {
+                Debug.LogError($"ExcludeSelfFilter used without self in context. go={go}");
+                return false;
+            }
 
-
-            if (myself2 != null)
-                return go.GetWorldRepresentation() != myself2.GetWorldRepresentation();
-            if (myself != null)
-                return go.GetWorldRepresentation() != myself;
+            if (selfEnt != null)
+                return go.GetWorldRepresentation() != selfEnt.GetWorldRepresentation();
+            if (selfGO != null)
+                return go.GetWorldRepresentation() != selfGO;
             return false;
         }
 
-        public bool Evaluate(GameObject go)
+        public bool Evaluate(GameObject go, IFilterContext ctx)
         {
-            if (myself == null && myself2 == null)
-                Debug.LogWarning(
-                    $"Warning an ExcludeSelf filter doesnt reference self (myself==null &&myself2==null) go={go}");
-            
-            
-            if (myself != null)
-                return go != myself;
+            var (selfGO, selfEnt) = ResolveSelf(ctx);
+            if (selfGO == null && selfEnt == null)
+            {
+                Debug.LogWarning($"ExcludeSelfFilter used without self in context. go={go}");
+                return false;
+            }
+
+            if (selfGO != null)
+                return go != selfGO;
+            if (selfEnt != null)
+                return go != selfEnt.GetWorldRepresentation();
             return false;
         }
     }

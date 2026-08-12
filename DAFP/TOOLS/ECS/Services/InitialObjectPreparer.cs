@@ -6,6 +6,7 @@ using DAFP.TOOLS.AssetManagement;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.Components;
+using DAFP.TOOLS.Injection;
 using MessagePipe;
 using RapidLib.DAFP.TOOLS.Common;
 using TripleA.Utils.Extensions;
@@ -45,7 +46,6 @@ namespace DAFP.TOOLS.ECS.Services
                 await creationEvent.PublishAsync(new OnObjectCreatedAsyncEvent(_obj));
             }
 
-
             // internal bus
             foreach (var _obj in _prepared)
             {
@@ -58,29 +58,45 @@ namespace DAFP.TOOLS.ECS.Services
 
         private void prepare_recursive(Adam.CreationInfo param1, object param2, List<object> collected)
         {
-            if (GameUtils.ResolveAs<GameObject>(param2).TryGetValue(out var _val))
-            {
-                if (_val.TryGetComponent<RunnableContext>(out var _context))
-                {
-                    Debug.LogWarning(
-                        $"[{typeof(InitialObjectCreatePreparer)}] :: Almost injected a runnable context ({_context.GetType()}) whooops");
-                    return; // skip this branch entirely, including its children
-                }
+            if (param2 == null) return;
 
-                injector.InjectGameObject(_val);
-                CreationInfoContainer.EnsureOn(_val, param1);
-                if (_val.TryGetComponent<IEntity>(out var _entity))
+            // 1. Single GameObject resolution & cache
+            GameObject go = param2 as GameObject;
+            if (go == null && GameUtils.ResolveAs<GameObject>(param2).TryGetValue(out var resolvedGo))
+            {
+                go = resolvedGo;
+            }
+
+            // 2. Immediate RunnableContext Guard
+            if (param2 is RunnableContext || (go != null && go.TryGetComponent<RunnableContext>(out _)))
+            {
+                return; // Hard stop: Do not inject, do not collect, do not traverse children
+            }
+
+            // 3. Process GameObject-specific setup
+            if (go != null)
+            {
+                injector.InjectGameObject(go);
+                CreationInfoContainer.EnsureOn(go, param1);
+
+                if (go.TryGetComponent<IEntity>(out var _entity))
                 {
-                    scan_children(_val.transform, _entity);
+                    scan_children(go.transform, _entity);
                 }
             }
 
+            // 4. Inject object dependencies & initialize mods
             injector.Inject(param2);
+            if (param2 is IMod _mod)
+            {
+                _mod.Initialize();
+            }
             collected.Add(param2);
 
-            if (GameUtils.ResolveAs<GameObject>(param2).TryGetValue(out var _preparedObject))
+            // 5. Traverse children using cached GameObject reference
+            if (go != null)
             {
-                foreach (var _transform in _preparedObject.transform.Children())
+                foreach (var _transform in go.transform.Children())
                 {
                     prepare_recursive(param1, _transform.gameObject, collected);
                 }
@@ -91,8 +107,11 @@ namespace DAFP.TOOLS.ECS.Services
         {
             foreach (Transform _child in parent)
             {
-                var _entity = _child.GetComponent<IEntity>();
-                if (_entity != null)
+                // Never register pets that belong to a RunnableContext subtree
+                if (_child.TryGetComponent<RunnableContext>(out _))
+                    continue;
+
+                if (_child.TryGetComponent<IEntity>(out var _entity))
                 {
                     ((IPetOwnerTreeOf<IEntity>)owner).AddPet(_entity);
                 }

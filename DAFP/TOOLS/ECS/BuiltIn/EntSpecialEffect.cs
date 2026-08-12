@@ -81,10 +81,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public string UName => uName;
         public string Prefix => "Effects";
 
-        public Component Self()
-        {
-            return this;
-        }
         public void OnSpawn()
         {
             StartEffect();

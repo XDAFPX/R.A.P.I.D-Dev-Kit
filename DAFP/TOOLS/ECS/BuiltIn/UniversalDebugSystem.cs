@@ -90,7 +90,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public void Tick()
         {
-            Messenger.Tick();
             ((IDrawable)this).Draw();
             Display.Value.Tick();
         }

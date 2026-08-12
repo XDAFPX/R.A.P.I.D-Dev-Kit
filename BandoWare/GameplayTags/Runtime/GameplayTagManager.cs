@@ -16,6 +16,18 @@ namespace BandoWare.GameplayTags
       private static bool s_IsInitialized;
       private static bool s_HasBeenReloaded;
 
+      // Ensure a clean state whenever Unity enters Play Mode without domain reload (and at app start)
+      [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+      private static void ResetStatics()
+      {
+         s_TagDefinitionsByName = new Dictionary<string, GameplayTagDefinition>();
+         s_TagsDefinitions = Array.Empty<GameplayTagDefinition>();
+         s_Tags = Array.Empty<GameplayTag>();
+         s_IsInitialized = false;
+         // Clear the reload flag so editor warnings don't persist across sessions
+         s_HasBeenReloaded = false;
+      }
+
       public static ReadOnlySpan<GameplayTag> GetAllTags()
       {
          InitializeIfNeeded();
@@ -104,8 +116,11 @@ namespace BandoWare.GameplayTags
 
       public static void ReloadTags()
       {
+         // Fully reset internal caches so reinitialization is deterministic without relying on domain reloads
          s_IsInitialized = false;
          s_TagDefinitionsByName.Clear();
+         s_TagsDefinitions = Array.Empty<GameplayTagDefinition>();
+         s_Tags = Array.Empty<GameplayTag>();
 
          InitializeIfNeeded();
 

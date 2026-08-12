@@ -4,15 +4,19 @@ using DAFP.TOOLS.Common.TextSys;
 using Microsoft.Extensions.Logging;
 using R3;
 using UnityEngine;
+using Zenject;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace DAFP.TOOLS.ECS.Basic
 {
     public class StandardDebugLogger : ILogger
     {
+        [Inject] private LogLevel level;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception,
             Func<TState, Exception, string> formatter)
         {
+            if(logLevel < level)
+                return;
             switch (logLevel)
             {
                 case LogLevel.Trace:

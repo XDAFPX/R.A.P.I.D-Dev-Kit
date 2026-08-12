@@ -28,5 +28,10 @@ namespace DAFP.TOOLS.ECS
         {
             return new PlayerData(IsLocal, @new);
         }
+
+        public override string ToString()
+        {
+            return $"Local:{IsLocal}, Memory: {Memory}";
+        }
     }
 }

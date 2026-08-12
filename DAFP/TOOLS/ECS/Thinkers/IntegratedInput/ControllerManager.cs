@@ -5,23 +5,32 @@ using UnityEngine.InputSystem;
 
 namespace DAFP.TOOLS.ECS.Thinkers.IntegratedInput
 {
-    public class ControllerManager
+    public class ControllerManager : IDisposable
     {
         private readonly List<IInputController> controllers = new();
 
-        public T Create<T>(string name, InputActionAsset actions) where T : IInputController
+        public virtual T Create<T>(string name, InputActionAsset actions) where T : IInputController
         {
             var _controller = (T)Activator.CreateInstance(typeof(T), nonPublic: true);
             _controller.Init(name, actions);
             _controller.Enable();
-            register(_controller);
+            Register(_controller);
+            
             return _controller;
         }
 
-        private void register(IInputController controller)
+        protected virtual void Register(IInputController controller)
         {
             if (controller == null) return;
             controllers.Add(controller);
+        }
+
+        public virtual void Dispose()
+        {
+            foreach (var _inputController in controllers)
+            {
+                _inputController.Dispose();
+            }
         }
 
         public IEnumerable<IInputController> Controllers => controllers;

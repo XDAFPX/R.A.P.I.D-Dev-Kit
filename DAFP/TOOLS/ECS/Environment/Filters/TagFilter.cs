@@ -12,12 +12,12 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
     {
         [HideInInspector] public int TagMask;
 
-        public bool Evaluate(IEntity go)
+        public bool Evaluate(IEntity go, IFilterContext ctx)
         {
-            return Evaluate(go.GetWorldRepresentation());
+            return Evaluate(go.GetWorldRepresentation(), ctx);
         }
 
-        public bool Evaluate(GameObject go)
+        public bool Evaluate(GameObject go, IFilterContext ctx)
         {
             if (go == null) return false;
             var _allTags = TagRegistry.AllTags;

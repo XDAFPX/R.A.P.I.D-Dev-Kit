@@ -26,7 +26,7 @@ namespace DAFP.TOOLS.ECS.Basic
         private IDisposable sub;
 
         // default — uses ResolveAs<TOut> as translator, optionally silent on failure
-        public MessageRetranslator(bool asyncIn = false, bool asyncOut = false, bool silentOnFailure = false)
+        public MessageRetranslator(bool asyncIn = false, bool asyncOut = false, bool silentOnFailure = true)
         {
             this.silentOnFailure = silentOnFailure;
             isAsyncIn = asyncIn;
@@ -45,9 +45,10 @@ namespace DAFP.TOOLS.ECS.Basic
                 asyncTranslator = (msg, ct) => UniTask.FromResult(syncTranslator(msg));
         }
 
+        
         // sync → sync / sync → async
         public MessageRetranslator(Func<TIn, Result<TOut>> translator, bool asyncOut = false,
-            bool silentOnFailure = false)
+            bool silentOnFailure = true)
         {
             this.silentOnFailure = silentOnFailure;
             syncTranslator = translator;
@@ -57,7 +58,7 @@ namespace DAFP.TOOLS.ECS.Basic
 
         // async → sync / async → async
         public MessageRetranslator(Func<TIn, CancellationToken, UniTask<Result<TOut>>> translator,
-            bool asyncOut = false, bool silentOnFailure = false)
+            bool asyncOut = false, bool silentOnFailure = true)
         {
             this.silentOnFailure = silentOnFailure;
             asyncTranslator = translator;

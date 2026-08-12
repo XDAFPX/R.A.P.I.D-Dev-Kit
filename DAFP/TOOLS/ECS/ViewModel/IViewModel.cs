@@ -1,8 +1,10 @@
 ﻿using System;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
+using Optional;
 using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.ViewModel
@@ -12,8 +14,7 @@ namespace DAFP.TOOLS.ECS.ViewModel
         public IViewModel InitOwner(IEntity owner);
         public HurtGroup<IEntity> GetHurtGroup(IEntity owner);
 
-        public Compatability Parse(IAnimAction action);
-        public Compatability Do(IAnimAction action) => Parse(action);
+        public Option<UniTask> Resolve(IAnimAction action);
     }
 
     public interface IProceduralView : IDirectionProvider

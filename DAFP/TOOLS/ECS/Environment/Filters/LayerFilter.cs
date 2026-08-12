@@ -9,7 +9,7 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
         [Tooltip("GameObject must be on one of these layers to pass. Empty mask means no restriction.")]
         public LayerMask layers;
 
-        public bool Evaluate(GameObject go)
+        public bool Evaluate(GameObject go, IFilterContext ctx)
         {
             if (go == null) return false;
             if (layers.value == 0) return true; // No restriction
@@ -19,9 +19,9 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
 
         public TriggerEntity.TriggerEvent Event { get; set; }
         public bool? LastStatus { get; set; }
-        public bool Evaluate(IEntity go)
+        public bool Evaluate(IEntity go, IFilterContext ctx)
         {
-            return Evaluate(go.GetWorldRepresentation());
+            return Evaluate(go.GetWorldRepresentation(), ctx);
         }
     }
 }

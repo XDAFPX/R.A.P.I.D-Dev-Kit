@@ -7,12 +7,11 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
     {
         public TriggerEntity.TriggerEvent Event { get; set; }
 
-        bool IFilter<TriggerContext>.Evaluate(TriggerContext go)
+        bool IFilter<TriggerContext>.Evaluate(TriggerContext go, IFilterContext ctx)
         {
-            var _val = Evaluate(go.Target.gameObject);
+            var _val = Evaluate(go.Target.gameObject, ctx);
             LastStatus = _val;
             return _val;
-
         }
 
         public ITriggerFilter SetEvent(TriggerEntity.TriggerEvent triggerEvent)

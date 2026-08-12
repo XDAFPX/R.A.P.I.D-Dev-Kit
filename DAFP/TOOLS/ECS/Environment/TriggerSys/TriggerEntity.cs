@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.DebugSystem;
@@ -14,7 +15,7 @@ using Zenject;
 
 namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 {
-    public class TriggerEntity : CollidableFilterActionEntity<TriggerContext>
+    public class TriggerEntity : CollidableFilterActionEntity<TriggerContext>,ITechnicalEntity
     {
         [Inject] private IPublisher<OnTriggerActivatedEvent> e;
         private void OnTriggerEnter(Collider other) => handle(TriggerEvent.Enter, new UniversalCollider(other));

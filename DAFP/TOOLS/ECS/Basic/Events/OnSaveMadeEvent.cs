@@ -5,16 +5,16 @@ namespace DAFP.TOOLS.ECS.Basic.Events
 {
     public struct OnSaveMadeEvent : ISaveSystemEvent
     {
-        public OnSaveMadeEvent(ISaveSystem system, ISerializer<IEntity> serializer, ISerializationService service)
+        public OnSaveMadeEvent(ISaveSystem system, ISerializer<IEntity> serializer, ISerializationDataService dataService)
         {
             System = system;
             Serializer = serializer;
-            Service = service;
+            DataService = dataService;
         }
 
         public ISaveSystem System { get; }
         public ISerializer<IEntity> Serializer { get; }
-        public ISerializationService Service { get; }
+        public ISerializationDataService DataService { get; }
 
         public override string ToString()
         {

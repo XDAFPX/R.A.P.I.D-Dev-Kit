@@ -1,8 +1,10 @@
 ﻿using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using DAFP.TOOLS.ECS.ViewModel;
+using Optional;
 using PixelRouge.CsharpExtensionMethods;
 using RapidLib.DAFP.TOOLS.Common;
 using UnityEngine;
@@ -28,7 +30,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public bool Enabled { private set; get; } = true;
 
-        public IViewModel InitOwner(IEntity owner)
+        public virtual IViewModel InitOwner(IEntity owner)
         {
             Clear();
 
@@ -42,10 +44,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             return null;
         }
 
-        public Compatability Parse(IAnimAction action)
+        public virtual Option<UniTask> Resolve(IAnimAction action)
         {
-            return Compatability.NotSupported;
+            return Option.None<UniTask>();
         }
+
 
         public List<IEntity> Owners { get; } = new();
     }

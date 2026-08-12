@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.Basic.Events;
 using DAFP.TOOLS.ECS.Environment.Filters;
 using MessagePipe;
@@ -18,7 +19,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
     // }
 
 
-    public abstract class HitBox<T> : CollidableFilterActionEntity<T>, INameable, IAct
+    public abstract class HitBox<T> : CollidableFilterActionEntity<T>, INameable, IAct,ITechnicalEntity
     {
         protected override Color DebugColor => Color.softRed;
         [Inject] private IPublisher<OnHitBoxActivatedEvent> e;
@@ -66,10 +67,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
         protected override void InitializeInternal()
         {
             base.InitializeInternal();
-            foreach (var _filter in Filters.ToValues())
-            {
-                _filter.Initialize(((IOwnedBy<IEntity>)this).GetCurrentOwner());
-            }
+            // Filters are stateless now; no Initialize needed.
         }
 
         protected abstract IEnumerable<T> BuildContext(IEnumerable<HurtBox<T>> hits);

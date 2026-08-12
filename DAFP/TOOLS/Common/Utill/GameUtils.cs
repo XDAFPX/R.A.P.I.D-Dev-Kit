@@ -26,6 +26,7 @@ using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Components;
 using DAFP.TOOLS.ECS.Components.Movement;
 using DAFP.TOOLS.ECS.DebugSystem;
+using DAFP.TOOLS.ECS.Environment;
 using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Environment.Filters;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
@@ -171,7 +172,9 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static Adam.CreationInfo CreationInfo(this IEntity ent)
         {
-            return ent.GetWorldRepresentation().TryGetComponent(out CreationInfoContainer ctx) ? ctx.Info : Adam.CreationInfo.Scene();
+            return ent.GetWorldRepresentation().TryGetComponent(out CreationInfoContainer ctx)
+                ? ctx.Info
+                : Adam.CreationInfo.Scene();
         }
 
 
@@ -387,6 +390,88 @@ namespace DAFP.TOOLS.Common.Utill
             return _result;
         }
 
+        public static IVector Rotate(this IVector vector, float angleDegrees, IVector axis = null)
+        {
+            if (axis == null)
+                return Rotate2D(vector, angleDegrees);
+            switch (vector.Dimensions)
+            {
+                case 2:
+                    return Rotate2D(vector, angleDegrees);
+
+                case 3:
+                    // if (axis == null)
+                    //     throw new ArgumentException("3D rotation requires an axis.", nameof(axis));
+
+                    return Rotate3D(vector, angleDegrees, axis);
+
+                default:
+                    throw new NotSupportedException(
+                        $"Rotate() is only defined for 2D or 3D vectors (got {vector.Dimensions}D). " +
+                        "Rotation has no single well-defined meaning in other dimensions.");
+            }
+        }
+
+        private static IVector Rotate2D(IVector vector, float angleDegrees)
+        {
+            float rad = angleDegrees * Mathf.Deg2Rad;
+            float cos = Mathf.Cos(rad);
+            float sin = Mathf.Sin(rad);
+
+            float x = vector.GetValueAtDimension(0) ?? 0f;
+            float y = vector.GetValueAtDimension(1) ?? 0f;
+
+            float newX = x * cos - y * sin;
+            float newY = x * sin + y * cos;
+
+            return vector
+                .SetValueAtDimension(0, newX)
+                .SetValueAtDimension(1, newY);
+        }
+
+        private static IVector Rotate3D(IVector vector, float angleDegrees, IVector axis)
+        {
+            // Rodrigues' rotation formula:
+            // v_rot = v*cos(θ) + (k × v)*sin(θ) + k*(k·v)*(1 - cos(θ))
+            var k = axis.Normalized;
+
+            float ax = k.GetValueAtDimension(0) ?? 0f;
+            float ay = k.GetValueAtDimension(1) ?? 0f;
+            float az = k.GetValueAtDimension(2) ?? 0f;
+
+            float x = vector.GetValueAtDimension(0) ?? 0f;
+            float y = vector.GetValueAtDimension(1) ?? 0f;
+            float z = vector.GetValueAtDimension(2) ?? 0f;
+
+            float rad = angleDegrees * Mathf.Deg2Rad;
+            float cos = Mathf.Cos(rad);
+            float sin = Mathf.Sin(rad);
+
+            float dot = ax * x + ay * y + az * z;
+
+            float crossX = ay * z - az * y;
+            float crossY = az * x - ax * z;
+            float crossZ = ax * y - ay * x;
+
+            float oneMinusCos = 1f - cos;
+
+            float newX = x * cos + crossX * sin + ax * dot * oneMinusCos;
+            float newY = y * cos + crossY * sin + ay * dot * oneMinusCos;
+            float newZ = z * cos + crossZ * sin + az * dot * oneMinusCos;
+
+            return vector
+                .SetValueAtDimension(0, newX)
+                .SetValueAtDimension(1, newY)
+                .SetValueAtDimension(2, newZ);
+        }
+
+        public static IVector Randomize(this IVector a, IRandom rng, float randomize01 = 0.5f)
+        {
+            a = a.Normalized;
+            var _result = a.Rotate(rng.NextFloat(-360, 360) * randomize01);
+
+            return _result;
+        }
 
         public static void TransitionOrThrow<TStateConcrete, TState>(this IGlobalStateHandler<TState> handler)
             where TStateConcrete : TState, new() where TState : class, IDefinedState
@@ -681,6 +766,27 @@ namespace DAFP.TOOLS.Common.Utill
             return _components.ToArray();
         }
 
+        public static async UniTask Play(this Animator animator, string stateName, CancellationToken ct, int layer = 0)
+        {
+            animator.Play(stateName, layer, 0f);
+
+            // wait a frame so the animator actually enters the new state
+            await UniTask.Yield(PlayerLoopTiming.Update, ct);
+
+            var _stateInfo = animator.GetCurrentAnimatorStateInfo(layer);
+
+            // guard in case Play() didn't match a real state (e.g. wrong name/hash)
+            if (!_stateInfo.IsName(stateName) && _stateInfo.shortNameHash != Animator.StringToHash(stateName))
+            {
+                Debug.LogWarning($"[AnimatorExtensions] :: State '{stateName}' not found on layer {layer}");
+                return;
+            }
+
+            // normalizedTime reaches 1 when a non-looping state finishes one cycle
+            await UniTask.WaitUntil(
+                () => animator.GetCurrentAnimatorStateInfo(layer).normalizedTime >= 1f,
+                cancellationToken: ct);
+        }
 
         public static string GetCurrentAnimation(this Animator animator)
         {
@@ -872,24 +978,99 @@ namespace DAFP.TOOLS.Common.Utill
             return arr.Select((@interface => @interface.Value));
         }
 
+        public static IEnumerable<T> ToValues<T>(this IEnumerable<IStat<T>> arr)
+        {
+            return arr.Select((@interface => @interface.Value));
+        }
 
-        public static void Do(this IEnumerable<IViewModel> views, IAnimAction action)
+        public static IEnumerable<T> ToMaxValues<T>(this IEnumerable<IStat<T>> arr)
+        {
+            return arr.Select((@interface => @interface.MaxValue));
+        }
+
+        public static IEnumerable<T> ToMinValues<T>(this IEnumerable<IStat<T>> arr)
+        {
+            return arr.Select((@interface => @interface.MinValue));
+        }
+
+        public static IEnumerable<T> ToDefaultValues<T>(this IEnumerable<IStat<T>> arr)
+        {
+            return arr.Select((@interface => @interface.DefaultValue));
+        }
+
+// <summary>
+        /// Returns the elements that occur exactly once in the sequence
+        /// (i.e. items that don't equal any other item).
+        /// </summary>
+        public static IEnumerable<T> Unique<T>(
+            this IEnumerable<T> source,
+            IEqualityComparer<T>? comparer = null)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+
+            comparer ??= EqualityComparer<T>.Default;
+
+            return source
+                .GroupBy(x => x, comparer)
+                .Where(g => g.Count() == 1)
+                .Select(g => g.Key);
+        }
+
+        /// <summary>
+        /// Same as above, but lets you pick the key to compare by,
+        /// while still returning the original items.
+        /// </summary>
+        public static IEnumerable<T> Unique<T, TKey>(
+            this IEnumerable<T> source,
+            Func<T, TKey> keySelector,
+            IEqualityComparer<TKey>? comparer = null)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (keySelector == null) throw new ArgumentNullException(nameof(keySelector));
+
+            comparer ??= EqualityComparer<TKey>.Default;
+
+            return source
+                .GroupBy(keySelector, comparer)
+                .Where(g => g.Count() == 1)
+                .SelectMany(g => g); // returns the original items, not the key
+        }
+
+        public static async UniTask Do(this IEnumerable<IViewModel> views, IAnimAction action)
+        {
+            await views.Resolve(action);
+        }
+
+        public static async UniTask Resolve(this IEnumerable<IViewModel> views, IAnimAction action)
         {
             foreach (var _view in views.Enabled())
             {
-                _view.Do(action);
+                if (_view.Resolve(action).TryGetValue(out var _val))
+                {
+                    await _val;
+                }
             }
         }
 
-        public static void Do<T>(this IEnumerable<IViewModel> views, IAnimAction action) where T : IViewModel
+        // public static void Do<T>(this IEnumerable<IViewModel> views, IAnimAction action) where T : IViewModel
+        // {
+        //     foreach (var _view in views.Enabled())
+        //     {
+        //         if (_view is T _typedView)
+        //         {
+        //             _typedView.Do(action);
+        //         }
+        //     }
+        // }
+
+        public static float Value(this IRandom rng)
         {
-            foreach (var _view in views.Enabled())
-            {
-                if (_view is T _typedView)
-                {
-                    _typedView.Do(action);
-                }
-            }
+            return rng.NextFloat();
+        }
+
+        public static float Range(this IRandom rng, float a, float b)
+        {
+            return rng.NextFloat(a, b);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -978,6 +1159,14 @@ namespace DAFP.TOOLS.Common.Utill
         public static void DisableAll(this IEnumerable<ISwitchable> models)
         {
             foreach (var _switchable in models) _switchable.Disable();
+        }
+
+        public static void SetEnabled(this ISwitchable models, bool enabled)
+        {
+            if (enabled)
+                models.Enable();
+            else
+                models.Disable();
         }
 
         public static void EnableAll(this IEnumerable<ISwitchable> models)
@@ -1283,6 +1472,31 @@ namespace DAFP.TOOLS.Common.Utill
         //         }
         //     }
         // }
+        public static bool TryGetUniversalRigidbody(this GameObject go, out UniversalRigidbody rigidbody)
+        {
+            var rb3D = go.GetComponent<Rigidbody>();
+            if (rb3D != null)
+            {
+                rigidbody = new UniversalRigidbody(rb3D);
+                return true;
+            }
+
+            var rb2D = go.GetComponent<Rigidbody2D>();
+            if (rb2D != null)
+            {
+                rigidbody = new UniversalRigidbody(rb2D);
+                return true;
+            }
+
+            rigidbody = default;
+            return false;
+        }
+
+        /// <summary>Component convenience overload (e.g. call from any MonoBehaviour: this.TryGetUniversalRigidbody(...)).</summary>
+        public static bool TryGetUniversalRigidbody(this Component component, out UniversalRigidbody rigidbody)
+        {
+            return component.gameObject.TryGetUniversalRigidbody(out rigidbody);
+        }
 
         public static IInputController TryGetRootController(this Brain thinker, Func<IInputController> fallback)
         {
@@ -1299,6 +1513,7 @@ namespace DAFP.TOOLS.Common.Utill
 
             return _controller;
         }
+
 
 
         public static void DeepDestroy(this ScriptableObject instance)
@@ -1410,9 +1625,13 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static IEnumerable<T> FilterThrough<T>(this IEnumerable<T> arr, IFilter<T> filter)
         {
-            return filter.Filter(arr);
+            return filter.Filter(arr, EmptyFilterContext.Instance);
         }
 
+        public static IEnumerable<T> FilterThrough<T>(this IEnumerable<T> arr, IFilter<T> filter, IFilterContext ctx)
+        {
+            return filter.Filter(arr, ctx);
+        }
 
         public static IEnumerable<T> FilterThrough<T>(this IEnumerable<T> arr, IEnumerable<IFilter<T>> filters)
         {
@@ -1423,6 +1642,25 @@ namespace DAFP.TOOLS.Common.Utill
             }
 
             return _list;
+        }
+
+        public static IEnumerable<T> FilterThrough<T>(this IEnumerable<T> arr, IEnumerable<IFilter<T>> filters,
+            IFilterContext ctx)
+        {
+            IEnumerable<T> _list = arr;
+            foreach (var _filter in filters)
+            {
+                _list = _list.FilterThrough(_filter, ctx);
+            }
+
+            return _list;
+        }
+
+        public static T AddAndRegisterComponent<T>(this IEntity ent) where T : Component, IEntityComponent
+        {
+            var c = ent.GetWorldRepresentation().AddComponent<T>();
+            c.Register(ent);
+            return c;
         }
 
         public static IEnumerable<Component> Components(this IEntity ent)
@@ -1585,9 +1823,14 @@ namespace DAFP.TOOLS.Common.Utill
 
         public static IEnumerable<T> Filter<T>(this IFilter<T> filter, IEnumerable<T> ents)
         {
+            return filter.Filter(ents, EmptyFilterContext.Instance);
+        }
+
+        public static IEnumerable<T> Filter<T>(this IFilter<T> filter, IEnumerable<T> ents, IFilterContext ctx)
+        {
             foreach (var _entity in ents)
             {
-                if (filter.Evaluate(_entity))
+                if (filter.Evaluate(_entity, ctx))
                     yield return _entity;
             }
         }
@@ -1856,7 +2099,57 @@ namespace DAFP.TOOLS.Common.Utill
             _stats.Add(ent.Stats.Get("Health", () => new QuikStat<uint>(1)));
             _stats.Add(ent.Stats.Get("HP", () => new QuikStat<uint>(1)));
             _stats.Add(ent.Stats.Get("Hp", () => new QuikStat<uint>(1)));
+
+
             return _stats;
+        }
+
+        public static void GetMaxHealth(this IEntity ent, out Option<uint> Max)
+        {
+            var stats = GetHpStats(ent);
+
+
+            if (stats.ToValues().All((u => u == 1)))
+            {
+                Max = Option.None<uint>();
+                return;
+            }
+
+            var stat = stats.ToMaxValues().Unique().FirstOrDefault();
+
+            Max = stat.Some();
+        }
+
+        public static void GetDefaultHealth(this IEntity ent, out Option<uint> Max)
+        {
+            var stats = GetHpStats(ent);
+
+
+            if (stats.ToValues().All((u => u == 1)))
+            {
+                Max = Option.None<uint>();
+                return;
+            }
+
+            var stat = stats.ToDefaultValues().Unique().FirstOrDefault();
+
+            Max = stat.Some();
+        }
+
+        public static void GetHealth(this IEntity ent, out Option<uint> Hp)
+        {
+            var stats = GetHpStats(ent);
+
+
+            if (stats.ToValues().All((u => u == 1)))
+            {
+                Hp = Option.None<uint>();
+                return;
+            }
+
+            var stat = stats.ToValues().Unique().FirstOrDefault();
+
+            Hp = stat.Some();
         }
 
         public static void Noclip([NotNull] IEntity ent)
@@ -1943,6 +2236,11 @@ namespace DAFP.TOOLS.Common.Utill
                     .ToEnumerable() ?? world.Players.FirstOrDefault().ToEnumerable() ?? Array.Empty<IPlayer>(),
                 _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, null)
             };
+        }
+
+        public static IEnumerable<IEntity> StandardEntities(this World world)
+        {
+            return world.StandardEntities;
         }
 
         public static void DoForPlayer(this World world, Action<IPlayer> act,

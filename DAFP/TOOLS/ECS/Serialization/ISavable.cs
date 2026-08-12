@@ -10,19 +10,15 @@ namespace DAFP.TOOLS.ECS.Serialization
         public void Load(ISaveData saveData);
     }
 
-    public interface ISaveData
+    public  sealed class  GenericSaveData : ISaveData
     {
-        Dictionary<string, object> Data { get; }
-    }
+        private readonly Dictionary<string, object> _data;
 
-    public struct GenericSaveData : ISaveData
-    {
-        public GenericSaveData(Dictionary<string, object> data)
-        {
-            Data = data;
-        }
+        public GenericSaveData(Dictionary<string, object> data) => _data = data;
 
-        public Dictionary<string, object> Data { get; } 
+        public bool TryGet(string key, out object value) => _data.TryGetValue(key, out value);
+        public void Set(string key, object value) => _data[key] = value;
+        public IEnumerable<string> Keys => _data.Keys;
     }
 
 }

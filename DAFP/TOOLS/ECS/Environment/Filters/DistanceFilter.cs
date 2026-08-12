@@ -17,35 +17,28 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
         {
         }
 
-        private GameObject owner;
-
-        void IFilter<GameObject>.Initialize(object self)
+        private static GameObject ResolveOwner(IFilterContext ctx)
         {
-            initialize_owner_from_self(self);
+            switch (ctx)
+            {
+                case EntityFilterContext ectx:
+                    return ectx.SelfGO;
+                case GameObjectFilterContext gctx:
+                    return gctx.Self;
+                default:
+                    return null;
+            }
         }
 
-
-        void IFilter<IEntity>.Initialize(object self)
+        public bool Evaluate(IEntity go, IFilterContext ctx)
         {
-            initialize_owner_from_self(self);
+            return Evaluate(go.GetWorldRepresentation(), ctx);
         }
 
-        private void initialize_owner_from_self(object self)
+        public bool Evaluate(GameObject go, IFilterContext ctx)
         {
-            if (self is GameObject a)
-                owner = a;
-            if (self is IEntity ent)
-                owner = ent.GetWorldRepresentation();
-        }
-
-        public bool Evaluate(IEntity go)
-        {
-            return Evaluate(go.GetWorldRepresentation());
-        }
-
-        public bool Evaluate(GameObject go)
-        {
-            if (owner == null)
+            var owner = ResolveOwner(ctx);
+            if (owner == null || go == null)
                 return false;
             return Vector3.Distance(go.transform.position, owner.transform.position) < Distance;
         }
@@ -65,35 +58,28 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
         {
         }
 
-        private GameObject owner;
-
-        void IFilter<GameObject>.Initialize(object self)
+        private static GameObject ResolveOwner(IFilterContext ctx)
         {
-            initialize_owner_from_self(self);
+            switch (ctx)
+            {
+                case EntityFilterContext ectx:
+                    return ectx.SelfGO;
+                case GameObjectFilterContext gctx:
+                    return gctx.Self;
+                default:
+                    return null;
+            }
         }
 
-
-        void IFilter<IEntity>.Initialize(object self)
+        public bool Evaluate(IEntity go, IFilterContext ctx)
         {
-            initialize_owner_from_self(self);
+            return Evaluate(go.GetWorldRepresentation(), ctx);
         }
 
-        private void initialize_owner_from_self(object self)
+        public bool Evaluate(GameObject go, IFilterContext ctx)
         {
-            if (self is GameObject a)
-                owner = a;
-            if (self is IEntity ent)
-                owner = ent.GetWorldRepresentation();
-        }
-
-        public bool Evaluate(IEntity go)
-        {
-            return Evaluate(go.GetWorldRepresentation());
-        }
-
-        public bool Evaluate(GameObject go)
-        {
-            if (owner == null)
+            var owner = ResolveOwner(ctx);
+            if (owner == null || go == null)
                 return false;
             return Vector2.Distance(go.transform.position, owner.transform.position) < Distance;
         }

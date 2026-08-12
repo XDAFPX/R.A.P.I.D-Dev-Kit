@@ -8,15 +8,7 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
         [Tooltip("Child filters evaluated with logical AND. All must pass.")]
         public SerializableInterface<IFilter<T>>[] children;
 
-        public void Initialize(object self)
-        {
-            foreach (var _serializableInterface in children)
-            {
-                _serializableInterface.Value?.Initialize(self);
-            }
-        }
-
-        public bool Evaluate(T go)
+        public bool Evaluate(T go, IFilterContext ctx)
         {
             bool result = true;
 
@@ -26,7 +18,7 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
                 {
                     var child = children[i].Value;
                     if (child == null) continue; // null child is ignored
-                    if (!child.Evaluate(go))
+                    if (!child.Evaluate(go, ctx))
                     {
                         result = false;
                         break;
@@ -43,15 +35,7 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
         [Tooltip("Child filters evaluated with logical AND. All must pass.")]
         public SerializableInterface<IFilter<T>>[] children;
 
-        public void Initialize(object self)
-        {
-            foreach (var _serializableInterface in children)
-            {
-                _serializableInterface.Value?.Initialize(self);
-            }
-        }
-
-        public bool Evaluate(T go)
+        public bool Evaluate(T go, IFilterContext ctx)
         {
             bool result = true;
             if (children == null) return result;
@@ -59,7 +43,7 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
             {
                 var child = children[i].Value;
                 if (child == null) continue; // null child is ignored
-                if (!child.Evaluate(go))
+                if (!child.Evaluate(go, ctx))
                 {
                     result = false;
                     break;

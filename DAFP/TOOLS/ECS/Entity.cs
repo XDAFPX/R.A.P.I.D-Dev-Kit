@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using Archon.SwissArmyLib.Utils.Editor;
 using BandoWare.GameplayTags;
 using Cysharp.Threading.Tasks;
@@ -381,8 +382,6 @@ namespace DAFP.TOOLS.ECS
             {
                 Debug.LogWarning($"[{nameof(StatInjector)}] Bad stats detected at object '{name}' regenerating... ");
                 FixStats();
-                
-                
             }
 
             // Editor-time: check that every component on this GameObject has its GetComponentCache dependencies satisfied
@@ -444,6 +443,7 @@ namespace DAFP.TOOLS.ECS
             if (HasInitialized)
                 return;
             wake_up(World);
+            trigger_randomizers();
             initialize_tag();
             setup_entity_stats();
 
@@ -452,11 +452,19 @@ namespace DAFP.TOOLS.ECS
 
             initialize_view();
             InitializeInternal();
+
             // initialize_debug(); -- fuck this I should move this to somewhere else TODO
             HasInitialized = true;
             // DebugSystem.Log(World, $"{Name} entity is initialized");
         }
 
+        private void trigger_randomizers()
+        {
+            foreach (var _randomizer in GetComponents<IRandomizer>())
+            {
+                _randomizer.Randomize(Rng);
+            }
+        }
 
         private void initialize_view()
         {
@@ -541,6 +549,7 @@ namespace DAFP.TOOLS.ECS
                     _comp.Tick();
             }
         }
+        
 
 
         protected virtual Bounds CalculateBounds()
@@ -623,7 +632,7 @@ namespace DAFP.TOOLS.ECS
         // Saving & Loading
         public virtual ISaveData Save()
         {
-            return new GenericSaveData();
+            return new GenericSaveData(new());
         }
 
         public virtual void Load(ISaveData saveData)

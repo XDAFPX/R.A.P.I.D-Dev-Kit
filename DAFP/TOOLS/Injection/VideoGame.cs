@@ -23,6 +23,7 @@ using DAFP.TOOLS.ECS.Services.Destroyers;
 using DAFP.TOOLS.ECS.Thinkers.IntegratedInput;
 using DAFP.TOOLS.ECS.UI;
 using MessagePipe;
+using Microsoft.Extensions.Logging;
 using NRandom;
 using TNRD;
 using TripleA.Utils.Extensions;
@@ -53,6 +54,7 @@ namespace DAFP.TOOLS.Injection
         where TModManager : IModManager
 
     {
+        [SerializeField] private LogLevel GameLogLevel;
         [SerializeField] private GameObject[] UISystemPrefabs;
 
         [ReadOnly(OnlyWhilePlaying = true)] [SerializeField]
@@ -107,10 +109,11 @@ namespace DAFP.TOOLS.Injection
                 typeof(BuiltInCommands.PlayAudioCommand),
                 typeof(BuiltInCommands.MatCommand),
                 typeof(BuiltInCommands.NoclipCommand),
+                typeof(BuiltInCommands.KillCommand),
                 typeof(BuiltInCommands.PlayersCommand),
                 typeof(BuiltInCommands.ClearCommand),
                 typeof(BuiltInCommands.GodCommand),
-                typeof(BuiltInCommands.Buddha),
+                typeof(BuiltInCommands.BuddhaCommand),
                 typeof(BuiltInCommands.ShowFPSCommand),
                 typeof(BuiltInCommands.ShowPosCommand)
             };
@@ -163,7 +166,7 @@ namespace DAFP.TOOLS.Injection
             bind_scene_bootstrap_service();
             bind_save_systems();
             bind_ui_systems();
-            bind_console();
+            bind_debug();
             BindSpawnPointMangers();
             BindCameraManager();
             bind_mod_manager();
@@ -174,6 +177,7 @@ namespace DAFP.TOOLS.Injection
 
         protected virtual void BindLogger()
         {
+            Container.Bind<LogLevel>().FromInstance(GameLogLevel);
             Container.Bind<ILogger>().To<StandardDebugLogger>().AsSingle();
         }
 
@@ -200,6 +204,8 @@ namespace DAFP.TOOLS.Injection
 
             Container.BindLoggedMessageBrocker<OnSaveMadeEvent>(_options);
             Container.BindLoggedMessageBrocker<OnSaveLoadedEvent>(_options);
+
+            Container.BindLoggedMessageBrocker<OnSceneLoadEvent>(_options);
 
             Container.BindLoggedMessageBrocker<OnWorldInitializeEvent>(_options);
             Container.BindLoggedMessageBrocker<OnWorldDecisionEvent>(_options);
@@ -330,7 +336,7 @@ namespace DAFP.TOOLS.Injection
 
         private void bind_input_manager()
         {
-            Container.Bind<ControllerManager>().AsSingle().NonLazy();
+            Container.BindInterfacesAndSelfTo<ControllerManager>().AsSingle().NonLazy();
         }
 
         private void bind_debug_systems()
@@ -383,6 +389,11 @@ namespace DAFP.TOOLS.Injection
         }
 
 
+        protected virtual void BindWorldTransition()
+        {
+            Container.BindInterfacesTo<WorldTransition>().AsSingle();
+        }
+
         protected virtual Type GetDefaultGameState()
         {
             return typeof(NormalGameState<NormalCursorState>);
@@ -414,12 +425,19 @@ namespace DAFP.TOOLS.Injection
 
         private void bind_scene_bootstrap_service()
         {
+            Container.BindInterfacesAndSelfTo<SceneLoadHandler>().AsSingle();
             Container.BindInterfacesAndSelfTo<SceneBootStrap>().AsSingle();
         }
 
         private void bind_world()
         {
             Container.BindInterfacesAndSelfTo<ThinkerManager>().AsSingle().NonLazy();
+
+            BindWorldTransition();
+
+            // Space partitioning system
+            Container.BindInterfacesAndSelfTo<GridSpacePartitioningSystem>().AsSingle().NonLazy();
+
             Container.Bind<World>()
                 .To<TWorld>()
                 .AsSingle()
@@ -427,7 +445,6 @@ namespace DAFP.TOOLS.Injection
             Container.Bind<IInitializable>().To<World>().FromResolve();
             Container.Bind<ITickable>().To<World>().FromResolve();
             Container.Bind<IFixedTickable>().To<World>().FromResolve();
-            Container.BindInterfacesAndSelfTo<WorldDecisionMaker>().AsSingle().NonLazy();
             Container.BindInterfacesAndSelfTo<WorldEntityInitializer>().AsSingle().NonLazy();
         }
 
@@ -488,7 +505,7 @@ namespace DAFP.TOOLS.Injection
             Container.BindInterfacesAndSelfTo<RootUISys>().AsSingle().NonLazy();
         }
 
-        private void bind_console()
+        private void bind_debug()
         {
             bind_commands();
 
@@ -498,7 +515,7 @@ namespace DAFP.TOOLS.Injection
                 .To<TCommandInterpreter>()
                 .FromResolve();
 
-            Container.Bind<TConsoleService>().AsSingle().NonLazy();
+            Container.BindInterfacesAndSelfTo<TConsoleService>().AsSingle().NonLazy();
             Container.Bind<TGizmosService>().AsSingle().NonLazy();
             Container.Bind<TDebugService>().AsSingle().NonLazy();
             Container.Bind<ITickable>().To<TDebugService>().FromResolve();
@@ -526,14 +543,15 @@ namespace DAFP.TOOLS.Injection
         private void bind_mod_manager()
         {
             Container.Bind<TModManager>().AsSingle().NonLazy();
-            Container.Bind<IMod[]>().FromMethod((context => Mods.ToValues().ToArray())).AsCached();
+            Container.Bind<IMod[]>().WithId("EditorMods").FromMethod((context => Mods.ToValues().ToArray())).AsCached();
             Container.Bind<IModManager>().To<TModManager>().FromResolve();
+            Container.BindInterfacesAndSelfTo<EditorModsSys>().AsSingle();
         }
 
         private void bind_execution_order()
         {
             Container.BindExecutionOrder<SceneBootStrap>(Int32.MaxValue - 1);
-            Container.BindExecutionOrder<WorldDecisionMaker>(Int32.MaxValue);
+            Container.BindExecutionOrder<SceneLoadHandler>(Int32.MaxValue);
         }
     }
 
@@ -552,7 +570,6 @@ namespace DAFP.TOOLS.Injection
 
     public interface IVideoGame
     {
-        public const string GAME_BUS_NAME = "GameBus";
         public const string DEFAULT_UPDATE = "DefaultUpdate";
         public const string PHYSICS_UPDATE = "PhysicsUpdate";
         public const string VIEW_MODEL_UPDATE = "ViewModelUpdate";

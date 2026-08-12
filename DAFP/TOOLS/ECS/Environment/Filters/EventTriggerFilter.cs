@@ -16,7 +16,7 @@ namespace DAFP.TOOLS.ECS.Environment
         public TriggerEntity.TriggerEvent Event { get; set; }
 
 
-        public bool Evaluate(GameObject go)
+        public bool Evaluate(GameObject go, IFilterContext ctx)
         {
             var _val = (EventMask & Event) != 0;
             LastStatus = _val;

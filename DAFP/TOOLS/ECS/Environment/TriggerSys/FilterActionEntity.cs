@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using DAFP.TOOLS.Common;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.BuiltIn;
 using DAFP.TOOLS.ECS.Environment.Filters;
@@ -18,7 +19,7 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
 
         public void Eval(TContext context)
         {
-            if (!Filters.All(f => f.Value.Evaluate(context)))
+            if (!Filters.All(f => f.Value.Evaluate(context, EmptyFilterContext.Instance)))
                 return;
             act(context);
         }
@@ -29,13 +30,22 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
             var l = new List<TContext>(context);
 
 
-            foreach (var _filter in Filters.ToValues())
-            {
-                l = l.FilterThrough(_filter).ToList();
-            }
+            l = FilterContext(l);
 
             foreach (var _context in l)
                 act(_context);
+        }
+
+        protected virtual List<TContext> FilterContext(List<TContext> l)
+        {
+            foreach (var _filter in Filters.ToValues())
+            {
+                l = l.FilterThrough(_filter,
+                    new EntityFilterContext(
+                        ((IOwnedBy<IEntity>)this).GetCurrentOwner() ?? this)).ToList();
+            }
+
+            return l;
         }
 
         private void act(TContext context)
@@ -75,7 +85,6 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys
             foreach (var _filter in Filters.ToValues())
             {
                 Injector.Inject(_filter);
-                _filter.Initialize(this);
             }
 
             foreach (var _action in Actions.ToValues())

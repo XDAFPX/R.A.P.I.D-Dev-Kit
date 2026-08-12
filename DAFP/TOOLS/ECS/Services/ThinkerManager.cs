@@ -20,10 +20,13 @@ namespace DAFP.TOOLS.ECS.Services
 {
     [Preserve]
     public sealed class ThinkerManager : IMessageHandler<OnEntityRegisterEvent>,
-        IMessageHandler<OnEntityDeregisterEvent>, IMessageHandler<OnEntityThinkerChangedEvent>, IDisposable,
+        IMessageHandler<OnEntityDeregisterEvent>, IMessageHandler<OnEntityThinkerChangedEvent>,
+        IMessageHandler<OnWorldInitializeEvent>,
+        IDisposable,
         IInitializable
     {
         [Inject] private ISubscriber<OnEntityRegisterEvent> reg;
+        [Inject] private ISubscriber<OnWorldInitializeEvent> worldEvent;
         [Inject] private IPublisher<OnEntityThinkerChangedEvent> thinkerChanged;
         [Inject] private ISubscriber<OnEntityThinkerChangedEvent> thinkerChangedsub;
         [Inject] private ISubscriber<OnEntityDeregisterEvent> dereg;
@@ -34,12 +37,18 @@ namespace DAFP.TOOLS.ECS.Services
         [Inject(Id = IVideoGame.THINKERS_UPDATE)]
         private ITicker thinkerUpdate;
 
+        public void Handle(OnWorldInitializeEvent message)
+        {
+            message.World.RegisterTicker(thinkerUpdate);
+        }
+
         public void Initialize()
         {
             var _d1 = reg.Subscribe(this);
             var _d2 = dereg.Subscribe(this);
             var _d3 = thinkerChangedsub.Subscribe(this);
-            sub = new CompositeDisposable(_d1, _d2, _d3);
+            var _d4 = worldEvent.Subscribe(this);
+            sub = new CompositeDisposable(_d1, _d2, _d3,_d4,thinkerUpdate);
         }
 
 

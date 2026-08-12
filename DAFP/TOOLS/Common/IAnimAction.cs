@@ -1,19 +1,39 @@
-﻿using DAFP.TOOLS.ECS.Environment.DamageSys;
+﻿using System.Threading;
+using DAFP.TOOLS.ECS.Environment.DamageSys;
 
 namespace RapidLib.DAFP.TOOLS.Common
 {
-        public interface IAnimAction
-        {
-            public readonly struct HurtAction : IAnimAction
-            {
-                public readonly DamageInfo Info;
-                public HurtAction(in DamageInfo info) => Info = info;
-            }
+    public interface IAnimAction
+    {
+    }
 
-            public readonly struct HealAction : IAnimAction
-            {
-                public readonly HealingInfo Info;
-                public HealAction(in HealingInfo info) => Info = info;
-            }
+    public readonly struct HurtAction : IAnimAction
+    {
+        public readonly DamageInfo Info;
+
+        public HurtAction(in DamageInfo info)
+        {
+            Info = info;
         }
+    }
+
+    public readonly struct HealAction : IAnimAction
+    {
+        public readonly HealingInfo Info;
+
+        public HealAction(in HealingInfo info)
+        {
+            Info = info;
+        }
+    }
+
+    public readonly struct DieAction : IAnimAction
+    {
+        public readonly DamageInfo Info;
+
+        public DieAction(in DamageInfo info)
+        {
+            Info = info;
+        }
+    }
 }

@@ -3,18 +3,22 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using BandoWare.GameplayTags;
 using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common.Maths;
 using DAFP.TOOLS.Common.TextSys;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Audio;
+using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.BigData;
 using DAFP.TOOLS.ECS.BigData.Common;
 using DAFP.TOOLS.ECS.DebugSystem;
+using DAFP.TOOLS.ECS.Environment.DamageSys;
 using DAFP.TOOLS.ECS.Serialization;
 using DAFP.TOOLS.ECS.Services;
 using ModestTree;
 using NRandom;
+using Optional;
 using PixelRouge.Inspector.Extensions;
 using R3;
 using RapidLib.DAFP.TOOLS.Common;
@@ -73,7 +77,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             }
         }
 
-        public class PlayersCommand : ConsoleCommand
+        public class PlayersCommand : ConsoleCommand, IHiddenCommand
         {
             private readonly World world;
 
@@ -96,9 +100,17 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     return UniTask.CompletedTask;
                 }
 
+                if (world.Players.Count() == 1)
+                {
+                    var p = world.Players.First();
+                    context.Log.OnNext(IMessage.Literal("It's a single player game."));
+                    context.Log.OnNext(IMessage.Literal($"The player is {p.Body.Name}, data:{p.Data}"));
+                    return UniTask.CompletedTask;
+                }
+
                 context.Log.OnNext(IMessage.Literal($"There are {world.Players.Count()} players ::\n" + string.Join(
                     "\n", world.Players
-                        .Select(p => $" Player: name:'{p.Body.Name}', local:{p.Data.IsLocal}"))));
+                        .Select(p => $" Player: name:'{p.Body.Name}', data:{p.Data}"))));
                 return UniTask.CompletedTask;
             }
         }
@@ -129,10 +141,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             protected abstract UniTask Execute(TextProcessContext context, CancellationToken ct, IPlayer player);
         }
 
-        public class Buddha : OnePlayerCommand, IHiddenCommand
+        public class BuddhaCommand : OnePlayerCommand, IHiddenCommand
         {
             [Inject]
-            public Buddha(World world) : base(world)
+            public BuddhaCommand(World world) : base(world)
             {
             }
 
@@ -167,6 +179,28 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                 GameUtils.God(player.Body);
                 string _active = player.Body.Memory.Has("God") ? "ON" : "OFF";
                 context.Log.OnNext(IMessage.Literal($"godmode {_active}"));
+                return UniTask.CompletedTask;
+            }
+        }
+
+        public class KillCommand : OnePlayerCommand
+        {
+            [Inject]
+            public KillCommand(World world) : base(world)
+            {
+            }
+
+            public override string Name { get; set; } = "kill";
+
+            public override IMessage Description { get; set; } =
+                CompText.Literal("Kills an Entity");
+
+            protected override UniTask Execute(TextProcessContext context, CancellationToken ct, IPlayer player)
+            {
+                if (player.Body is IDamageable _damageable)
+                    _damageable.TakeDamage(new Damage(new DamageInfo(new QuikStat<uint>(uint.MaxValue)
+                        , new HealthChangeSource(player.Body.Some(), player.Body.Pos().ToGeneric().Some()),
+                        new GameplayTagContainer())));
                 return UniTask.CompletedTask;
             }
         }
@@ -261,10 +295,10 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         public class LoadLevelCommand : ConsoleCommand
         {
-            [Inject]private readonly ISaveSystem saveSystem;
-            [Inject]private readonly IRandom random;
-            [Inject]private readonly Adam adam;
-            [Inject]private readonly World world;
+            [Inject] private readonly ISaveSystem saveSystem;
+            [Inject] private readonly IRandom random;
+            [Inject] private readonly Adam adam;
+            [Inject] private readonly World world;
 
 
             public override string Name { get; set; } = "map";
@@ -281,7 +315,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
                 var _pos = world.Players(GameUtils.PlayerSelectionPolicy.SingleOut).FirstOrDefault()?.Body?.Pos() ??
                            Vector3.zero;
-                var _transition = await adam.Create<LevelTransition<SaveWorldTransition>>(_pos);
+                var _transition = await adam.Create<EntLevelTransition>(_pos);
                 if (int.TryParse(_result, out var _index))
                     _transition.Transition(_index);
                 else

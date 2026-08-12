@@ -14,7 +14,7 @@ using Zenject;
 namespace DAFP.TOOLS.AssetManagement
 {
     public class AssetPool<T, TP> :  IAssetPool<T, TP>
-        where T : IGamePoolable<TP> where TP : Component, IGamePoolable<TP>
+        where T : IGamePoolable<TP> where TP : Component, IGamePoolable<TP> //TODO figure out DO I really need Generics here and in Game Poolablej
     {
         public AssetPool(string prefix,
             bool collectionCheck = true,

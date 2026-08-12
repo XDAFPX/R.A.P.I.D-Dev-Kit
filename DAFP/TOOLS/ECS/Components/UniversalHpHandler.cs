@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common.Utill;
 using DAFP.TOOLS.ECS.Basic;
 using DAFP.TOOLS.ECS.Basic.Events;
@@ -19,6 +20,7 @@ namespace DAFP.TOOLS.ECS.Components
         [Inject] private IPublisher<OnEntityHealthChangedEvent> e;
         public UnityEvent<OnEntityTakeDamageEvent> OnTakeDmg;
         public UnityEvent<OnEntityTakeHealingEvent> OnTakeHeal;
+        
 
         protected override void OnInitialize()
         {
@@ -33,14 +35,14 @@ namespace DAFP.TOOLS.ECS.Components
 
             GetHealth().TakeDamage(damage);
             broadcast_take_damage(damage);
-            
-            
+
+
             if (Host is IDieable { Dead: true } _postDamageCheck)
             {
                 _postDamageCheck.Die(damage);
             }
             else
-                Host.View.Do(new IAnimAction.HurtAction(damage.Info));
+                Host.View.Do(new HurtAction(damage.Info)).Forget();
         }
 
         public void TakeHealing(IHealing healing)
@@ -53,7 +55,7 @@ namespace DAFP.TOOLS.ECS.Components
             GetHealth().TakeHealing(healing);
 
             broadcast_take_healing(healing);
-            Host.View.Do(new IAnimAction.HealAction(healing.Info));
+            Host.View.Do(new HealAction(healing.Info)).Forget();
         }
 
 

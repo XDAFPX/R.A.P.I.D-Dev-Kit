@@ -7,6 +7,6 @@ namespace DAFP.TOOLS.ECS.Basic
         ISaveSystem System { get; }
 
         ISerializer<IEntity> Serializer { get; } //TODO change to a system of Serializers of different kinds
-        ISerializationService Service { get; } 
+        ISerializationDataService DataService { get; } 
     }
 }

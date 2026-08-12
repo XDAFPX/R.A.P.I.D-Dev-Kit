@@ -338,8 +338,8 @@ namespace Bdeshi.Helpers.Utility
 
         public void Load(ISaveData saveData)
         {
-            var _save = saveData.Data;
-            if (_save.TryGetValue("time", out var _value))
+            var _save = saveData;
+            if (_save.TryGet("time", out var _value))
             {
                 Timer = (float)_value;
             }

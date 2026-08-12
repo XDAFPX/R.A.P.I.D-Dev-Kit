@@ -16,7 +16,7 @@ namespace DAFP.TOOLS.ECS
         [Inject] protected World World;
         [Inject] protected Adam Adam;
 
-        [Inject] protected IRandom RandomSys;
+        [Inject] protected IRandom Rng;
 
         public IEntity Host { get; private set; }
         protected abstract void OnTick();

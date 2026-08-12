@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using DAFP.TOOLS.Common;
 using DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys;
 using DAFP.TOOLS.ECS.ViewModel;
+using Optional;
 using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.BuiltIn
@@ -29,6 +31,11 @@ namespace DAFP.TOOLS.ECS.BuiltIn
         public HurtGroup<IEntity> GetHurtGroup(IEntity owner)
         {
             return null;
+        }
+
+        public Option<UniTask> Resolve(IAnimAction action)
+        {
+            return Option.None<UniTask>();
         }
 
         public Compatability Parse(IAnimAction action)

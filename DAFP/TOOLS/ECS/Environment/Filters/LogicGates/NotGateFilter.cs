@@ -8,11 +8,11 @@ namespace DAFP.TOOLS.ECS.Environment.Filters.LogicGates
     public class NotGateFilter<T>: IFilter<T>
     {
         [SerializeField] private SerializableInterface<IFilter<T>> Child;
-        public bool Evaluate(T go)
+        public bool Evaluate(T go, IFilterContext ctx)
         {
             if (Child.Value == null)
                 return false;
-            return !Child.Value.Evaluate(go);
+            return !Child.Value.Evaluate(go, ctx);
         }
     } 
     [Serializable] public class NotGameObjectFilter : NotGateFilter<GameObject>{}

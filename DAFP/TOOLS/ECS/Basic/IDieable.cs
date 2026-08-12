@@ -2,11 +2,14 @@
 
 namespace DAFP.TOOLS.ECS.Basic
 {
-    public interface IDieable
+    public interface IDieable : IDeathHandler
     {
         bool Alive => !Dead;
         bool Dead { get; }
+    }
 
-        IDieable Die(IDamage lethal);
+    public interface IDeathHandler
+    {
+        void Die(IDamage lethal);
     }
 }

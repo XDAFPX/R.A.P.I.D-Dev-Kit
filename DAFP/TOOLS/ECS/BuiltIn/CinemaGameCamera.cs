@@ -20,6 +20,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
     [RequireComponent(typeof(CinemachineBrain))]
     public class CinemaGameCamera : EmptyEntity, IGameCamera
     {
+        [SerializeField]private CameraSubjectPolicy Policy = CameraSubjectPolicy.FollowAll;
         [Inject] private ICameraManager cameraManager;
         [GetComponent] private CinemachineBrain brain;
 
@@ -186,7 +187,6 @@ namespace DAFP.TOOLS.ECS.BuiltIn
 
         private ITargetOf<IEntity> _lockedTarget;
 
-        private static readonly CameraSubjectPolicy policy = CameraSubjectPolicy.FollowAll;
 
         private void set_camera_targets(IEnumerable<IEntity> subjects)
         {
@@ -196,7 +196,7 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             var _cam = get_vcam();
             if (_cam == null) return;
 
-            switch (policy)
+            switch (Policy)
             {
                 case CameraSubjectPolicy.FollowAll:
                 {
@@ -206,11 +206,16 @@ namespace DAFP.TOOLS.ECS.BuiltIn
                     {
                         var _go = _subject.GetWorldRepresentation();
                         if (_go == null) continue;
+
+                        // Size the target's radius of influence to match the entity's
+                        // actual footprint instead of a fixed 1f for every subject.
+                        float _radius = _subject.Bounds.extents.magnitude;
+
                         _group.Targets.Add(new CinemachineTargetGroup.Target
                         {
                             Object = _go.transform,
                             Weight = 1f,
-                            Radius = 1f
+                            Radius = _radius
                         });
                     }
 
@@ -270,23 +275,39 @@ namespace DAFP.TOOLS.ECS.BuiltIn
             cam.LookAt = _go.transform;
         }
 
+        // NOTE: _dummy and _targetGroup are deliberately NOT parented under this
+        // object's transform. This component sits on the same GameObject as the
+        // CinemachineBrain, which is itself a child of the camera being driven by
+        // that brain. Parenting the follow/look-at targets anywhere under that
+        // hierarchy creates a feedback loop: Cinemachine moves the camera rig ->
+        // the target (being a child of the rig) moves with it -> Cinemachine reads
+        // the new target position next frame -> moves the rig again. That loop is
+        // the source of the runaway drift/jitter bugs. Keeping these objects
+        // unparented (floating at scene root) breaks the loop.
         private Transform _dummy;
+        private CinemachineTargetGroup _targetGroup;
 
         private Transform get_or_create_dummy()
         {
             if (_dummy != null) return _dummy;
             _dummy = new GameObject("CameraCentroidDummy").transform;
-            _dummy.SetParent(transform);
             return _dummy;
         }
 
         private CinemachineTargetGroup get_or_create_target_group()
         {
-            var _group = GetComponentInChildren<CinemachineTargetGroup>();
-            if (_group != null) return _group;
+            if (_targetGroup != null) return _targetGroup;
             var _go = new GameObject("CameraTargetGroup");
-            _go.transform.SetParent(transform);
-            return _go.AddComponent<CinemachineTargetGroup>();
+            _targetGroup = _go.AddComponent<CinemachineTargetGroup>();
+            return _targetGroup;
+        }
+
+        private void OnDestroy()
+        {
+            // Since these are no longer children of this transform, Unity won't
+            // clean them up automatically when this object is destroyed.
+            if (_dummy != null) Destroy(_dummy.gameObject);
+            if (_targetGroup != null) Destroy(_targetGroup.gameObject);
         }
 
         protected enum CameraSubjectPolicy

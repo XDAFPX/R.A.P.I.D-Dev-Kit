@@ -41,9 +41,9 @@ namespace DAFP.TOOLS.ECS.Components
 
         public void Load(ISaveData saveData)
         {
-            var save = saveData.Data;
+            var save = saveData;
             foreach (var _cooldown in Cooldowns)
-                if (save.TryGetValue(_cooldown.Name, out var _value))
+                if (save.TryGet(_cooldown.Name, out var _value))
                     _cooldown.Load(new GenericSaveData(_value as Dictionary<string,object>));
         }
     }

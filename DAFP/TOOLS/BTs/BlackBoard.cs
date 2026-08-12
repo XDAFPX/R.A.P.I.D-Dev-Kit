@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text;
 using DAFP.TOOLS.ECS;
 using DAFP.TOOLS.ECS.Serialization;
 using UnityEngine;
@@ -16,19 +17,17 @@ namespace DAFP.TOOLS.BTs
     {
         private Dictionary<string, object> data = new();
 
-
         public BlackBoard(IEntity self)
         {
             data.Clear();
             data.Add("Self", self);
         }
 
-        public BlackBoard(IEntity self,Dictionary<string,object> @new)
+        public BlackBoard(IEntity self, Dictionary<string, object> @new)
         {
             data.Clear();
             data = @new;
             data["Self"] = self;
-            
         }
 
         public void Delete(string key)
@@ -70,12 +69,37 @@ namespace DAFP.TOOLS.BTs
 
         public ISaveData Save()
         {
-            return new GenericSaveData(data);
+            return new GenericSaveData(new Dictionary<string, object>(data));
         }
 
         public void Load(ISaveData saveData)
         {
-            data = saveData.Data;
+            data.Clear();
+            foreach (var _saveDataKey in saveData.Keys)
+            {
+                if (saveData.TryGet(_saveDataKey, out var _value))
+                {
+                    data[_saveDataKey] = _value;
+                }
+            }
+        }
+
+        public override string ToString()
+        {
+            if (data == null || data.Count == 0)
+                return "BlackBoard { Empty }";
+
+            var sb = new StringBuilder();
+            sb.AppendLine("BlackBoard {");
+
+            foreach (var kvp in data)
+            {
+                string valueStr = kvp.Value != null ? kvp.Value.ToString() : "null";
+                sb.AppendLine($"  [{kvp.Key}]: {valueStr}");
+            }
+
+            sb.Append("}");
+            return sb.ToString();
         }
     }
 }

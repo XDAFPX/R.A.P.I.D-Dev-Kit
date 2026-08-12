@@ -34,7 +34,13 @@ namespace DAFP.TOOLS.ECS.GlobalState
 
         public void Load(ISaveData saveData)
         {
-            Data = saveData.Data;
+            foreach (var _saveDataKey in saveData.Keys)
+            {
+                if (saveData.TryGet(_saveDataKey, out var _value))
+                {
+                    Data[_saveDataKey] = _value;
+                }
+            }
         }
     }
 }

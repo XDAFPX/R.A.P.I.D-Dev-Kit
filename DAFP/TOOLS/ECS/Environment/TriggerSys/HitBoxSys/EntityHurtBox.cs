@@ -16,4 +16,5 @@ namespace DAFP.TOOLS.ECS.Environment.TriggerSys.HitBoxSys
             return new HurtBoxData<IEntity>(ent,  new HurtBoxContext<IEntity>(this,((IOwnedBy<HurtGroup<IEntity>>)this).GetCurrentOwner()) );
         }
     }
+
 }

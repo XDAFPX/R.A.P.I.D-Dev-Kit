@@ -10,7 +10,7 @@ namespace DAFP.TOOLS.ECS.Environment.Filters
 
     public class EmptyFilter<T> : IFilter<T>
     {
-        public bool Evaluate(T go)
+        public bool Evaluate(T go, IFilterContext ctx)
         {
             return true;
         }

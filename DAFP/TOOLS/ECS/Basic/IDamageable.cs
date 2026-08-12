@@ -3,7 +3,8 @@ using RapidLib.DAFP.TOOLS.Common;
 
 namespace DAFP.TOOLS.ECS.Basic
 {
-    public interface IDamageable : IEntity, IDamageHandler
+    public interface IDamageable :  IDamageHandler
     {
     }
+    
 }
